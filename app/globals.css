@@ -76,3 +76,25 @@
     }
   }
 }
+
+/* Add to bottom of globals.css */
+@media (max-width: 768px) {
+  button, 
+  a, 
+  [role="button"],
+  .btn-primary,
+  .btn-secondary {
+    min-height: 44px; /* Apple's recommended touch target size */
+    touch-action: manipulation;
+  }
+  
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* Prevents zoom on focus in iOS */
+  }
+  
+  .card {
+    padding: 1rem; /* Less padding on mobile */
+  }
+}
