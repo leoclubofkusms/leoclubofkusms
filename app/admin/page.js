@@ -15,6 +15,7 @@ import {
   arrayUnion,
   getDoc
 } from 'firebase/firestore'
+import { setDoc } from 'firebase/firestore'
 import { signOut } from 'firebase/auth'
 import MemberTaggingSystem from '@/components/MemberTaggingSystem'
 import QRCertificate from '@/components/QRCertificate'
