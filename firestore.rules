@@ -1,20 +1,33 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Read access: Allow everyone to read
-    match /{document=**} {
+    // Helper function
+    function isAdmin() {
+      return request.auth != null && 
+        request.auth.token.email == 'admin@kusmsleoclub.com';
+    }
+    
+    // Members collection
+    match /members/{memberId} {
       allow read: if true;
+      allow write: if isAdmin();
+      allow create: if isAdmin() && 
+        request.resource.data.memberId == memberId &&
+        request.resource.data.name != null;
     }
     
-    // Write access: Only authenticated admin
-    match /members/{document} {
-      allow write: if request.auth != null && 
-        request.auth.email == 'admin@kusmsleoclub.com';
+    // Activities collection
+    match /activities/{activityId} {
+      allow read: if true;
+      allow write: if isAdmin();
+      allow create: if isAdmin() && 
+        request.resource.data.year != null &&
+        request.resource.data.month != null;
     }
     
-    match /activities/{document} {
-      allow write: if request.auth != null && 
-        request.auth.email == 'admin@kusmsleoclub.com';
+    // Prevent excessive reads
+    match /{document=**} {
+      allow list: if false;
     }
   }
 }
