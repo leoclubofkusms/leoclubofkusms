@@ -1,15 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['firebasestorage.googleapis.com', 'via.placeholder.com'],
-  },
-}
-
-module.exports = nextConfig
-
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  images: {
     domains: [
       'firebasestorage.googleapis.com', 
       'via.placeholder.com',
@@ -23,6 +14,7 @@ const nextConfig = {
         hostname: '**',
       },
     ],
+    unoptimized: true, // Helps with iOS Safari
   },
   // Add for better production builds
   swcMinify: true,
