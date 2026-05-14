@@ -162,21 +162,22 @@ export default function AdminDashboard() {
     
     try {
       const memberData = {
-        memberId: memberForm.memberId,
-        name: memberForm.name,
-        rollNo: memberForm.rollNo,
-        batch: memberForm.batch,
-        currentRole: memberForm.currentRole,
-        photoUrl: memberForm.photoUrl || 'https://via.placeholder.com/150',
-        activities: []
-      }
-      
-      if (editingMemberId) {
-        const memberRef = doc(db, 'members', editingMemberId)
-        await updateDoc(memberRef, memberData)
-        alert('Member updated successfully!')
-      } else {
-        await addDoc(collection(db, 'members'), memberData)
+  memberId: memberForm.memberId,
+  name: memberForm.name,
+  rollNo: memberForm.rollNo,
+  batch: memberForm.batch,
+  currentRole: memberForm.currentRole,
+  photoUrl: memberForm.photoUrl || 'https://via.placeholder.com/150',
+  activities: []
+}
+
+if (editingMemberId) {
+  const memberRef = doc(db, 'members', editingMemberId)
+  await updateDoc(memberRef, memberData)
+} else {
+  // Use memberId as the document ID for easy lookup
+  const memberRef = doc(db, 'members', memberForm.memberId)
+  await setDoc(memberRef, memberData)
         alert('Member added successfully!')
       }
       
