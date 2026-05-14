@@ -17,6 +17,12 @@
     "jspdf": "^2.5.1",
     "html2canvas": "^1.4.1",
     "react-select": "^5.8.0",
+    "framer-motion": "^10.16.16", // Add for animations
+    "react-hot-toast": "^2.4.1", // Better alerts
+    "uuid": "^9.0.1" // For unique IDs
+  }
+}
+    
     "date-fns": "^3.0.6"
   },
   "devDependencies": {
