@@ -37,11 +37,11 @@ export default function MemberTaggingSystem({ members, selectedParticipants, onP
       return
     }
 
-    const newParticipant = {
-      memberId: selectedMember.value,
-      memberName: selectedMember.member.name,
-      awardTitle: awardTitle || 'Participant'
-    }
+const newParticipant = {
+  memberId: selectedMember.value,
+  memberName: selectedMember.label.split(' (')[0], // Extract name from label
+  awardTitle: awardTitle || 'Participant'
+}
 
     onParticipantsChange([...selectedParticipants, newParticipant])
     setSelectedMember(null)
