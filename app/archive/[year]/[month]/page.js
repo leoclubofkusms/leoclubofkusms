@@ -59,6 +59,7 @@ export default function ArchivePage() {
     }
   }
 
+
   const getActivityId = (title) => {
     return title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
   }
@@ -86,6 +87,21 @@ export default function ArchivePage() {
             Next Month →
           </button>
         </div>
+
+// Add this loading component:
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-8">
+      {[1,2,3].map(i => (
+        <div key={i} className="card animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
+          <div className="h-32 bg-gray-200 rounded mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
         {loading ? (
           <div className="text-center py-12">Loading activities...</div>
