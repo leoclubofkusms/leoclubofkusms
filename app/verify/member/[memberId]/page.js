@@ -106,13 +106,24 @@ export default function VerifyMemberPage() {
       <div className="container mx-auto px-6 max-w-4xl">
         {/* Header Card */}
         <div className="card mb-8 text-center">
-          <div className="relative w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden border-4 border-secondary">
-            {member.photoUrl ? (
-              <Image src={member.photoUrl} alt={member.name} fill className="object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gray-200 flex items-center justify-center text-4xl font-bold text-gray-400">
-                {member.name.charAt(0)}
-              </div>
+<div className="relative w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden border-4 border-secondary">
+  {member.photoUrl ? (
+    <Image 
+      src={member.photoUrl} 
+      alt={member.name} 
+      fill 
+      className="object-cover"
+      sizes="(max-width: 768px) 100px, 128px"
+      onError={(e) => {
+        e.target.src = 'https://via.placeholder.com/150'
+      }}
+    />
+  ) : (
+    <div className="w-full h-full bg-gray-200 flex items-center justify-center text-4xl font-bold text-gray-400">
+      {member.name.charAt(0)}
+    </div>
+  )}
+</div>
             )}
           </div>
           
