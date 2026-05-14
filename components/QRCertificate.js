@@ -37,7 +37,7 @@ export default function QRCertificate({ member, onClose }) {
     }
   }
 
-  const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://yourdomain.com'}/verify/member/${member.memberId}`
+const verificationUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://yourdomain.com'}/verify/member/${member.memberId}`
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
   return (
