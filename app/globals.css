@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-medical-bg text-medical-text;
+  }
+  
+  h1 {
+    @apply text-4xl font-bold text-primary mb-4;
+  }
+  
+  h2 {
+    @apply text-2xl font-semibold text-primary mb-3;
+  }
+  
+  h3 {
+    @apply text-xl font-semibold text-primary mb-2;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-card border border-medical-border p-6 hover:shadow-card-hover transition-all duration-300;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white px-6 py-2.5 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium shadow-md hover:shadow-lg;
+  }
+  
+  .btn-secondary {
+    @apply border-2 border-primary text-primary px-6 py-2.5 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 font-medium;
+  }
+  
+  .btn-gold {
+    @apply bg-secondary text-primary px-6 py-2.5 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium shadow-md;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-2 border border-medical-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all;
+  }
+  
+  .label {
+    @apply block text-sm font-medium text-medical-text mb-1;
+  }
+  
+  .badge {
+    @apply px-2 py-1 text-xs font-semibold rounded-full;
+  }
+  
+  .badge-gold {
+    @apply bg-secondary bg-opacity-20 text-primary;
+  }
+  
+  .badge-navy {
+    @apply bg-primary text-white;
+  }
+}
+
+@layer utilities {
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+  
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    .print-only {
+      display: block !important;
+    }
+    body {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+  }
+}
