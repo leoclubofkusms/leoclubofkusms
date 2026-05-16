@@ -1,0 +1,113 @@
+I need you to build a COMPLETE, WORKING Leo Club Management System using Next.js 14 (App Router), Tailwind CSS, and Firebase.
+
+## PROJECT NAME: KUSMS Leo Club Portal
+
+## COMPLETE FEATURES REQUIRED:
+
+### 1. Database Schema (Firestore)
+Create these collections:
+- members (document ID = custom memberId e.g., "L2026JOHN")
+  Fields: memberId, name, rollNo, batch, currentRole, photoUrl, activities (array of {activityId, year, month, title, awardTitle})
+- activities (document ID = auto)
+  Fields: id, year, month, title, description, photos (array), participants (array of {memberId, awardTitle})
+
+### 2. Authentication
+- Only ONE admin user (hardcoded email/password)
+- Protect /admin route - redirect to login if not authenticated
+- Use Firebase Auth
+
+### 3. Admin Dashboard (/admin) - Full Working UI
+Build a professional medical-themed dashboard with:
+
+#### A. Activity Entry Form
+- Dropdown: Leo Year (2026/27, 2027/28, 2028/29, 2029/30, 2030/31)
+- Dropdown: Month (January to December)
+- Input: Activity Title
+- Textarea: Description
+- Input: Image URLs (comma separated)
+- Multi-select member tagging system:
+  - Searchable dropdown of all members
+  - Show member name + rollNo + batch
+  - For each selected member, allow assigning an "Award Title" (e.g., "Coordinator", "Leo of the Month", "Volunteer")
+- Submit button saves to Firestore AND updates each member's activities array
+
+#### B. Member Management
+- List all members with Edit/Delete
+- Add new member form (memberId, name, rollNo, batch, currentRole, photoUrl)
+- Members appear immediately in activity form dropdown
+
+#### C. Activity List
+- Show all past activities grouped by Year → Month
+- Edit/Delete buttons for each activity
+- View button to see public preview
+
+#### D. QR Code Generator
+- For any member, a button that generates a PDF certificate
+- Certificate includes: Member name, "Leo Club KUSMS" logo text, issue date, and a QR code that points to /verify/member/[memberId]
+- Use qrcode.react library
+
+### 4. Public Archive Page (/archive/[year]/[month])
+- Dynamic route: /archive/2026/august
+- Shows all activities for that specific month
+- Each activity displays: title, description, photos grid, participants list with their award titles
+- URL anchors: /archive/2026/august#leo-of-the-month scrolls to that section automatically
+- Back/forward navigation between months
+
+### 5. Live CV Verification Page (/verify/member/[memberId])
+- Publicly accessible page
+- Fetches member data from Firestore
+- QUERIES ALL ACTIVITIES across all years where memberId exists in participants array
+- Displays:
+  - Member photo, name, rollNo, batch, currentRole at top
+  - Chronological timeline (2026 → 2027 → 2028)
+  - For each activity: title, month/year, their specific award title/role, description snippet
+  - Link back to /archive/[year]/[month] as "View Full Activity"
+- Mobile responsive layout
+- Includes QR code on the page for sharing
+
+### 6. Home Page (/)
+- Hero section: Club name, tagline "Leadership Through Service"
+- Stats: Total members, Total activities, Years active
+- Latest 3 activities (cards with image, title, month, view button)
+- Call to action: "View Archives" and "Admin Login" buttons
+- Footer with contact/credits
+
+### 7. Navigation Bar
+- Logo: "KUSMS LEO CLUB"
+- Links: Home, Archive (dropdown of years 2026-2030), Verify (search box for memberId)
+- Admin login/logout button
+- Mobile responsive (hamburger menu)
+
+### 8. Styling (Tailwind) - Medical Professional Theme
+- Primary: #002147 (Navy)
+- Secondary: #D4AF37 (Gold)
+- Background: #F8FAFC (light gray-white)
+- Cards: White with subtle shadow and border
+- Buttons: Navy with gold hover effects
+- Font: Inter or system fonts
+- Fully responsive (mobile, tablet, desktop)
+
+### 9. Bug Fixes Required
+- Fix all missing React keys in maps
+- Fix Firebase initialization issues
+- Fix Next.js Image component with proper sizing
+- Add error boundaries
+- Add loading states
+- Fix any syntax errors
+
+## TECHNICAL REQUIREMENTS:
+- Use Firebase modular SDK (v9+)
+- Create .env.local file with these exact values:
+
+```
+
+NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyDqw6ik8Gf8rAOhcSDsw9a80Xf95H04CuM
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=kusms-leo-club.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=kusms-leo-club
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=kusms-leo-club.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=747401129626
+NEXT_PUBLIC_FIREBASE_APP_ID=1:747401129626:web:3bc712c8ca30605b82b923
+
+```
+
+- Admin credentials: Email: leoclubofkusms@gmail.com, Password: user will set in Firebase
