@@ -177,3 +177,60 @@ export async function deleteActivity(
   }
   await batch.commit();
 }
+
+// ── Manual Achievements ───────────────────────────────────────────────────────
+
+export interface ManualAchievementInput {
+  year: string;
+  month: string;
+  title: string;
+  description: string;
+  awardTitle: string;
+}
+
+export async function addManualAchievement(
+  memberId: string,
+  data: ManualAchievementInput
+): Promise<void> {
+  // Create a minimal activity document so the verify/archive pages can display it
+  const ref = await addDoc(collection(db, "activities"), {
+    year: data.year,
+    month: data.month,
+    title: data.title,
+    description: data.description,
+    photos: [],
+    participants: [{ memberId, awardTitle: data.awardTitle }],
+    manual: true,
+    id: "",
+  });
+  await updateDoc(ref, { id: ref.id });
+
+  // Push entry to member's activities array
+  await updateDoc(doc(db, "members", memberId), {
+    activities: arrayUnion({
+      activityId: ref.id,
+      year: data.year,
+      month: data.month,
+      title: data.title,
+      awardTitle: data.awardTitle,
+    }),
+  });
+}
+
+export async function removeManualAchievement(
+  memberId: string,
+  activityId: string
+): Promise<void> {
+  const memberSnap = await getDoc(doc(db, "members", memberId));
+  if (!memberSnap.exists()) return;
+  const member = memberSnap.data() as Member;
+  const filtered = member.activities.filter((a) => a.activityId !== activityId);
+  await updateDoc(doc(db, "members", memberId), { activities: filtered });
+  // Also delete the standalone activity doc if it was manual
+  try {
+    const actSnap = await getDoc(doc(db, "activities", activityId));
+    if (actSnap.exists() && actSnap.data().manual === true) {
+      await deleteDoc(doc(db, "activities", activityId));
+    }
+  } catch { /* ignore */ }
+}
