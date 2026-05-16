@@ -9,6 +9,7 @@ import AdminLoginPage from "@/pages/AdminLoginPage";
 import AdminDashboard from "@/pages/AdminDashboard";
 import ArchivePage from "@/pages/ArchivePage";
 import VerifyPage from "@/pages/VerifyPage";
+import MembersPage from "@/pages/MembersPage";
 
 const queryClient = new QueryClient();
 
@@ -94,6 +95,7 @@ function AppLayout() {
             <main className="flex-1">
               <Switch>
                 <Route path="/" component={HomePage} />
+                <Route path="/members" component={MembersPage} />
                 <Route path="/archive/:year/:month">
                   {(params) => <ArchivePage year={params.year} month={params.month} />}
                 </Route>

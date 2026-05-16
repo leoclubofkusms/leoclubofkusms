@@ -40,6 +40,10 @@ export default function Navbar() {
               Home
             </Link>
 
+            <Link href="/members" className="hover:text-[#D4AF37] transition-colors text-sm font-medium">
+              Members
+            </Link>
+
             {/* Archive dropdown */}
             <div className="relative">
               <button
