@@ -160,7 +160,7 @@ export default function QRGenerator() {
                   color: "#002147",
                   marginBottom: "4px",
                 }}>
-                  KUSMS Leo Club
+                  Leo Club of KUSMS
                 </div>
                 <div style={{ width: "60px", height: "2px", background: "#D4AF37", margin: "12px 0" }} />
 
@@ -179,7 +179,7 @@ export default function QRGenerator() {
                 </div>
 
                 <div style={{ fontSize: "12px", color: "#555", textAlign: "center", maxWidth: "340px", lineHeight: 1.6, fontFamily: "system-ui, sans-serif", marginBottom: "28px" }}>
-                  is a verified member of the KUSMS Leo Club,
+                  is a verified member of the Leo Club of Kathmandu University School of Medical Sciences (KUSMS),
                   dedicated to leadership through service.
                 </div>
 

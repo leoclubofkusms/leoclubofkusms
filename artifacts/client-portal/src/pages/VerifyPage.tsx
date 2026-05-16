@@ -140,7 +140,7 @@ export default function VerifyPage({ memberId }: VerifyPageProps) {
             <div className="text-sm text-gray-600">
               <span className="font-semibold text-[#002147]">{records.length}</span> activities recorded
             </div>
-            <div className="text-xs text-gray-400">KUSMS Leo Club — Official Record</div>
+            <div className="text-xs text-gray-400">Leo Club of KUSMS — Official Record</div>
           </div>
         </div>
 

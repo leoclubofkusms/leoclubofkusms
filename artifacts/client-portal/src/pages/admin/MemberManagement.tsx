@@ -493,11 +493,12 @@ export default function MemberManagement() {
                   type="text"
                   value={form.memberId}
                   onChange={(e) => setForm({ ...form, memberId: e.target.value })}
-                  placeholder="e.g. L2026JOHN"
+                  placeholder="e.g. MBBS2101"
                   disabled={!!editing}
                   required
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] disabled:bg-gray-100 disabled:text-gray-400"
                 />
+                <p className="text-xs text-gray-400 mt-1">Format: Faculty + Batch + Number (e.g. MBBS2101 = MBBS batch 21, member 01)</p>
               </div>
 
               <div>

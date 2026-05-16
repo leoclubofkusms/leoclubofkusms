@@ -38,7 +38,7 @@ export default function AdminLoginPage() {
             <div className="w-16 h-16 rounded-full bg-[#D4AF37] flex items-center justify-center font-bold text-[#002147] text-xl mx-auto mb-4">
               LC
             </div>
-            <h1 className="text-2xl font-bold text-white">KUSMS Leo Club</h1>
+            <h1 className="text-xl font-bold text-white leading-tight text-center px-2">Leo Club of Kathmandu University<br />School of Medical Sciences (KUSMS)</h1>
             <p className="text-white/60 text-sm mt-1">Admin Portal</p>
           </div>
 

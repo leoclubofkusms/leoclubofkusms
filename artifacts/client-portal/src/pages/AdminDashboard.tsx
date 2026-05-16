@@ -30,7 +30,7 @@ export default function AdminDashboard() {
             LC
           </div>
           <div>
-            <div className="font-bold text-sm">KUSMS Leo Club</div>
+            <div className="font-bold text-sm">Leo Club of KUSMS</div>
             <div className="text-white/50 text-xs">Admin Dashboard</div>
           </div>
         </div>

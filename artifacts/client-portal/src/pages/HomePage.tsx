@@ -38,13 +38,16 @@ export default function HomePage() {
             <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/40 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-6">
               <Award size={14} /> Lions Clubs International — District 325 B1
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-6">
-              KUSMS Leo Club
+            <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-2">
+              Leo Club of Kathmandu University
             </h1>
-            <p className="text-2xl md:text-3xl text-[#D4AF37] font-light mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#D4AF37] mb-4">
+              School of Medical Sciences (KUSMS)
+            </h2>
+            <p className="text-xl md:text-2xl text-white/80 font-light mb-2">
               Leadership Through Service
             </p>
-            <p className="text-white/70 text-lg mb-10 leading-relaxed max-w-xl">
+            <p className="text-white/60 text-base mb-10 leading-relaxed max-w-xl">
               A community of future medical professionals committed to service,
               leadership, and making a meaningful impact in our community.
             </p>

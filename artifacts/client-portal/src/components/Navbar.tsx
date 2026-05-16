@@ -30,7 +30,7 @@ export default function Navbar() {
               LC
             </div>
             <span className="font-bold text-lg tracking-wide group-hover:text-[#D4AF37] transition-colors">
-              KUSMS LEO CLUB
+              Leo Club of KUSMS
             </span>
           </Link>
 

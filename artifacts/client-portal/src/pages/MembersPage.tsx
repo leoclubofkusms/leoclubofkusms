@@ -142,7 +142,7 @@ export default function MembersPage() {
                   }
                 }}
                 onFocus={() => setDropdownOpen(true)}
-                placeholder="Type a member ID (e.g. L2026JOHN) or name..."
+                placeholder="Type a member ID (e.g. MBBS2101) or name..."
                 className="flex-1 py-4 px-4 text-gray-800 placeholder-gray-400 focus:outline-none text-base"
               />
               {query && (

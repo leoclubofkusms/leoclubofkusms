@@ -10,7 +10,7 @@ export default function Footer() {
               <div className="w-9 h-9 rounded-full bg-[#D4AF37] flex items-center justify-center font-bold text-[#002147] text-sm">
                 LC
               </div>
-              <span className="font-bold text-lg">KUSMS LEO CLUB</span>
+              <span className="font-bold text-lg">Leo Club of KUSMS</span>
             </div>
             <p className="text-white/60 text-sm leading-relaxed">
               Leadership Through Service. A Leo Club dedicated to excellence,
@@ -57,7 +57,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-white/10 mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-white/40">
-          <p>© {new Date().getFullYear()} KUSMS Leo Club. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Leo Club of Kathmandu University School of Medical Sciences (KUSMS). All rights reserved.</p>
           <p>Part of Lions Clubs International District 325 B1</p>
         </div>
       </div>
