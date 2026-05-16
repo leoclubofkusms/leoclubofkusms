@@ -1,27 +1,125 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
+import { AuthProvider } from "@/contexts/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import HomePage from "@/pages/HomePage";
+import AdminLoginPage from "@/pages/AdminLoginPage";
+import AdminDashboard from "@/pages/AdminDashboard";
+import ArchivePage from "@/pages/ArchivePage";
+import VerifyPage from "@/pages/VerifyPage";
 
 const queryClient = new QueryClient();
-
-function Home() {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Replit Agent is building...</h1>
-        <p className="mt-2 text-sm text-gray-600">Your app will appear here once it's ready.</p>
-      </div>
-    </div>
-  );
-}
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
-      <Route component={NotFound} />
+      {/* Home */}
+      <Route path="/" component={HomePage} />
+
+      {/* Admin */}
+      <Route path="/admin/login" component={AdminLoginPage} />
+      <Route path="/admin">
+        {() => (
+          <ProtectedRoute>
+            <AdminDashboard />
+          </ProtectedRoute>
+        )}
+      </Route>
+
+      {/* Archive: /archive/:year/:month e.g. /archive/2026-27/january */}
+      <Route path="/archive/:year/:month">
+        {(params) => (
+          <>
+            <Navbar />
+            <ArchivePage year={params.year} month={params.month} />
+            <Footer />
+          </>
+        )}
+      </Route>
+
+      {/* Verify member */}
+      <Route path="/verify/member/:memberId">
+        {(params) => (
+          <>
+            <Navbar />
+            <VerifyPage memberId={params.memberId} />
+            <Footer />
+          </>
+        )}
+      </Route>
+
+      {/* 404 */}
+      <Route>
+        {() => (
+          <>
+            <Navbar />
+            <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
+              <div className="text-center">
+                <div className="text-7xl font-bold text-[#002147]/10 mb-4">404</div>
+                <h2 className="text-2xl font-bold text-[#002147] mb-2">Page Not Found</h2>
+                <p className="text-gray-500 mb-6">The page you're looking for doesn't exist.</p>
+                <a href="/" className="inline-flex items-center gap-2 bg-[#002147] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#003575] transition-colors">
+                  Back to Home
+                </a>
+              </div>
+            </div>
+            <Footer />
+          </>
+        )}
+      </Route>
+    </Switch>
+  );
+}
+
+function AppLayout() {
+  return (
+    <Switch>
+      {/* Admin pages have their own layout (no shared Navbar/Footer) */}
+      <Route path="/admin">
+        {() => (
+          <ProtectedRoute>
+            <AdminDashboard />
+          </ProtectedRoute>
+        )}
+      </Route>
+      <Route path="/admin/login" component={AdminLoginPage} />
+
+      {/* All other pages share Navbar + Footer */}
+      <Route>
+        {() => (
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-1">
+              <Switch>
+                <Route path="/" component={HomePage} />
+                <Route path="/archive/:year/:month">
+                  {(params) => <ArchivePage year={params.year} month={params.month} />}
+                </Route>
+                <Route path="/verify/member/:memberId">
+                  {(params) => <VerifyPage memberId={params.memberId} />}
+                </Route>
+                <Route>
+                  {() => (
+                    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
+                      <div className="text-center">
+                        <div className="text-7xl font-bold text-[#002147]/10 mb-4">404</div>
+                        <h2 className="text-2xl font-bold text-[#002147] mb-2">Page Not Found</h2>
+                        <p className="text-gray-500 mb-6">The page you're looking for doesn't exist.</p>
+                        <a href="/" className="inline-flex items-center gap-2 bg-[#002147] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#003575] transition-colors">
+                          Back to Home
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </Route>
+              </Switch>
+            </main>
+            <Footer />
+          </div>
+        )}
+      </Route>
     </Switch>
   );
 }
@@ -29,12 +127,11 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
+      <AuthProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <AppLayout />
         </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
