@@ -29,6 +29,8 @@ export interface Activity {
   description: string;
   photos: string[];
   participants: ActivityParticipant[];
+  featured?: boolean;
+  manual?: boolean;
 }
 
 export interface ActivityFormData {
@@ -40,10 +42,20 @@ export interface ActivityFormData {
   participants: ActivityParticipant[];
 }
 
+export interface BodMember {
+  id: string;
+  name: string;
+  role: string;
+  priority: number;
+  photoUrl: string;
+  email: string;
+  phone: string;
+  bio: string;
+}
+
 export const LEO_YEARS = ["2026/27", "2027/28", "2028/29", "2029/30", "2030/31"];
 export const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-export const PROJECT_TYPES = ["logo", "branding", "web_design", "print", "illustration", "other"];
 export const ADMIN_EMAIL = "leoclubofkusms@gmail.com";

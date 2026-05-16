@@ -1,15 +1,22 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { getActivities, deleteActivity } from "@/lib/firestore";
+import { getActivities, deleteActivity, toggleActivityFeatured } from "@/lib/firestore";
 import type { Activity } from "@/lib/types";
 import { LEO_YEARS, MONTHS } from "@/lib/types";
-import { Calendar, Trash2, Eye, ChevronDown, ChevronRight, Users } from "lucide-react";
+import { Calendar, Trash2, Eye, ChevronDown, ChevronRight, Users, Pin, PinOff } from "lucide-react";
 
-export default function ActivityList({ refreshKey }: { refreshKey: number }) {
+export default function ActivityList({
+  refreshKey,
+  onActivityUpdated,
+}: {
+  refreshKey: number;
+  onActivityUpdated?: () => void;
+}) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [toggling, setToggling] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -30,12 +37,28 @@ export default function ActivityList({ refreshKey }: { refreshKey: number }) {
       await deleteActivity(act.id, act.participants);
       setActivities((prev) => prev.filter((a) => a.id !== act.id));
       setDeleteConfirm(null);
+      onActivityUpdated?.();
     } catch (e) {
       console.error(e);
     }
   }
 
-  // Group by year → month
+  async function handleToggleFeatured(act: Activity) {
+    setToggling(act.id);
+    try {
+      const next = !act.featured;
+      await toggleActivityFeatured(act.id, next);
+      setActivities((prev) =>
+        prev.map((a) => (a.id === act.id ? { ...a, featured: next } : a))
+      );
+      onActivityUpdated?.();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setToggling(null);
+    }
+  }
+
   const grouped: Record<string, Record<string, Activity[]>> = {};
   activities.forEach((act) => {
     if (!grouped[act.year]) grouped[act.year] = {};
@@ -47,11 +70,20 @@ export default function ActivityList({ refreshKey }: { refreshKey: number }) {
   const sortedMonths = (year: string) =>
     MONTHS.filter((m) => grouped[year]?.[m]);
 
+  const featuredCount = activities.filter((a) => a.featured).length;
+
   return (
     <div>
-      <div className="mb-6">
-        <h3 className="text-lg font-bold text-[#002147]">All Activities</h3>
-        <p className="text-sm text-gray-500">{activities.length} total activities</p>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-bold text-[#002147]">All Activities</h3>
+          <p className="text-sm text-gray-500">{activities.length} total · {featuredCount} pinned to home page</p>
+        </div>
+      </div>
+
+      <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl px-4 py-3 mb-5 flex items-start gap-3 text-sm text-[#002147]">
+        <Pin size={15} className="mt-0.5 shrink-0 text-[#D4AF37]" />
+        <span>Click the <strong>pin icon</strong> on any activity to feature it on the home page with an animated carousel. Pinned activities are shown with a gold highlight.</span>
       </div>
 
       {loading ? (
@@ -72,7 +104,6 @@ export default function ActivityList({ refreshKey }: { refreshKey: number }) {
         <div className="space-y-4">
           {sortedYears.map((year) => (
             <div key={year} className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-              {/* Year header */}
               <button
                 onClick={() => setExpanded((prev) => ({ ...prev, [year]: !prev[year] }))}
                 className="w-full flex items-center justify-between px-5 py-4 bg-[#002147] text-white hover:bg-[#003575] transition-colors"
@@ -97,10 +128,20 @@ export default function ActivityList({ refreshKey }: { refreshKey: number }) {
                         {month}
                       </div>
                       {grouped[year][month].map((act) => (
-                        <div key={act.id} className="px-5 py-4 hover:bg-gray-50 transition-colors">
+                        <div
+                          key={act.id}
+                          className={`px-5 py-4 hover:bg-gray-50 transition-colors ${act.featured ? "bg-[#D4AF37]/5 border-l-4 border-l-[#D4AF37]" : ""}`}
+                        >
                           <div className="flex items-start gap-3">
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-[#002147] truncate">{act.title}</h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-[#002147] truncate">{act.title}</h4>
+                                {act.featured && (
+                                  <span className="shrink-0 inline-flex items-center gap-1 bg-[#D4AF37] text-[#002147] text-xs font-bold px-2 py-0.5 rounded-full">
+                                    <Pin size={9} /> Pinned
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">
                                 {act.description}
                               </p>
@@ -114,6 +155,18 @@ export default function ActivityList({ refreshKey }: { refreshKey: number }) {
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                onClick={() => handleToggleFeatured(act)}
+                                disabled={toggling === act.id}
+                                title={act.featured ? "Unpin from home page" : "Pin to home page"}
+                                className={`p-2 rounded-lg transition-colors ${
+                                  act.featured
+                                    ? "text-[#D4AF37] hover:text-[#D4AF37]/70 hover:bg-[#D4AF37]/10"
+                                    : "text-gray-400 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10"
+                                } ${toggling === act.id ? "opacity-50" : ""}`}
+                              >
+                                {act.featured ? <PinOff size={15} /> : <Pin size={15} />}
+                              </button>
                               <Link
                                 href={`/archive/${year.replace("/", "-")}/${month.toLowerCase()}`}
                                 className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors"

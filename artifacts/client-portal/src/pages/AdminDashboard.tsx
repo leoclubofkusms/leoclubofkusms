@@ -5,12 +5,14 @@ import ActivityForm from "./admin/ActivityForm";
 import MemberManagement from "./admin/MemberManagement";
 import ActivityList from "./admin/ActivityList";
 import QRGenerator from "./admin/QRGenerator";
-import { PlusCircle, Users, List, QrCode, LogOut, Home } from "lucide-react";
+import BodManagement from "./admin/BodManagement";
+import { PlusCircle, Users, List, QrCode, LogOut, Home, Crown } from "lucide-react";
 
 const TABS = [
   { id: "new-activity", label: "New Activity", icon: PlusCircle },
   { id: "members", label: "Members", icon: Users },
   { id: "activities", label: "Activity List", icon: List },
+  { id: "bod", label: "Board of Directors", icon: Crown },
   { id: "qr", label: "QR Generator", icon: QrCode },
 ] as const;
 
@@ -53,7 +55,7 @@ export default function AdminDashboard() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-[#002147]">Admin Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1">Manage members, activities, and generate certificates.</p>
+          <p className="text-gray-500 text-sm mt-1">Manage members, activities, board of directors, and generate certificates.</p>
         </div>
 
         {/* Tab navigation */}
@@ -90,7 +92,13 @@ export default function AdminDashboard() {
             </div>
           )}
           {activeTab === "members" && <MemberManagement />}
-          {activeTab === "activities" && <ActivityList refreshKey={activityRefreshKey} />}
+          {activeTab === "activities" && (
+            <ActivityList
+              refreshKey={activityRefreshKey}
+              onActivityUpdated={() => setActivityRefreshKey((k) => k + 1)}
+            />
+          )}
+          {activeTab === "bod" && <BodManagement />}
           {activeTab === "qr" && <QRGenerator />}
         </div>
       </div>

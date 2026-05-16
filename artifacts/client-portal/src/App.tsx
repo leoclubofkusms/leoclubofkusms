@@ -10,69 +10,9 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import ArchivePage from "@/pages/ArchivePage";
 import VerifyPage from "@/pages/VerifyPage";
 import MembersPage from "@/pages/MembersPage";
+import AboutPage from "@/pages/AboutPage";
 
 const queryClient = new QueryClient();
-
-function Router() {
-  return (
-    <Switch>
-      {/* Home */}
-      <Route path="/" component={HomePage} />
-
-      {/* Admin */}
-      <Route path="/admin/login" component={AdminLoginPage} />
-      <Route path="/admin">
-        {() => (
-          <ProtectedRoute>
-            <AdminDashboard />
-          </ProtectedRoute>
-        )}
-      </Route>
-
-      {/* Archive: /archive/:year/:month e.g. /archive/2026-27/january */}
-      <Route path="/archive/:year/:month">
-        {(params) => (
-          <>
-            <Navbar />
-            <ArchivePage year={params.year} month={params.month} />
-            <Footer />
-          </>
-        )}
-      </Route>
-
-      {/* Verify member */}
-      <Route path="/verify/member/:memberId">
-        {(params) => (
-          <>
-            <Navbar />
-            <VerifyPage memberId={params.memberId} />
-            <Footer />
-          </>
-        )}
-      </Route>
-
-      {/* 404 */}
-      <Route>
-        {() => (
-          <>
-            <Navbar />
-            <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
-              <div className="text-center">
-                <div className="text-7xl font-bold text-[#002147]/10 mb-4">404</div>
-                <h2 className="text-2xl font-bold text-[#002147] mb-2">Page Not Found</h2>
-                <p className="text-gray-500 mb-6">The page you're looking for doesn't exist.</p>
-                <a href="/" className="inline-flex items-center gap-2 bg-[#002147] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#003575] transition-colors">
-                  Back to Home
-                </a>
-              </div>
-            </div>
-            <Footer />
-          </>
-        )}
-      </Route>
-    </Switch>
-  );
-}
 
 function AppLayout() {
   return (
@@ -95,6 +35,7 @@ function AppLayout() {
             <main className="flex-1">
               <Switch>
                 <Route path="/" component={HomePage} />
+                <Route path="/about" component={AboutPage} />
                 <Route path="/members" component={MembersPage} />
                 <Route path="/archive/:year/:month">
                   {(params) => <ArchivePage year={params.year} month={params.month} />}

@@ -2,14 +2,14 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { LEO_YEARS, MONTHS } from "@/lib/types";
-import { Menu, X, ChevronDown, Search } from "lucide-react";
+import { Menu, X, ChevronDown, Search, Info } from "lucide-react";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [verifyId, setVerifyId] = useState("");
   const [, navigate] = useLocation();
-  const { user, isAdmin, signOut } = useAuth();
+  const { isAdmin, signOut } = useAuth();
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,9 +35,13 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-5">
             <Link href="/" className="hover:text-[#D4AF37] transition-colors text-sm font-medium">
               Home
+            </Link>
+
+            <Link href="/about" className="hover:text-[#D4AF37] transition-colors text-sm font-medium flex items-center gap-1">
+              <Info size={14} /> About
             </Link>
 
             <Link href="/members" className="hover:text-[#D4AF37] transition-colors text-sm font-medium">
@@ -82,7 +86,7 @@ export default function Navbar() {
                 placeholder="Verify Member ID..."
                 value={verifyId}
                 onChange={(e) => setVerifyId(e.target.value)}
-                className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm placeholder-white/50 focus:outline-none focus:border-[#D4AF37] w-44"
+                className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm placeholder-white/50 focus:outline-none focus:border-[#D4AF37] w-40"
               />
               <button type="submit" className="hover:text-[#D4AF37] transition-colors">
                 <Search size={16} />
@@ -129,6 +133,12 @@ export default function Navbar() {
         <div className="md:hidden bg-[#001a38] border-t border-white/10 px-4 py-4 flex flex-col gap-4">
           <Link href="/" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium">
             Home
+          </Link>
+          <Link href="/about" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium flex items-center gap-1">
+            <Info size={15} /> About
+          </Link>
+          <Link href="/members" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium">
+            Members
           </Link>
           <div>
             <div className="text-sm font-semibold text-white/60 mb-2">Archive</div>

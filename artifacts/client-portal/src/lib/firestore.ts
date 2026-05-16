@@ -10,11 +10,11 @@ import {
   orderBy,
   where,
   arrayUnion,
-  arrayRemove,
   writeBatch,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Member, Activity, ActivityFormData } from "./types";
+import type { Member, Activity, ActivityFormData, BodMember } from "./types";
 
 // ── Members ──────────────────────────────────────────────────────────────────
 
@@ -31,12 +31,10 @@ export async function getMember(memberId: string): Promise<Member | null> {
 
 export async function addMember(member: Member): Promise<void> {
   await updateDoc(doc(db, "members", member.memberId), {}).catch(async () => {
-    // doc doesn't exist, create it
     const batchWrite = writeBatch(db);
     batchWrite.set(doc(db, "members", member.memberId), member);
     await batchWrite.commit();
   });
-  // Always set the full member data
   await updateDoc(doc(db, "members", member.memberId), { ...member }).catch(
     async () => {
       const batchWrite = writeBatch(db);
@@ -68,10 +66,24 @@ export async function deleteMember(memberId: string): Promise<void> {
 export async function getActivities(): Promise<Activity[]> {
   const q = query(collection(db, "activities"), orderBy("year"), orderBy("month"));
   const snap = await getDocs(q).catch(async () => {
-    // fallback without ordering if index not ready
     return getDocs(collection(db, "activities"));
   });
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
+}
+
+export async function getFeaturedActivities(): Promise<Activity[]> {
+  const q = query(collection(db, "activities"), where("featured", "==", true));
+  const snap = await getDocs(q).catch(async () => {
+    return getDocs(collection(db, "activities"));
+  });
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
+}
+
+export async function toggleActivityFeatured(
+  id: string,
+  featured: boolean
+): Promise<void> {
+  await updateDoc(doc(db, "activities", id), { featured });
 }
 
 export async function getActivity(id: string): Promise<Activity | null> {
@@ -96,11 +108,10 @@ export async function createActivity(data: ActivityFormData): Promise<string> {
   const ref = await addDoc(collection(db, "activities"), {
     ...data,
     id: "",
+    featured: false,
   });
-  // Update with the auto-generated id
   await updateDoc(ref, { id: ref.id });
 
-  // Update each member's activities array
   const batch = writeBatch(db);
   for (const p of data.participants) {
     const memberRef = doc(db, "members", p.memberId);
@@ -127,7 +138,6 @@ export async function updateActivity(
 ): Promise<void> {
   await updateDoc(doc(db, "activities", id), data as Record<string, unknown>);
 
-  // Remove old participant entries for this activity from members
   const removeBatch = writeBatch(db);
   for (const p of oldParticipants) {
     const memberRef = doc(db, "members", p.memberId);
@@ -140,7 +150,6 @@ export async function updateActivity(
   }
   await removeBatch.commit();
 
-  // Add new participant entries
   if (data.participants) {
     const addBatch = writeBatch(db);
     for (const p of data.participants) {
@@ -192,7 +201,6 @@ export async function addManualAchievement(
   memberId: string,
   data: ManualAchievementInput
 ): Promise<void> {
-  // Create a minimal activity document so the verify/archive pages can display it
   const ref = await addDoc(collection(db, "activities"), {
     year: data.year,
     month: data.month,
@@ -201,11 +209,11 @@ export async function addManualAchievement(
     photos: [],
     participants: [{ memberId, awardTitle: data.awardTitle }],
     manual: true,
+    featured: false,
     id: "",
   });
   await updateDoc(ref, { id: ref.id });
 
-  // Push entry to member's activities array
   await updateDoc(doc(db, "members", memberId), {
     activities: arrayUnion({
       activityId: ref.id,
@@ -226,11 +234,29 @@ export async function removeManualAchievement(
   const member = memberSnap.data() as Member;
   const filtered = member.activities.filter((a) => a.activityId !== activityId);
   await updateDoc(doc(db, "members", memberId), { activities: filtered });
-  // Also delete the standalone activity doc if it was manual
   try {
     const actSnap = await getDoc(doc(db, "activities", activityId));
     if (actSnap.exists() && actSnap.data().manual === true) {
       await deleteDoc(doc(db, "activities", activityId));
     }
   } catch { /* ignore */ }
+}
+
+// ── Board of Directors ────────────────────────────────────────────────────────
+
+export async function getBodMembers(): Promise<BodMember[]> {
+  const q = query(collection(db, "bod"), orderBy("priority"));
+  const snap = await getDocs(q).catch(async () => {
+    return getDocs(collection(db, "bod"));
+  });
+  const members = snap.docs.map((d) => ({ id: d.id, ...d.data() } as BodMember));
+  return members.sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99));
+}
+
+export async function setBodMember(member: BodMember): Promise<void> {
+  await setDoc(doc(db, "bod", member.id), member);
+}
+
+export async function deleteBodMember(id: string): Promise<void> {
+  await deleteDoc(doc(db, "bod", id));
 }
