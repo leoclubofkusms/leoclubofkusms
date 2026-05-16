@@ -5,7 +5,9 @@
  * Client portal API for a freelance design business
  * OpenAPI spec version: 0.1.0
  */
+import type { ListProjectsStatus } from './listProjectsStatus';
 
-export interface HealthStatus {
-  status: string;
-}
+export type ListProjectsParams = {
+status?: ListProjectsStatus;
+search?: string;
+};
