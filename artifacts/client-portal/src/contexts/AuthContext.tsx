@@ -11,6 +11,7 @@ import { ADMIN_EMAIL } from "@/lib/types";
 interface AuthContextValue {
   user: User | null;
   isAdmin: boolean;
+  isOperator: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -39,9 +40,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isAdmin = !!user && user.email === ADMIN_EMAIL;
+  const isOperator = !!user && user.email !== ADMIN_EMAIL;
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, isAdmin, isOperator, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

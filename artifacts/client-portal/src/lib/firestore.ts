@@ -261,9 +261,50 @@ export async function deleteBodMember(id: string): Promise<void> {
   await deleteDoc(doc(db, "bod", id));
 }
 
-// ── Club Settings ─────────────────────────────────────────────────────────────
+// ── Awards ────────────────────────────────────────────────────────────────────
 
-import type { ClubSettings } from "./types";
+import type { Award, ClubEvent, ClubSettings } from "./types";
+
+export async function getAwards(): Promise<Award[]> {
+  const snap = await getDocs(collection(db, "awards"));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Award));
+}
+
+export async function addAward(data: Omit<Award, "id">): Promise<void> {
+  const ref = await addDoc(collection(db, "awards"), data);
+  await updateDoc(ref, { id: ref.id });
+}
+
+export async function updateAward(id: string, data: Partial<Award>): Promise<void> {
+  await updateDoc(doc(db, "awards", id), data);
+}
+
+export async function deleteAward(id: string): Promise<void> {
+  await deleteDoc(doc(db, "awards", id));
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+
+export async function getClubEvents(): Promise<ClubEvent[]> {
+  const snap = await getDocs(collection(db, "events"));
+  const evts = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ClubEvent));
+  return evts.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function addClubEvent(data: Omit<ClubEvent, "id">): Promise<void> {
+  const ref = await addDoc(collection(db, "events"), data);
+  await updateDoc(ref, { id: ref.id });
+}
+
+export async function updateClubEvent(id: string, data: Partial<ClubEvent>): Promise<void> {
+  await updateDoc(doc(db, "events", id), data);
+}
+
+export async function deleteClubEvent(id: string): Promise<void> {
+  await deleteDoc(doc(db, "events", id));
+}
+
+// ── Club Settings ─────────────────────────────────────────────────────────────
 
 export async function getClubSettings(): Promise<ClubSettings> {
   const snap = await getDoc(doc(db, "settings", "clubSettings"));

@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
-import { getMembers, getActivities, getBodMembers, getFeaturedActivities, getClubSettings } from "@/lib/firestore";
-import type { Member, Activity, BodMember, ClubSettings } from "@/lib/types";
+import { getMembers, getActivities, getBodMembers, getFeaturedActivities, getClubSettings, getAwards } from "@/lib/firestore";
+import type { Member, Activity, BodMember, ClubSettings, Award as AwardType } from "@/lib/types";
 import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK } from "@/lib/types";
 import {
   ArrowRight, Award, Users, Calendar, Shield, Mail, Phone,
   ChevronLeft, ChevronRight, Pin, Info, Facebook, ExternalLink,
+  Star, Building, Quote,
 } from "lucide-react";
 
 // ── Animated Featured Activities Carousel ─────────────────────────────────────
@@ -200,6 +201,7 @@ export default function HomePage() {
   const [featuredActivities, setFeaturedActivities] = useState<Activity[]>([]);
   const [bod, setBod] = useState<BodMember[]>([]);
   const [clubSettings, setClubSettings] = useState<ClubSettings>({});
+  const [awards, setAwards] = useState<AwardType[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -209,12 +211,14 @@ export default function HomePage() {
       getFeaturedActivities().catch(() => [] as Activity[]),
       getBodMembers().catch(() => [] as BodMember[]),
       getClubSettings().catch(() => ({} as ClubSettings)),
-    ]).then(([m, a, f, b, s]) => {
+      getAwards().catch(() => [] as AwardType[]),
+    ]).then(([m, a, f, b, s, aw]) => {
       setMembers(m);
       setActivities(a);
       setFeaturedActivities(f);
       setBod(b);
       setClubSettings(s);
+      setAwards(aw);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -363,6 +367,17 @@ export default function HomePage() {
                 <p className="text-sm">BOD members will appear here once added from the admin dashboard.</p>
               </div>
             )}
+
+            {/* President's Slogan */}
+            {clubSettings.presidentSlogan && (
+              <div className="mt-6 bg-gradient-to-r from-[#002147] to-[#003575] rounded-2xl px-6 py-5 flex items-center gap-4">
+                <Quote size={28} className="text-[#D4AF37] shrink-0 opacity-70" />
+                <div className="flex-1">
+                  <p className="text-white/60 text-xs uppercase tracking-widest mb-1">President's Slogan — Leo Year 2026/27</p>
+                  <p className="text-white font-bold text-xl md:text-2xl italic">{clubSettings.presidentSlogan}</p>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
@@ -451,6 +466,54 @@ export default function HomePage() {
             </div>
           )}
         </section>
+
+        {/* ── Awards & Recognition ────────────────────────────────────────── */}
+        {(awards.length > 0 || loading) && (
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-[#002147]">Awards & Recognition</h2>
+                <p className="text-gray-500 text-sm mt-1">Leo of the Month, outstanding member and club achievements</p>
+              </div>
+              <Link href="/awards" className="text-sm text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1">
+                View All <ArrowRight size={14} />
+              </Link>
+            </div>
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {[1,2,3].map(i => <div key={i} className="bg-white rounded-2xl border border-gray-100 h-36 animate-pulse" />)}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {awards.filter((a) => a.featured || a.type === "member").slice(0, 6).map((a) => (
+                  <div key={a.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+                    <div className="flex items-start gap-3">
+                      {a.photoUrl
+                        ? <img src={a.photoUrl} alt={a.recipientName} className="w-12 h-12 rounded-xl object-cover border-2 border-[#D4AF37]/30 shrink-0" />
+                        : <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${a.type === "member" ? "bg-[#D4AF37]/20" : "bg-[#002147]/10"}`}>
+                            {a.type === "member" ? <Star size={20} className="text-[#D4AF37]" /> : <Building size={20} className="text-[#002147]" />}
+                          </div>
+                      }
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-[#D4AF37] font-bold uppercase tracking-wide mb-0.5">{a.title}</div>
+                        <div className="font-bold text-[#002147] truncate">{a.recipientName}</div>
+                        {a.awardedBy && <div className="text-xs text-gray-400 truncate">By {a.awardedBy}</div>}
+                        <div className="text-xs text-gray-400 mt-1">{a.month} · {a.year}</div>
+                      </div>
+                    </div>
+                    {a.description && <p className="text-xs text-gray-500 mt-2 line-clamp-2">{a.description}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {!loading && awards.length === 0 && (
+              <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-8 text-center text-gray-400">
+                <Award size={32} className="mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Awards will appear here once added from the admin dashboard.</p>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* ── Chartered Certificate ────────────────────────────────────────── */}
         <section>

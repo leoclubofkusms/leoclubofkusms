@@ -53,7 +53,9 @@ export interface BodMember {
   bio: string;
 }
 
-export const LEO_YEARS = ["2026/27", "2027/28", "2028/29", "2029/30", "2030/31"];
+export const LEO_YEARS = [
+  "2024/25", "2025/26", "2026/27", "2027/28", "2028/29", "2029/30", "2030/31",
+];
 export const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -63,6 +65,32 @@ export const ADMIN_EMAIL = "leoclubofkusms@gmail.com";
 export interface ClubSettings {
   charteredCertificateUrl?: string;
   charteredCertificateType?: "image" | "pdf";
+  presidentSlogan?: string;
+}
+
+export interface Award {
+  id: string;
+  type: "member" | "club";
+  title: string;
+  recipientName: string;
+  memberId?: string;
+  description: string;
+  month: string;
+  year: string;
+  photoUrl?: string;
+  awardedBy?: string;
+  featured?: boolean;
+}
+
+export interface ClubEvent {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  location: string;
+  status: "planned" | "completed" | "cancelled";
+  photoUrl?: string;
+  eventType?: string;
 }
 
 export const CLUB_ESTABLISHED = "June 11, 2024";

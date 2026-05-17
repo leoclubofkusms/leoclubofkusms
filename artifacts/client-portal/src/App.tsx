@@ -11,6 +11,8 @@ import ArchivePage from "@/pages/ArchivePage";
 import VerifyPage from "@/pages/VerifyPage";
 import MembersPage from "@/pages/MembersPage";
 import AboutPage from "@/pages/AboutPage";
+import EventsPage from "@/pages/EventsPage";
+import AwardsPage from "@/pages/AwardsPage";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +39,8 @@ function AppLayout() {
                 <Route path="/" component={HomePage} />
                 <Route path="/about" component={AboutPage} />
                 <Route path="/members" component={MembersPage} />
+                <Route path="/events" component={EventsPage} />
+                <Route path="/awards" component={AwardsPage} />
                 <Route path="/archive/:year/:month">
                   {(params) => <ArchivePage year={params.year} month={params.month} />}
                 </Route>

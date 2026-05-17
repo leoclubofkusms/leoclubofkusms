@@ -6,22 +6,28 @@ import type { ClubSettings } from "@/lib/types";
 import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK } from "@/lib/types";
 import {
   Upload, Link as LinkIcon, Check, Loader2, X, ExternalLink,
-  Facebook, Settings, Calendar, Award,
+  Facebook, Settings, Calendar, Award, Quote, ShieldCheck,
 } from "lucide-react";
 
 export default function ClubSettingsPanel() {
   const [settings, setSettings] = useState<ClubSettings>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sloganSaving, setSloganSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [mode, setMode] = useState<"upload" | "url">("upload");
+  const [sloganInput, setSloganInput] = useState("");
 
   useEffect(() => {
     getClubSettings()
-      .then((s) => { setSettings(s); setUrlInput(s.charteredCertificateUrl ?? ""); })
+      .then((s) => {
+        setSettings(s);
+        setUrlInput(s.charteredCertificateUrl ?? "");
+        setSloganInput(s.presidentSlogan ?? "");
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -70,7 +76,7 @@ export default function ClubSettingsPanel() {
     } finally { setSaving(false); }
   }
 
-  async function handleRemove() {
+  async function handleRemoveCert() {
     setSaving(true);
     try {
       await updateClubSettings({ charteredCertificateUrl: "", charteredCertificateType: undefined });
@@ -83,11 +89,25 @@ export default function ClubSettingsPanel() {
     } finally { setSaving(false); }
   }
 
+  async function handleSaveSlogan() {
+    setSloganSaving(true);
+    try {
+      await updateClubSettings({ presidentSlogan: sloganInput.trim() });
+      setSettings((s) => ({ ...s, presidentSlogan: sloganInput.trim() }));
+      setSuccess("Slogan saved!");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save slogan.");
+    } finally { setSloganSaving(false); }
+  }
+
+  if (loading) return <div className="text-center text-gray-400 text-sm py-8">Loading settings…</div>;
+
   return (
     <div className="space-y-8">
       <div>
         <h3 className="text-lg font-bold text-[#002147]">Club Settings</h3>
-        <p className="text-sm text-gray-500">Manage chartered certificate and club information shown on the home page.</p>
+        <p className="text-sm text-gray-500">Manage the president's slogan, chartered certificate, and club information.</p>
       </div>
 
       {success && (
@@ -96,6 +116,56 @@ export default function ClubSettingsPanel() {
         </div>
       )}
 
+      {/* President's Slogan */}
+      <div className="bg-[#F8FAFC] border border-gray-100 rounded-2xl p-6">
+        <h4 className="font-semibold text-[#002147] flex items-center gap-2 mb-1">
+          <Quote size={16} className="text-[#D4AF37]" /> President's Slogan (Current Year)
+        </h4>
+        <p className="text-sm text-gray-500 mb-4">This slogan is displayed prominently on the home page under the leadership section.</p>
+        {settings.presidentSlogan && (
+          <div className="bg-[#002147] text-white rounded-xl px-4 py-3 mb-4 flex items-center gap-3">
+            <Quote size={18} className="text-[#D4AF37] shrink-0" />
+            <span className="font-bold italic text-lg">{settings.presidentSlogan}</span>
+          </div>
+        )}
+        <div className="flex gap-3">
+          <input
+            type="text"
+            value={sloganInput}
+            onChange={(e) => setSloganInput(e.target.value)}
+            placeholder='e.g. "Architect The Legacy"'
+            className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+          />
+          <button
+            onClick={handleSaveSlogan}
+            disabled={sloganSaving}
+            className="bg-[#002147] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors disabled:opacity-60 flex items-center gap-2"
+          >
+            {sloganSaving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : "Save Slogan"}
+          </button>
+        </div>
+      </div>
+
+      {/* Operator Account Info */}
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6">
+        <h4 className="font-semibold text-[#002147] flex items-center gap-2 mb-1">
+          <ShieldCheck size={16} className="text-blue-500" /> Creating Operator Accounts
+        </h4>
+        <p className="text-sm text-gray-600 mb-3">
+          Operators can add activities, manage events &amp; awards, and generate QR certificates — but cannot manage members, BOD, or club settings.
+        </p>
+        <div className="bg-white rounded-xl border border-blue-100 p-4 text-sm text-gray-600 space-y-2">
+          <div className="font-semibold text-[#002147]">Steps to create an operator account:</div>
+          <ol className="list-decimal list-inside space-y-1.5 text-sm">
+            <li>Go to <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Firebase Console</a> → your project → Authentication → Users</li>
+            <li>Click <strong>Add user</strong>, enter the operator's email and a password</li>
+            <li>Share the email and password with the operator</li>
+            <li>Operator logs in at <strong>/admin/login</strong> with their credentials</li>
+          </ol>
+          <p className="text-xs text-gray-400 pt-1">Any Firebase Auth user who is NOT the admin email automatically gets operator-level access.</p>
+        </div>
+      </div>
+
       {/* Club Info (read-only) */}
       <div className="bg-[#F8FAFC] border border-gray-100 rounded-2xl p-6 space-y-4">
         <h4 className="font-semibold text-[#002147] flex items-center gap-2"><Settings size={16} /> Club Information</h4>
@@ -103,7 +173,7 @@ export default function ClubSettingsPanel() {
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center gap-2 text-xs text-gray-400 mb-1"><Calendar size={13} /> Established</div>
             <div className="font-bold text-[#002147]">{CLUB_ESTABLISHED}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Official handover/charter ceremony</div>
+            <div className="text-xs text-gray-500 mt-0.5">Official charter ceremony</div>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center gap-2 text-xs text-gray-400 mb-1"><Award size={13} /> District</div>
@@ -112,7 +182,6 @@ export default function ClubSettingsPanel() {
           </div>
         </div>
 
-        {/* Social Links */}
         <div>
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Social Media</div>
           <div className="space-y-2">
@@ -121,11 +190,11 @@ export default function ClubSettingsPanel() {
               <div className="w-8 h-8 rounded-lg bg-[#1877F2] flex items-center justify-center shrink-0">
                 <Facebook size={16} className="text-white" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="font-medium text-[#002147]">Facebook Page</div>
-                <div className="text-xs text-gray-400 truncate max-w-xs">{CLUB_FACEBOOK}</div>
+                <div className="text-xs text-gray-400 truncate">{CLUB_FACEBOOK}</div>
               </div>
-              <ExternalLink size={13} className="text-gray-400 ml-auto shrink-0" />
+              <ExternalLink size={13} className="text-gray-400 shrink-0" />
             </a>
             <a href={CLUB_TIKTOK} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 p-3 hover:border-gray-300 transition-colors text-sm">
@@ -149,12 +218,11 @@ export default function ClubSettingsPanel() {
         </h4>
         <p className="text-sm text-gray-500 mb-5">Upload the official chartered certificate to display it on the home page.</p>
 
-        {/* Current certificate preview */}
         {settings.charteredCertificateUrl && (
           <div className="mb-5 bg-white rounded-xl border border-[#D4AF37]/30 p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-semibold text-[#002147]">Current Certificate</span>
-              <button onClick={handleRemove} disabled={saving}
+              <button onClick={handleRemoveCert} disabled={saving}
                 className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors">
                 <X size={12} /> Remove
               </button>
@@ -171,7 +239,6 @@ export default function ClubSettingsPanel() {
           </div>
         )}
 
-        {/* Mode toggle */}
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit mb-4">
           {(["upload", "url"] as const).map((m) => (
             <button key={m} type="button" onClick={() => setMode(m)}
@@ -202,10 +269,6 @@ export default function ClubSettingsPanel() {
         )}
         {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
       </div>
-
-      {loading && (
-        <div className="text-center text-gray-400 text-sm py-4">Loading settings…</div>
-      )}
     </div>
   );
 }
