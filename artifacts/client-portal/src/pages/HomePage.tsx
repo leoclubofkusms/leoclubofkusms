@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { getMembers, getActivities, getBodMembers, getFeaturedActivities, getClubSettings, getAwards } from "@/lib/firestore";
 import type { Member, Activity, BodMember, ClubSettings, Award as AwardType } from "@/lib/types";
@@ -6,8 +6,84 @@ import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK } from "@/lib/types";
 import {
   ArrowRight, Award, Users, Calendar, Shield, Mail, Phone,
   ChevronLeft, ChevronRight, Pin, Info, Facebook, ExternalLink,
-  Star, Building, Quote,
+  Star, Building, Quote, Heart, TrendingUp, MessageCircle,
 } from "lucide-react";
+
+// ── Animated counter hook ──────────────────────────────────────────────────────
+function useCountUp(target: number, duration = 1800, start = false) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!start || target === 0) return;
+    let startTime: number | null = null;
+    const step = (ts: number) => {
+      if (!startTime) startTime = ts;
+      const progress = Math.min((ts - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.floor(eased * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration, start]);
+  return count;
+}
+
+// ── Impact Stats Section ───────────────────────────────────────────────────────
+function ImpactStats({
+  memberCount, activityCount, participationCount,
+}: { memberCount: number; activityCount: number; participationCount: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setVisible(true); obs.disconnect(); }
+    }, { threshold: 0.3 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+
+  const m = useCountUp(memberCount, 1600, visible);
+  const a = useCountUp(activityCount, 1800, visible);
+  const p = useCountUp(participationCount, 2000, visible);
+  const y = useCountUp(2, 1200, visible);
+
+  const stats = [
+    { label: "Active Members", value: m, icon: Users, suffix: "+" },
+    { label: "Activities Completed", value: a, icon: Calendar, suffix: "" },
+    { label: "Service Participations", value: p, icon: Heart, suffix: "+" },
+    { label: "Years of Service", value: y, icon: TrendingUp, suffix: "+" },
+  ];
+
+  return (
+    <section ref={ref} className="relative overflow-hidden rounded-3xl bg-[#002147] text-white py-12 px-6 shadow-xl">
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#D4AF37]/5 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+      <div className="relative z-10">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-3">
+            <TrendingUp size={13} /> Our Impact
+          </div>
+          <h2 className="text-2xl md:text-3xl font-bold">Making a Difference Together</h2>
+          <p className="text-white/60 text-sm mt-2">Every member, every activity, every life touched counts.</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {stats.map(({ label, value, icon: Icon, suffix }) => (
+            <div key={label} className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-6 text-center transition-all">
+              <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/20 flex items-center justify-center mx-auto mb-3">
+                <Icon size={18} className="text-[#D4AF37]" />
+              </div>
+              <div className="text-4xl font-bold text-white mb-1 tabular-nums">
+                {value}{suffix}
+              </div>
+              <div className="text-white/50 text-xs leading-tight">{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 // ── Animated Featured Activities Carousel ─────────────────────────────────────
 function FeaturedCarousel({ activities }: { activities: Activity[] }) {
@@ -576,6 +652,83 @@ export default function HomePage() {
                     <p className="text-xs leading-relaxed">Chartered certificate will appear here.<br />Upload from Admin → Club Settings.</p>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Impact Stats ─────────────────────────────────────────────────── */}
+        <ImpactStats
+          memberCount={members.length}
+          activityCount={activities.length}
+          participationCount={activities.reduce((s, a) => s + a.participants.length, 0)}
+        />
+
+        {/* ── Become a Leo / Join Us ───────────────────────────────────────── */}
+        <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2">
+            {/* Left */}
+            <div className="p-8 md:p-10">
+              <div className="inline-flex items-center gap-2 bg-[#D4AF37]/10 text-[#002147] text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider mb-5">
+                <Heart size={12} className="text-[#D4AF37]" /> Become a Leo
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#002147] mb-3">
+                Join Our Community
+              </h2>
+              <p className="text-gray-500 mb-6 leading-relaxed">
+                Are you a KUSMS student who wants to lead, serve, and grow? Leo Club of KUSMS welcomes passionate individuals who believe in making a difference through service.
+              </p>
+              <ul className="space-y-3 mb-8">
+                {[
+                  "Participate in health camps and community service",
+                  "Develop leadership and teamwork skills",
+                  "Network with Lions Club International members",
+                  "Earn recognition, awards, and verified certificates",
+                  "Build lasting friendships at KUSMS",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3 text-sm text-gray-600">
+                    <div className="w-5 h-5 rounded-full bg-[#D4AF37]/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <Star size={10} className="text-[#D4AF37]" />
+                    </div>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-3">
+                <a href={CLUB_FACEBOOK} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 bg-[#1877F2] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1565c0] transition-colors">
+                  <Facebook size={15} /> Message Us on Facebook
+                </a>
+                <a href={`https://wa.me/977?text=${encodeURIComponent("Hello! I'm interested in joining Leo Club of KUSMS.")}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 bg-[#25D366] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#20b858] transition-colors">
+                  <MessageCircle size={15} /> WhatsApp
+                </a>
+              </div>
+            </div>
+            {/* Right: Requirements card */}
+            <div className="bg-[#002147] p-8 md:p-10 flex flex-col justify-center">
+              <h3 className="text-white font-bold text-lg mb-6">Who Can Join?</h3>
+              <div className="space-y-4">
+                {[
+                  { title: "KUSMS Student", desc: "Currently enrolled at Kathmandu University School of Medical Sciences" },
+                  { title: "Passionate About Service", desc: "Willing to commit time to community service and club activities" },
+                  { title: "Age 12–30", desc: "Open to all Leo-eligible age groups as per Lions Club International" },
+                ].map(({ title, desc }) => (
+                  <div key={title} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/30 flex items-center justify-center shrink-0">
+                      <Shield size={14} className="text-[#D4AF37]" />
+                    </div>
+                    <div>
+                      <div className="text-white font-semibold text-sm">{title}</div>
+                      <div className="text-white/50 text-xs mt-0.5 leading-relaxed">{desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-8 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-2xl p-4">
+                <div className="text-[#D4AF37] font-bold text-sm mb-1">Chartered since {CLUB_ESTABLISHED}</div>
+                <div className="text-white/50 text-xs">Lions Clubs International · District 325L</div>
               </div>
             </div>
           </div>

@@ -4,8 +4,9 @@ import { getMembers } from "@/lib/firestore";
 import type { Award, Member } from "@/lib/types";
 import { MONTHS, LEO_YEARS } from "@/lib/types";
 import {
-  Plus, Trash2, Edit2, Check, X, Loader2, Award as AwardIcon, Star, Building,
+  Plus, Trash2, Edit2, Check, X, Loader2, Award as AwardIcon, Star, Building, FileText,
 } from "lucide-react";
+import AwardCertificateModal from "@/components/AwardCertificateModal";
 
 const AWARD_TITLES = [
   "Leo of the Month",
@@ -127,6 +128,7 @@ export default function AwardsManagement() {
     } catch { setError("Failed to delete."); }
   }
 
+  const [certAward, setCertAward] = useState<Award | null>(null);
   const memberAwards = awards.filter((a) => a.type === "member");
   const clubAwards = awards.filter((a) => a.type === "club");
 
@@ -273,6 +275,8 @@ export default function AwardsManagement() {
       )}
 
       {/* Awards List */}
+      {certAward && <AwardCertificateModal award={certAward} onClose={() => setCertAward(null)} />}
+
       {loading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />)}</div>
       ) : awards.length === 0 ? (
@@ -303,6 +307,7 @@ export default function AwardsManagement() {
                       <div className="text-xs text-gray-400">{a.month} · Leo Year {a.year}{a.awardedBy ? ` · By ${a.awardedBy}` : ""}</div>
                     </div>
                     <div className="flex gap-2 shrink-0">
+                      <button onClick={() => setCertAward(a)} title="Generate Certificate" className="p-2 text-gray-400 hover:text-[#D4AF37] hover:bg-yellow-50 rounded-lg transition-colors"><FileText size={14} /></button>
                       <button onClick={() => startEdit(a)} className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors"><Edit2 size={14} /></button>
                       <button onClick={() => handleDelete(a.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14} /></button>
                     </div>
