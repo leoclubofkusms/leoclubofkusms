@@ -150,7 +150,7 @@ export default function QRGenerator() {
                   marginBottom: "16px",
                   fontFamily: "system-ui, sans-serif",
                 }}>
-                  Lions Clubs International — District 325 B1
+                  Lions Clubs International — District 325L
                 </div>
 
                 {/* Club name */}

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { getBodMembers } from "@/lib/firestore";
 import type { BodMember } from "@/lib/types";
-import { Mail, Phone, ArrowLeft, Award, Heart, Target, Users } from "lucide-react";
+import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK } from "@/lib/types";
+import { Mail, Phone, ArrowLeft, Award, Heart, Target, Users, Calendar, Facebook, ExternalLink } from "lucide-react";
 
 export default function AboutPage() {
   const [bod, setBod] = useState<BodMember[]>([]);
@@ -24,17 +25,24 @@ export default function AboutPage() {
             <ArrowLeft size={16} /> Back to Home
           </Link>
           <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/40 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-4">
-            <Award size={14} /> Lions Clubs International — District 325 B1
+            <Award size={14} /> Lions Clubs International — District 325L
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-3">About Our Club</h1>
-          <p className="text-white/70 text-lg max-w-2xl">
-            Leo Club of Kathmandu University School of Medical Sciences (KUSMS) — 
+          <p className="text-white/70 text-lg max-w-2xl mb-6">
+            Leo Club of Kathmandu University School of Medical Sciences (KUSMS) —
             a community of future healthcare leaders united by the spirit of service.
           </p>
+          {/* Established badge */}
+          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm">
+            <Calendar size={14} className="text-[#D4AF37]" />
+            <span className="text-white/80">Officially chartered on</span>
+            <span className="font-bold text-white">{CLUB_ESTABLISHED}</span>
+          </div>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
+
         {/* Mission & Values */}
         <section>
           <h2 className="text-2xl font-bold text-[#002147] mb-8 text-center">Our Mission & Values</h2>
@@ -55,14 +63,14 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* President */}
+        {/* Board of Directors */}
         <section>
           <h2 className="text-2xl font-bold text-[#002147] mb-8 text-center">Board of Directors</h2>
           {loading ? (
             <div className="space-y-4">
               <div className="bg-white rounded-3xl border border-gray-100 p-8 animate-pulse h-52" />
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {[1,2,3].map(i => <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse h-36" />)}
+                {[1, 2, 3].map(i => <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse h-36" />)}
               </div>
             </div>
           ) : bod.length === 0 ? (
@@ -140,6 +148,35 @@ export default function AboutPage() {
               )}
             </>
           )}
+        </section>
+
+        {/* Social Media */}
+        <section>
+          <h2 className="text-2xl font-bold text-[#002147] mb-6 text-center">Follow Us</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto">
+            <a href={CLUB_FACEBOOK} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-[#1877F2]/30 transition-all group">
+              <div className="w-12 h-12 rounded-xl bg-[#1877F2] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                <Facebook size={22} className="text-white" />
+              </div>
+              <div>
+                <div className="font-bold text-[#002147]">Facebook</div>
+                <div className="text-xs text-gray-400">Official Page</div>
+              </div>
+              <ExternalLink size={14} className="text-gray-400 ml-auto" />
+            </a>
+            <a href={CLUB_TIKTOK} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-gray-300 transition-all group">
+              <div className="w-12 h-12 rounded-xl bg-black flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                <span className="text-white font-black text-lg">TT</span>
+              </div>
+              <div>
+                <div className="font-bold text-[#002147]">TikTok</div>
+                <div className="text-xs text-gray-400">@leoclub.kusms</div>
+              </div>
+              <ExternalLink size={14} className="text-gray-400 ml-auto" />
+            </a>
+          </div>
         </section>
 
         {/* Contact */}

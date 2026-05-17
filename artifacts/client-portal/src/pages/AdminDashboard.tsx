@@ -6,7 +6,8 @@ import MemberManagement from "./admin/MemberManagement";
 import ActivityList from "./admin/ActivityList";
 import QRGenerator from "./admin/QRGenerator";
 import BodManagement from "./admin/BodManagement";
-import { PlusCircle, Users, List, QrCode, LogOut, Home, Crown } from "lucide-react";
+import ClubSettings from "./admin/ClubSettings";
+import { PlusCircle, Users, List, QrCode, LogOut, Home, Crown, Settings } from "lucide-react";
 
 const TABS = [
   { id: "new-activity", label: "New Activity", icon: PlusCircle },
@@ -14,6 +15,7 @@ const TABS = [
   { id: "activities", label: "Activity List", icon: List },
   { id: "bod", label: "Board of Directors", icon: Crown },
   { id: "qr", label: "QR Generator", icon: QrCode },
+  { id: "settings", label: "Club Settings", icon: Settings },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -100,6 +102,7 @@ export default function AdminDashboard() {
           )}
           {activeTab === "bod" && <BodManagement />}
           {activeTab === "qr" && <QRGenerator />}
+          {activeTab === "settings" && <ClubSettings />}
         </div>
       </div>
     </div>

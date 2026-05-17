@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
-import { getMembers, getActivities, getBodMembers, getFeaturedActivities } from "@/lib/firestore";
-import type { Member, Activity, BodMember } from "@/lib/types";
+import { getMembers, getActivities, getBodMembers, getFeaturedActivities, getClubSettings } from "@/lib/firestore";
+import type { Member, Activity, BodMember, ClubSettings } from "@/lib/types";
+import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK } from "@/lib/types";
 import {
   ArrowRight, Award, Users, Calendar, Shield, Mail, Phone,
-  ChevronLeft, ChevronRight, Pin, Info,
+  ChevronLeft, ChevronRight, Pin, Info, Facebook, ExternalLink,
 } from "lucide-react";
 
 // ── Animated Featured Activities Carousel ─────────────────────────────────────
@@ -198,6 +199,7 @@ export default function HomePage() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [featuredActivities, setFeaturedActivities] = useState<Activity[]>([]);
   const [bod, setBod] = useState<BodMember[]>([]);
+  const [clubSettings, setClubSettings] = useState<ClubSettings>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -206,11 +208,13 @@ export default function HomePage() {
       getActivities().catch(() => [] as Activity[]),
       getFeaturedActivities().catch(() => [] as Activity[]),
       getBodMembers().catch(() => [] as BodMember[]),
-    ]).then(([m, a, f, b]) => {
+      getClubSettings().catch(() => ({} as ClubSettings)),
+    ]).then(([m, a, f, b, s]) => {
       setMembers(m);
       setActivities(a);
       setFeaturedActivities(f);
       setBod(b);
+      setClubSettings(s);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -239,7 +243,7 @@ export default function HomePage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/40 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-6">
-              <Award size={14} /> Lions Clubs International — District 325 B1
+              <Award size={14} /> Lions Clubs International — District 325L
             </div>
             <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-2">
               Leo Club of Kathmandu University
@@ -446,6 +450,72 @@ export default function HomePage() {
               ))}
             </div>
           )}
+        </section>
+
+        {/* ── Chartered Certificate ────────────────────────────────────────── */}
+        <section>
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-[#002147]">Official Charter</h2>
+            <p className="text-gray-500 text-sm mt-1">Officially established by Lions Clubs International District 325L</p>
+          </div>
+          <div className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-3xl overflow-hidden shadow-xl text-white">
+            <div className="p-8 md:p-10 flex flex-col md:flex-row gap-8 items-center">
+              {/* Left: info */}
+              <div className="flex-1 text-center md:text-left">
+                <div className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] rounded-full px-3 py-1 text-xs font-bold mb-4">
+                  <Award size={12} /> Officially Chartered
+                </div>
+                <h3 className="text-2xl font-bold mb-2">Leo Club of KUSMS</h3>
+                <p className="text-white/70 text-sm mb-4 leading-relaxed">
+                  Chartered by Lions Clubs International under District 325L.<br />
+                  Handover ceremony held on <span className="text-[#D4AF37] font-semibold">{CLUB_ESTABLISHED}</span>.
+                </p>
+                <div className="flex flex-wrap gap-3 justify-center md:justify-start text-sm">
+                  <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+                    <Calendar size={14} className="text-[#D4AF37]" />
+                    <span>Established {CLUB_ESTABLISHED}</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+                    <Award size={14} className="text-[#D4AF37]" />
+                    <span>District 325L</span>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-5 justify-center md:justify-start">
+                  <a href={CLUB_FACEBOOK} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-[#1877F2] hover:bg-[#1565c0] rounded-xl px-4 py-2 text-sm font-medium transition-colors">
+                    <Facebook size={14} /> Facebook
+                  </a>
+                  <a href={CLUB_TIKTOK} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-black/50 hover:bg-black/70 border border-white/20 rounded-xl px-4 py-2 text-sm font-medium transition-colors">
+                    <ExternalLink size={14} /> TikTok
+                  </a>
+                </div>
+              </div>
+              {/* Right: certificate or placeholder */}
+              <div className="shrink-0 flex flex-col items-center gap-3">
+                {clubSettings.charteredCertificateUrl ? (
+                  <div className="bg-white rounded-2xl p-2 shadow-lg">
+                    {clubSettings.charteredCertificateType === "pdf" ? (
+                      <a href={clubSettings.charteredCertificateUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex flex-col items-center gap-2 text-[#002147] p-6 hover:text-[#D4AF37] transition-colors">
+                        <Award size={40} />
+                        <span className="text-sm font-semibold">View Certificate (PDF)</span>
+                        <ExternalLink size={14} />
+                      </a>
+                    ) : (
+                      <img src={clubSettings.charteredCertificateUrl} alt="Chartered Certificate"
+                        className="max-w-[220px] max-h-[280px] rounded-xl object-contain" />
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-white/10 border-2 border-dashed border-white/30 rounded-2xl p-8 flex flex-col items-center gap-3 text-white/50 text-center min-w-[180px]">
+                    <Award size={36} className="text-[#D4AF37]/50" />
+                    <p className="text-xs leading-relaxed">Chartered certificate will appear here.<br />Upload from Admin → Club Settings.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* ── CTA ─────────────────────────────────────────────────────────────── */}

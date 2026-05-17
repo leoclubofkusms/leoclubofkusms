@@ -108,8 +108,9 @@ export default function BodManagement() {
       </div>
 
       <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl px-4 py-3 mb-5 text-sm text-[#002147]">
-        <strong>Priority tip:</strong> Set priority to <strong>1</strong> for the President (shown large at top of home page).
-        Lower number = shown first. Vice President = 2, Secretary = 3, etc.
+        <strong>Priority guide:</strong> Lower number = shown higher up.
+        President = <strong>1</strong> (shown large at top), Vice President = 2, Secretary = 3, PVST (Past President) = 4, etc.
+        Use the Role field to type any title: President, VP, PVST, Secretary, Treasurer, Joint Secretary, etc.
       </div>
 
       {success && (

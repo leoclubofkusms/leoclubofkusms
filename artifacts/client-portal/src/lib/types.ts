@@ -59,3 +59,12 @@ export const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 export const ADMIN_EMAIL = "leoclubofkusms@gmail.com";
+
+export interface ClubSettings {
+  charteredCertificateUrl?: string;
+  charteredCertificateType?: "image" | "pdf";
+}
+
+export const CLUB_ESTABLISHED = "June 11, 2024";
+export const CLUB_FACEBOOK = "https://www.facebook.com/share/1B5inBvASe/?mibextid=wwXIfr";
+export const CLUB_TIKTOK = "https://www.tiktok.com/@leoclub.kusms";

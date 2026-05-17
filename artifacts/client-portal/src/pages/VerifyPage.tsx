@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Link } from "wouter";
 import { getMember, getActivity } from "@/lib/firestore";
 import type { Member, Activity, MemberActivity } from "@/lib/types";
+import { MONTHS } from "@/lib/types";
 import { QRCodeSVG } from "qrcode.react";
 import { User, Calendar, Award, ExternalLink, ArrowLeft, Download } from "lucide-react";
 
@@ -41,11 +42,11 @@ export default function VerifyPage({ memberId }: VerifyPageProps) {
             recs.push({ activity: act, memberActivity: ma });
           }
         }
-        // Sort chronologically
+        // Sort chronologically by Leo year then calendar month order
         recs.sort((a, b) => {
           const yearCmp = a.memberActivity.year.localeCompare(b.memberActivity.year);
           if (yearCmp !== 0) return yearCmp;
-          return a.memberActivity.month.localeCompare(b.memberActivity.month);
+          return MONTHS.indexOf(a.memberActivity.month) - MONTHS.indexOf(b.memberActivity.month);
         });
         setRecords(recs);
       } catch (e) {

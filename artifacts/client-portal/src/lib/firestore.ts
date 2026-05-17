@@ -260,3 +260,16 @@ export async function setBodMember(member: BodMember): Promise<void> {
 export async function deleteBodMember(id: string): Promise<void> {
   await deleteDoc(doc(db, "bod", id));
 }
+
+// ── Club Settings ─────────────────────────────────────────────────────────────
+
+import type { ClubSettings } from "./types";
+
+export async function getClubSettings(): Promise<ClubSettings> {
+  const snap = await getDoc(doc(db, "settings", "clubSettings"));
+  return snap.exists() ? (snap.data() as ClubSettings) : {};
+}
+
+export async function updateClubSettings(data: Partial<ClubSettings>): Promise<void> {
+  await setDoc(doc(db, "settings", "clubSettings"), data, { merge: true });
+}
