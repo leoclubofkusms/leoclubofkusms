@@ -354,7 +354,7 @@ export default function MembersPage() {
                       <QRCodeSVG value={pageUrl} size={80} fgColor="#002147" />
                     </div>
                     <Link
-                      href={`/verify/member/${selectedMember.memberId}`}
+                      href={`/members/${selectedMember.memberId}`}
                       className="text-[#D4AF37] text-xs hover:underline flex items-center gap-1"
                     >
                       Full Profile <ExternalLink size={11} />
