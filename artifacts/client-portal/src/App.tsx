@@ -16,6 +16,7 @@ import AwardsPage from "@/pages/AwardsPage";
 import MemberProfilePage from "@/pages/MemberProfilePage";
 import PastMembersPage from "@/pages/PastMembersPage";
 import ConstitutionPage from "@/pages/ConstitutionPage";
+import WallOfFamePage from "@/pages/WallOfFamePage";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ function AppLayout() {
                 <Route path="/members" component={MembersPage} />
                 <Route path="/past-members" component={PastMembersPage} />
                 <Route path="/constitution" component={ConstitutionPage} />
+                <Route path="/wall-of-fame" component={WallOfFamePage} />
                 <Route path="/events" component={EventsPage} />
                 <Route path="/awards" component={AwardsPage} />
                 <Route path="/members/:memberId">

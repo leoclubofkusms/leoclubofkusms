@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { LEO_YEARS, MONTHS } from "@/lib/types";
-import { Menu, X, ChevronDown, Search, Info, CalendarDays, Award, Clock, BookOpen } from "lucide-react";
+import { Menu, X, ChevronDown, Search, Info, CalendarDays, Award, Clock, BookOpen, Trophy } from "lucide-react";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -65,6 +65,10 @@ export default function Navbar() {
 
             <Link href="/awards" className="hover:text-[#D4AF37] transition-colors text-sm font-medium flex items-center gap-1">
               <Award size={14} /> Awards
+            </Link>
+
+            <Link href="/wall-of-fame" className="hover:text-[#D4AF37] transition-colors text-sm font-medium flex items-center gap-1">
+              <Trophy size={14} /> Wall of Fame
             </Link>
 
             <Link href="/constitution" className="hover:text-[#D4AF37] transition-colors text-sm font-medium flex items-center gap-1">
@@ -167,6 +171,9 @@ export default function Navbar() {
           </Link>
           <Link href="/awards" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium flex items-center gap-1">
             <Award size={15} /> Awards
+          </Link>
+          <Link href="/wall-of-fame" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium flex items-center gap-1">
+            <Trophy size={15} /> Wall of Fame
           </Link>
           <Link href="/constitution" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium flex items-center gap-1">
             <BookOpen size={15} /> Constitution
