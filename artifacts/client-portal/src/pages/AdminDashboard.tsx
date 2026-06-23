@@ -11,9 +11,10 @@ import ClubSettings from "./admin/ClubSettings";
 import AwardsManagement from "./admin/AwardsManagement";
 import EventsManagement from "./admin/EventsManagement";
 import AnnualReport from "./admin/AnnualReport";
+import CertificateGenerator from "./admin/CertificateGenerator";
 import {
   PlusCircle, Users, List, QrCode, LogOut, Home, Crown, Settings,
-  Award, CalendarDays, ShieldCheck, FileText, CreditCard,
+  Award, CalendarDays, ShieldCheck, FileText, CreditCard, Scroll,
 } from "lucide-react";
 
 const ADMIN_TABS = [
@@ -25,6 +26,7 @@ const ADMIN_TABS = [
   { id: "bod", label: "Board of Directors", icon: Crown },
   { id: "qr", label: "QR Generator", icon: QrCode },
   { id: "id-cards", label: "ID Cards", icon: CreditCard },
+  { id: "certificates", label: "Certificates", icon: Scroll },
   { id: "settings", label: "Club Settings", icon: Settings },
   { id: "annual-report", label: "Annual Report", icon: FileText },
 ] as const;
@@ -36,6 +38,7 @@ const OPERATOR_TABS = [
   { id: "events", label: "Events", icon: CalendarDays },
   { id: "qr", label: "QR Generator", icon: QrCode },
   { id: "id-cards", label: "ID Cards", icon: CreditCard },
+  { id: "certificates", label: "Certificates", icon: Scroll },
 ] as const;
 
 type AdminTabId = (typeof ADMIN_TABS)[number]["id"];
@@ -151,6 +154,7 @@ export default function AdminDashboard() {
           {activeTab === "bod" && isAdmin && <BodManagement />}
           {activeTab === "qr" && <QRGenerator />}
           {activeTab === "id-cards" && <IDCardGenerator />}
+          {activeTab === "certificates" && <CertificateGenerator />}
           {activeTab === "settings" && isAdmin && <ClubSettings />}
           {activeTab === "annual-report" && isAdmin && <AnnualReport />}
         </div>
