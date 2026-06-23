@@ -7,9 +7,10 @@ import {
   deleteMember,
   addManualAchievement,
   removeManualAchievement,
+  toggleMemberActive,
 } from "@/lib/firestore";
 import type { Member, MemberActivity } from "@/lib/types";
-import { LEO_YEARS, MONTHS } from "@/lib/types";
+import { LEO_YEARS, MONTHS, FACULTIES } from "@/lib/types";
 import {
   Plus,
   Pencil,
@@ -24,6 +25,8 @@ import {
   ChevronUp,
   PlusCircle,
   Loader2,
+  Clock,
+  CheckCircle,
 } from "lucide-react";
 
 const EMPTY_MEMBER: Member = {
@@ -31,9 +34,14 @@ const EMPTY_MEMBER: Member = {
   name: "",
   rollNo: "",
   batch: "",
+  faculty: FACULTIES[0],
   currentRole: "",
   photoUrl: "",
   activities: [],
+  isActive: true,
+  joinedLeoYear: LEO_YEARS[0],
+  leftLeoYear: "",
+  bio: "",
 };
 
 const EMPTY_ACHIEVEMENT = {
@@ -555,6 +563,71 @@ export default function MemberManagement() {
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Faculty</label>
+                <select
+                  value={form.faculty ?? FACULTIES[0]}
+                  onChange={(e) => setForm({ ...form, faculty: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+                >
+                  {FACULTIES.map((f) => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Joined Leo Year</label>
+                <select
+                  value={form.joinedLeoYear ?? LEO_YEARS[0]}
+                  onChange={(e) => setForm({ ...form, joinedLeoYear: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+                >
+                  {LEO_YEARS.map((y) => <option key={y} value={y}>Leo Year {y}</option>)}
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-2">Membership Status</label>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="isActive" checked={form.isActive !== false}
+                      onChange={() => setForm({ ...form, isActive: true, leftLeoYear: "" })}
+                      className="text-[#002147]" />
+                    <span className="text-sm text-gray-700 flex items-center gap-1"><CheckCircle size={14} className="text-green-500" /> Active Member</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="isActive" checked={form.isActive === false}
+                      onChange={() => setForm({ ...form, isActive: false })}
+                      className="text-[#002147]" />
+                    <span className="text-sm text-gray-700 flex items-center gap-1"><Clock size={14} className="text-gray-400" /> Past Member</span>
+                  </label>
+                </div>
+              </div>
+
+              {form.isActive === false && (
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Left Leo Year</label>
+                  <select
+                    value={form.leftLeoYear ?? ""}
+                    onChange={(e) => setForm({ ...form, leftLeoYear: e.target.value })}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+                  >
+                    <option value="">— Select year —</option>
+                    {LEO_YEARS.map((y) => <option key={y} value={y}>Leo Year {y}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Short Bio (optional)</label>
+                <textarea
+                  value={form.bio ?? ""}
+                  onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                  rows={2}
+                  placeholder="Brief description about the member..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] resize-none"
+                />
+              </div>
             </div>
 
             {/* Photo picker — full width */}
@@ -640,18 +713,44 @@ export default function MemberManagement() {
                 )}
 
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-[#002147] truncate">{m.name}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="font-semibold text-[#002147] truncate">{m.name}</div>
+                    {m.isActive === false ? (
+                      <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                        <Clock size={10} /> Past
+                      </span>
+                    ) : (
+                      <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                        <CheckCircle size={10} /> Active
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {m.memberId} · {m.rollNo} · {m.batch}
                   </div>
                   {m.currentRole && (
-                    <div className="text-xs text-[#D4AF37] font-medium mt-0.5">
-                      {m.currentRole}
+                    <div className="text-xs text-[#D4AF37] font-medium mt-0.5">{m.currentRole}</div>
+                  )}
+                  {(m.joinedLeoYear || m.leftLeoYear) && (
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {m.joinedLeoYear && `Joined ${m.joinedLeoYear}`}
+                      {m.leftLeoYear && ` · Left ${m.leftLeoYear}`}
                     </div>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={async () => {
+                      const next = m.isActive === false ? true : false;
+                      await toggleMemberActive(m.memberId, next);
+                      setMembers((prev) => prev.map((x) => x.memberId === m.memberId ? { ...x, isActive: next } : x));
+                    }}
+                    title={m.isActive === false ? "Mark as active" : "Mark as past member"}
+                    className={`p-2 rounded-lg transition-colors ${m.isActive === false ? "text-gray-400 hover:text-green-600 hover:bg-green-50" : "text-green-500 hover:text-gray-400 hover:bg-gray-100"}`}
+                  >
+                    {m.isActive === false ? <CheckCircle size={15} /> : <Clock size={15} />}
+                  </button>
                   <button
                     onClick={() => openEdit(m)}
                     className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors"

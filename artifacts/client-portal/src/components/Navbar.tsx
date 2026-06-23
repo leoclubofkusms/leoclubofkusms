@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { LEO_YEARS, MONTHS } from "@/lib/types";
-import { Menu, X, ChevronDown, Search, Info, CalendarDays, Award } from "lucide-react";
+import { Menu, X, ChevronDown, Search, Info, CalendarDays, Award, Clock } from "lucide-react";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -45,9 +45,19 @@ export default function Navbar() {
               <Info size={14} /> About
             </Link>
 
-            <Link href="/members" className="hover:text-[#D4AF37] transition-colors text-sm font-medium">
-              Members
-            </Link>
+            <div className="relative group">
+              <button className="flex items-center gap-1 hover:text-[#D4AF37] transition-colors text-sm font-medium">
+                Members <ChevronDown size={13} />
+              </button>
+              <div className="absolute top-7 left-0 bg-white text-[#002147] rounded-xl shadow-xl border border-gray-100 w-44 py-1.5 z-50 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity">
+                <Link href="/members" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-[#002147] hover:text-white transition-colors">
+                  <Award size={13} /> Active Members
+                </Link>
+                <Link href="/past-members" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-[#002147] hover:text-white transition-colors">
+                  <Clock size={13} /> Past Members
+                </Link>
+              </div>
+            </div>
 
             <Link href="/events" className="hover:text-[#D4AF37] transition-colors text-sm font-medium flex items-center gap-1">
               <CalendarDays size={14} /> Events
@@ -144,7 +154,10 @@ export default function Navbar() {
           <Link href="/about" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium flex items-center gap-1">
             <Info size={15} /> About
           </Link>
-          <Link href="/members" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium">Members</Link>
+          <Link href="/members" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium">Active Members</Link>
+          <Link href="/past-members" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium flex items-center gap-1">
+            <Clock size={15} /> Past Members
+          </Link>
           <Link href="/events" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium flex items-center gap-1">
             <CalendarDays size={15} /> Events
           </Link>

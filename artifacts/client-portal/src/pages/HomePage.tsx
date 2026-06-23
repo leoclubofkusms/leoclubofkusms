@@ -2,11 +2,12 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { getMembers, getActivities, getBodMembers, getFeaturedActivities, getClubSettings, getAwards } from "@/lib/firestore";
 import type { Member, Activity, BodMember, ClubSettings, Award as AwardType } from "@/lib/types";
-import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK } from "@/lib/types";
+import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, LEO_YEARS, MONTHS } from "@/lib/types";
 import {
   ArrowRight, Award, Users, Calendar, Shield, Mail, Phone,
   ChevronLeft, ChevronRight, Pin, Info, Facebook, ExternalLink,
   Star, Building, Quote, Heart, TrendingUp, MessageCircle,
+  Zap, Trophy, Flame, BarChart3,
 } from "lucide-react";
 
 // ── Animated counter hook ──────────────────────────────────────────────────────
@@ -79,6 +80,225 @@ function ImpactStats({
               <div className="text-white/50 text-xs leading-tight">{label}</div>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Leo Analytics (AI-powered insights) ───────────────────────────────────────
+function LeoAnalytics({
+  members, activities, awards,
+}: { members: Member[]; activities: Activity[]; awards: AwardType[] }) {
+  // Top contributor by activity count in the most recent Leo year with data
+  const latestYearWithData = [...LEO_YEARS].reverse().find((y) =>
+    activities.some((a) => a.year === y)
+  ) ?? LEO_YEARS[0];
+
+  const participationCounts: Record<string, number> = {};
+  activities.forEach((a) => {
+    a.participants.forEach((p) => {
+      participationCounts[p.memberId] = (participationCounts[p.memberId] ?? 0) + 1;
+    });
+  });
+
+  const currentYearCounts: Record<string, number> = {};
+  activities.filter((a) => a.year === latestYearWithData).forEach((a) => {
+    a.participants.forEach((p) => {
+      currentYearCounts[p.memberId] = (currentYearCounts[p.memberId] ?? 0) + 1;
+    });
+  });
+
+  const topAllTime = [...members]
+    .filter((m) => participationCounts[m.memberId])
+    .sort((a, b) => (participationCounts[b.memberId] ?? 0) - (participationCounts[a.memberId] ?? 0))
+    .slice(0, 3);
+
+  const topThisYear = [...members]
+    .filter((m) => currentYearCounts[m.memberId])
+    .sort((a, b) => (currentYearCounts[b.memberId] ?? 0) - (currentYearCounts[a.memberId] ?? 0))
+    .slice(0, 3);
+
+  const mostProductiveYear = LEO_YEARS.reduce<{ year: string; count: number }>(
+    (best, y) => {
+      const count = activities.filter((a) => a.year === y).length;
+      return count > best.count ? { year: y, count } : best;
+    },
+    { year: "", count: 0 }
+  );
+
+  const mostActiveMonth = MONTHS.reduce<{ month: string; count: number }>(
+    (best, m) => {
+      const count = activities.filter((a) => a.month === m).length;
+      return count > best.count ? { month: m, count } : best;
+    },
+    { month: "", count: 0 }
+  );
+
+  const mostAwardedMember = [...members]
+    .map((m) => ({ member: m, count: awards.filter((a) => a.memberId === m.memberId).length }))
+    .filter((x) => x.count > 0)
+    .sort((a, b) => b.count - a.count)[0];
+
+  const suggestedLeoOfMonth = topThisYear[0];
+
+  if (!topAllTime.length && !suggestedLeoOfMonth) return null;
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-7 h-7 rounded-lg bg-[#002147] flex items-center justify-center">
+              <Zap size={14} className="text-[#D4AF37]" />
+            </div>
+            <h2 className="text-2xl font-bold text-[#002147]">Leo Analytics</h2>
+          </div>
+          <p className="text-gray-500 text-sm">Data-driven insights from our club's activity history</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Suggested Leo of the Month */}
+        {suggestedLeoOfMonth && (
+          <div className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-2xl p-6 text-white shadow-lg md:col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+              <Flame size={16} className="text-[#D4AF37]" />
+              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Suggested Leo of the Month</span>
+              <span className="ml-auto text-xs text-white/40">Leo Year {latestYearWithData}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              {suggestedLeoOfMonth.photoUrl ? (
+                <img src={suggestedLeoOfMonth.photoUrl} alt={suggestedLeoOfMonth.name}
+                  className="w-16 h-16 rounded-2xl object-cover border-2 border-[#D4AF37] shrink-0" />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-[#D4AF37]/20 border-2 border-[#D4AF37]/40 flex items-center justify-center shrink-0">
+                  <span className="text-2xl font-bold text-[#D4AF37]">{suggestedLeoOfMonth.name[0]}</span>
+                </div>
+              )}
+              <div>
+                <div className="text-xl font-bold">{suggestedLeoOfMonth.name}</div>
+                <div className="text-white/60 text-sm">{suggestedLeoOfMonth.currentRole || "Leo Member"}</div>
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="bg-[#D4AF37] text-[#002147] text-xs font-bold px-3 py-1 rounded-full">
+                    {currentYearCounts[suggestedLeoOfMonth.memberId]} activit{currentYearCounts[suggestedLeoOfMonth.memberId] === 1 ? "y" : "ies"} this year
+                  </div>
+                  <Link href={`/members/${suggestedLeoOfMonth.memberId}`}
+                    className="text-xs text-white/50 hover:text-white transition-colors flex items-center gap-1">
+                    View Profile <ExternalLink size={10} />
+                  </Link>
+                </div>
+              </div>
+            </div>
+            {topThisYear.length > 1 && (
+              <div className="mt-5 pt-4 border-t border-white/10">
+                <div className="text-xs text-white/40 mb-3">Other top contributors this year</div>
+                <div className="flex gap-3 flex-wrap">
+                  {topThisYear.slice(1).map((m, i) => (
+                    <Link key={m.memberId} href={`/members/${m.memberId}`}
+                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-xl px-3 py-2 transition-colors">
+                      {m.photoUrl
+                        ? <img src={m.photoUrl} alt={m.name} className="w-6 h-6 rounded-full object-cover border border-white/30" />
+                        : <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">{m.name[0]}</div>
+                      }
+                      <span className="text-sm font-medium">{m.name}</span>
+                      <span className="text-xs text-white/50">{currentYearCounts[m.memberId]} acts</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Top All-Time Contributors */}
+        {topAllTime.length > 0 && (
+          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy size={16} className="text-[#D4AF37]" />
+              <h3 className="font-bold text-[#002147]">Top Contributors — All Time</h3>
+            </div>
+            <div className="space-y-3">
+              {topAllTime.map((m, i) => (
+                <Link key={m.memberId} href={`/members/${m.memberId}`}
+                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 ${i === 0 ? "bg-[#D4AF37] text-[#002147]" : i === 1 ? "bg-gray-200 text-gray-600" : "bg-gray-100 text-gray-500"}`}>
+                    #{i + 1}
+                  </div>
+                  {m.photoUrl
+                    ? <img src={m.photoUrl} alt={m.name} className="w-10 h-10 rounded-xl object-cover border border-gray-100 shrink-0" />
+                    : <div className="w-10 h-10 rounded-xl bg-[#002147] text-white flex items-center justify-center font-bold shrink-0">{m.name[0]}</div>
+                  }
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-[#002147] group-hover:text-[#003575] transition-colors truncate">{m.name}</div>
+                    <div className="text-xs text-gray-400">{m.currentRole || "Leo Member"}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-lg font-bold text-[#002147]">{participationCounts[m.memberId]}</div>
+                    <div className="text-xs text-gray-400">activities</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Club Stats Summary */}
+        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 size={16} className="text-[#002147]" />
+            <h3 className="font-bold text-[#002147]">Club Intelligence</h3>
+          </div>
+          <div className="space-y-4">
+            {mostProductiveYear.year && (
+              <div className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-xl">
+                <div>
+                  <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">Most Productive Year</div>
+                  <div className="font-bold text-[#002147] mt-0.5">Leo Year {mostProductiveYear.year}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-[#D4AF37]">{mostProductiveYear.count}</div>
+                  <div className="text-xs text-gray-400">activities</div>
+                </div>
+              </div>
+            )}
+            {mostActiveMonth.month && (
+              <div className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-xl">
+                <div>
+                  <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">Most Active Month</div>
+                  <div className="font-bold text-[#002147] mt-0.5">{mostActiveMonth.month}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-[#D4AF37]">{mostActiveMonth.count}</div>
+                  <div className="text-xs text-gray-400">across all years</div>
+                </div>
+              </div>
+            )}
+            {mostAwardedMember && (
+              <div className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-xl">
+                <div>
+                  <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">Most Recognized Leo</div>
+                  <div className="font-bold text-[#002147] mt-0.5 truncate max-w-[160px]">{mostAwardedMember.member.name}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-[#D4AF37]">{mostAwardedMember.count}</div>
+                  <div className="text-xs text-gray-400">awards</div>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between p-3 bg-[#002147] rounded-xl">
+              <div>
+                <div className="text-xs text-white/50 font-medium uppercase tracking-wide">Total Service Hours</div>
+                <div className="font-bold text-white mt-0.5">Estimated Impact</div>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-[#D4AF37]">
+                  {Object.values(participationCounts).reduce((s, v) => s + v * 4, 0)}+
+                </div>
+                <div className="text-xs text-white/50">hours served</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -733,6 +953,11 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* ── Leo Analytics ──────────────────────────────────────────────────── */}
+        {!loading && members.length > 0 && activities.length > 0 && (
+          <LeoAnalytics members={members} activities={activities} awards={awards} />
+        )}
 
         {/* ── CTA ─────────────────────────────────────────────────────────────── */}
         <section className="bg-gradient-to-r from-[#002147] to-[#003575] text-white rounded-3xl p-10 text-center shadow-xl">

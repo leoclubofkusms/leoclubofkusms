@@ -1,13 +1,33 @@
 import { useEffect, useState } from "react";
 import { getMembers, getActivities, getAwards } from "@/lib/firestore";
 import type { Member, Activity, Award } from "@/lib/types";
+import { LEO_YEARS, MONTHS, activitySortKey } from "@/lib/types";
 import { Link } from "wouter";
-import { ArrowLeft, Calendar, Star, Shield, Award as AwardIcon, CheckCircle } from "lucide-react";
+import {
+  ArrowLeft, Calendar, Award as AwardIcon, CheckCircle,
+  Clock, Shield, Star, User,
+} from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
-interface Props {
-  memberId: string;
+function serviceYears(member: Member): string {
+  const joined = member.joinedLeoYear ?? "";
+  const left = member.leftLeoYear ?? "";
+  if (joined && left) return `${joined} – ${left}`;
+  if (joined) return `${joined} – Present`;
+  return "";
 }
+
+function yearsServed(member: Member): number {
+  const joined = member.joinedLeoYear ?? "";
+  const left = member.leftLeoYear ?? "";
+  if (!joined) return 0;
+  const jIdx = LEO_YEARS.indexOf(joined);
+  const lIdx = left ? LEO_YEARS.indexOf(left) : LEO_YEARS.length - 1;
+  if (jIdx === -1) return 1;
+  return Math.max(1, (lIdx === -1 ? LEO_YEARS.length - 1 : lIdx) - jIdx + 1);
+}
+
+interface Props { memberId: string; }
 
 export default function MemberProfilePage({ memberId }: Props) {
   const [member, setMember] = useState<Member | null>(null);
@@ -17,27 +37,26 @@ export default function MemberProfilePage({ memberId }: Props) {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      getMembers(),
-      getActivities(),
-      getAwards(),
-    ]).then(([members, allActivities, allAwards]) => {
-      const found = members.find((m) => m.memberId === memberId);
-      if (!found) { setNotFound(true); setLoading(false); return; }
-      setMember(found);
-      const memberActivities = allActivities.filter((a) =>
-        a.participants.some((p) => p.memberId === memberId)
-      );
-      setActivities(memberActivities.reverse());
-      setAwards(allAwards.filter((a) => a.memberId === memberId));
-    }).catch(() => setNotFound(true)).finally(() => setLoading(false));
+    Promise.all([getMembers(), getActivities(), getAwards()])
+      .then(([members, allActivities, allAwards]) => {
+        const found = members.find((m) => m.memberId === memberId);
+        if (!found) { setNotFound(true); return; }
+        setMember(found);
+        const memberActivities = allActivities
+          .filter((a) => a.participants.some((p) => p.memberId === memberId))
+          .sort((a, b) => activitySortKey(a.year, a.month) - activitySortKey(b.year, b.month));
+        setActivities(memberActivities);
+        setAwards(allAwards.filter((a) => a.memberId === memberId));
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
   }, [memberId]);
 
   const verifyUrl = `${window.location.origin}${import.meta.env.BASE_URL}verify/member/${memberId}`;
 
   if (loading) return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-      <div className="animate-spin w-8 h-8 border-2 border-[#002147] border-t-transparent rounded-full" />
+      <div className="w-8 h-8 border-2 border-[#002147] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -49,58 +68,78 @@ export default function MemberProfilePage({ memberId }: Props) {
     </div>
   );
 
-  const totalParticipations = activities.length;
+  const isActive = member.isActive !== false;
+  // Group activities by year in chrono order
+  const byYear: Record<string, Activity[]> = {};
+  activities.forEach((a) => {
+    if (!byYear[a.year]) byYear[a.year] = [];
+    byYear[a.year].push(a);
+  });
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Hero banner */}
-      <div className="bg-[#002147] text-white">
+      {/* Hero */}
+      <div className={isActive ? "bg-[#002147]" : "bg-[#3a3a4a]"}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <Link href="/members" className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-6 transition-colors">
             <ArrowLeft size={16} /> All Members
           </Link>
+
+          {/* Status badge */}
+          <div className="mb-5">
+            {isActive ? (
+              <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-400/40 rounded-xl px-4 py-1.5">
+                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-green-300 font-bold text-xs tracking-widest">ACTIVE MEMBER</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-4 py-1.5">
+                <Clock size={12} className="text-white/60" />
+                <span className="text-white/60 font-bold text-xs tracking-widest">PAST MEMBER</span>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-6">
             {member.photoUrl ? (
               <img src={member.photoUrl} alt={member.name}
-                className="w-24 h-24 rounded-2xl object-cover border-2 border-[#D4AF37] shrink-0" />
+                className={`w-24 h-24 rounded-2xl object-cover border-2 shrink-0 ${isActive ? "border-[#D4AF37]" : "border-white/30"}`} />
             ) : (
-              <div className="w-24 h-24 rounded-2xl bg-[#D4AF37]/20 border-2 border-[#D4AF37]/40 flex items-center justify-center shrink-0">
-                <span className="text-3xl font-bold text-[#D4AF37]">{member.name[0]}</span>
+              <div className={`w-24 h-24 rounded-2xl flex items-center justify-center shrink-0 ${isActive ? "bg-[#D4AF37]/20 border-2 border-[#D4AF37]/40" : "bg-white/10 border-2 border-white/20"}`}>
+                <span className="text-3xl font-bold text-white">{member.name[0]}</span>
               </div>
             )}
             <div>
               <div className="flex items-center gap-3 flex-wrap mb-1">
-                <h1 className="text-2xl md:text-3xl font-bold">{member.name}</h1>
-                {member.role && (
-                  <span className="bg-[#D4AF37] text-[#002147] text-xs font-bold px-3 py-1 rounded-full">
-                    {member.role}
-                  </span>
-                )}
-                {member.isActive ? (
-                  <span className="flex items-center gap-1 bg-green-500/20 text-green-300 text-xs px-3 py-1 rounded-full">
-                    <CheckCircle size={10} /> Active
-                  </span>
-                ) : (
-                  <span className="bg-gray-500/20 text-gray-400 text-xs px-3 py-1 rounded-full">Inactive</span>
+                <h1 className="text-2xl md:text-3xl font-bold text-white">{member.name}</h1>
+                {member.currentRole && (
+                  <span className="bg-[#D4AF37] text-[#002147] text-xs font-bold px-3 py-1 rounded-full">{member.currentRole}</span>
                 )}
               </div>
               <div className="text-white/60 text-sm">{member.faculty} · Batch {member.batch}</div>
-              <div className="text-[#D4AF37]/80 text-sm font-mono mt-1">ID: {member.memberId}</div>
+              <div className={`text-sm font-mono mt-1 ${isActive ? "text-[#D4AF37]/80" : "text-white/40"}`}>ID: {member.memberId}</div>
+              {serviceYears(member) && (
+                <div className="flex items-center gap-2 mt-2 text-xs text-white/50">
+                  <Clock size={11} />
+                  Service: {serviceYears(member)}
+                  {yearsServed(member) > 0 && ` · ${yearsServed(member)} year${yearsServed(member) > 1 ? "s" : ""}`}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Stats row */}
+        {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Activities", value: totalParticipations, icon: Calendar },
+            { label: "Activities", value: activities.length, icon: Calendar },
             { label: "Awards", value: awards.length, icon: AwardIcon },
-            { label: "Status", value: member.isActive ? "Active" : "Inactive", icon: Shield },
+            { label: "Status", value: isActive ? "Active" : "Past", icon: isActive ? CheckCircle : Clock },
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-              <Icon size={20} className="text-[#D4AF37] mx-auto mb-2" />
+              <Icon size={20} className={`mx-auto mb-2 ${isActive ? "text-[#D4AF37]" : "text-gray-400"}`} />
               <div className="text-2xl font-bold text-[#002147]">{value}</div>
               <div className="text-xs text-gray-400 mt-0.5">{label}</div>
             </div>
@@ -108,7 +147,7 @@ export default function MemberProfilePage({ memberId }: Props) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left: about + QR */}
+          {/* Left: bio + QR */}
           <div className="space-y-4">
             {member.bio && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -116,13 +155,43 @@ export default function MemberProfilePage({ memberId }: Props) {
                 <p className="text-sm text-gray-500 leading-relaxed">{member.bio}</p>
               </div>
             )}
+
+            {/* Service info */}
+            {(member.joinedLeoYear || member.leftLeoYear) && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <h3 className="font-bold text-[#002147] mb-3 text-sm flex items-center gap-2">
+                  <Clock size={14} className="text-[#D4AF37]" /> Service Period
+                </h3>
+                <div className="space-y-2">
+                  {member.joinedLeoYear && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Joined</span>
+                      <span className="font-semibold text-[#002147]">Leo Year {member.joinedLeoYear}</span>
+                    </div>
+                  )}
+                  {member.leftLeoYear && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Left</span>
+                      <span className="font-semibold text-gray-500">Leo Year {member.leftLeoYear}</span>
+                    </div>
+                  )}
+                  {yearsServed(member) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Years Served</span>
+                      <span className="font-bold text-[#D4AF37]">{yearsServed(member)} year{yearsServed(member) > 1 ? "s" : ""}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h3 className="font-bold text-[#002147] mb-3 text-sm">Verification QR</h3>
               <div className="flex flex-col items-center gap-3">
                 <div className="bg-[#F8FAFC] p-3 rounded-xl border border-gray-100">
                   <QRCodeSVG value={verifyUrl} size={120} bgColor="#F8FAFC" fgColor="#002147" />
                 </div>
-                <p className="text-xs text-gray-400 text-center">Scan to verify this member's credentials</p>
+                <p className="text-xs text-gray-400 text-center">Scan to verify credentials</p>
                 <Link href={`/verify/member/${memberId}`}
                   className="text-xs text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1">
                   <Shield size={11} /> Open Verify Page
@@ -131,7 +200,7 @@ export default function MemberProfilePage({ memberId }: Props) {
             </div>
           </div>
 
-          {/* Right: activities + awards */}
+          {/* Right: awards + activities */}
           <div className="md:col-span-2 space-y-6">
             {/* Awards */}
             {awards.length > 0 && (
@@ -153,35 +222,49 @@ export default function MemberProfilePage({ memberId }: Props) {
               </div>
             )}
 
-            {/* Activities */}
+            {/* Activity Timeline — sorted chronologically */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h3 className="font-bold text-[#002147] mb-4 flex items-center gap-2">
-                <Calendar size={16} className="text-[#D4AF37]" /> Activity Participation
-                <span className="ml-auto text-xs text-gray-400 font-normal">{totalParticipations} total</span>
+                <Calendar size={16} className="text-[#D4AF37]" /> Activity Timeline
+                <span className="ml-auto text-xs text-gray-400 font-normal">{activities.length} total</span>
               </h3>
               {activities.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-4">No recorded activities yet.</p>
               ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {activities.map((a) => {
-                    const participation = a.participants.find((p) => p.memberId === memberId);
-                    return (
-                      <div key={a.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                        <div className="w-8 h-8 rounded-lg bg-[#002147]/5 flex items-center justify-center shrink-0">
-                          <Calendar size={13} className="text-[#002147]" />
+                <div className="space-y-6">
+                  {Object.keys(byYear)
+                    .sort((a, b) => LEO_YEARS.indexOf(a) - LEO_YEARS.indexOf(b))
+                    .map((year) => (
+                      <div key={year}>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-xs font-bold text-[#D4AF37] bg-[#002147] px-3 py-1 rounded-full">Leo Year {year}</span>
+                          <div className="flex-1 h-px bg-gray-100" />
+                          <span className="text-xs text-gray-400">{byYear[year].length}</span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-[#002147] text-sm truncate">{a.name}</div>
-                          <div className="text-xs text-gray-400">{a.month} · {a.year}</div>
+                        <div className="space-y-2 ml-2 border-l-2 border-[#D4AF37]/20 pl-4">
+                          {byYear[year].sort((a, b) => MONTHS.indexOf(a.month) - MONTHS.indexOf(b.month)).map((a) => {
+                            const participation = a.participants.find((p) => p.memberId === memberId);
+                            return (
+                              <div key={a.id} className="relative flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
+                                <div className="absolute -left-[21px] top-3 w-3 h-3 rounded-full bg-[#D4AF37]/40 border-2 border-white" />
+                                <div className="w-7 h-7 rounded-lg bg-[#002147]/5 flex items-center justify-center shrink-0">
+                                  <Calendar size={12} className="text-[#002147]" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-[#002147] text-sm">{a.title}</div>
+                                  <div className="text-xs text-gray-400">{a.month}</div>
+                                </div>
+                                {participation?.awardTitle && (
+                                  <span className="text-xs bg-[#D4AF37]/10 text-[#002147] px-2 py-0.5 rounded-full font-medium shrink-0">
+                                    {participation.awardTitle}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                        {participation?.role && (
-                          <span className="text-xs bg-[#D4AF37]/10 text-[#002147] px-2 py-0.5 rounded-full font-medium shrink-0">
-                            {participation.role}
-                          </span>
-                        )}
                       </div>
-                    );
-                  })}
+                    ))}
                 </div>
               )}
             </div>

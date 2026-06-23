@@ -14,6 +14,7 @@ import AboutPage from "@/pages/AboutPage";
 import EventsPage from "@/pages/EventsPage";
 import AwardsPage from "@/pages/AwardsPage";
 import MemberProfilePage from "@/pages/MemberProfilePage";
+import PastMembersPage from "@/pages/PastMembersPage";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ function AppLayout() {
                 <Route path="/" component={HomePage} />
                 <Route path="/about" component={AboutPage} />
                 <Route path="/members" component={MembersPage} />
+                <Route path="/past-members" component={PastMembersPage} />
                 <Route path="/events" component={EventsPage} />
                 <Route path="/awards" component={AwardsPage} />
                 <Route path="/members/:memberId">

@@ -14,7 +14,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Member, Activity, ActivityFormData, BodMember } from "./types";
+import type { Member, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings } from "./types";
 
 // ── Members ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +84,40 @@ export async function toggleActivityFeatured(
   featured: boolean
 ): Promise<void> {
   await updateDoc(doc(db, "activities", id), { featured });
+}
+
+export async function updateActivityMeta(
+  id: string,
+  data: { title: string; description: string; photos: string[] }
+): Promise<void> {
+  await updateDoc(doc(db, "activities", id), data as Record<string, unknown>);
+  // Sync title to denormalized member activity records
+  const membersSnap = await getDocs(collection(db, "members"));
+  const batch = writeBatch(db);
+  let hasUpdates = false;
+  membersSnap.docs.forEach((memberDoc) => {
+    const member = memberDoc.data() as Member;
+    const acts = member.activities ?? [];
+    const idx = acts.findIndex((a) => a.activityId === id);
+    if (idx >= 0) {
+      const updated = [...acts];
+      updated[idx] = { ...updated[idx], title: data.title };
+      batch.update(memberDoc.ref, { activities: updated });
+      hasUpdates = true;
+    }
+  });
+  if (hasUpdates) await batch.commit();
+}
+
+export async function toggleMemberActive(
+  memberId: string,
+  isActive: boolean,
+  leftLeoYear?: string
+): Promise<void> {
+  const data: Record<string, unknown> = { isActive };
+  if (!isActive && leftLeoYear) data.leftLeoYear = leftLeoYear;
+  if (isActive) data.leftLeoYear = "";
+  await updateDoc(doc(db, "members", memberId), data);
 }
 
 export async function getActivity(id: string): Promise<Activity | null> {
@@ -262,8 +296,6 @@ export async function deleteBodMember(id: string): Promise<void> {
 }
 
 // ── Awards ────────────────────────────────────────────────────────────────────
-
-import type { Award, ClubEvent, ClubSettings } from "./types";
 
 export async function getAwards(): Promise<Award[]> {
   const snap = await getDocs(collection(db, "awards"));

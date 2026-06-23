@@ -11,9 +11,15 @@ export interface Member {
   name: string;
   rollNo: string;
   batch: string;
+  faculty?: string;
   currentRole: string;
+  role?: string;
   photoUrl: string;
   activities: MemberActivity[];
+  isActive?: boolean;
+  joinedLeoYear?: string;
+  leftLeoYear?: string;
+  bio?: string;
 }
 
 export interface ActivityParticipant {
@@ -62,6 +68,10 @@ export const MONTHS = [
 ];
 export const ADMIN_EMAIL = "leoclubofkusms@gmail.com";
 
+export const FACULTIES = [
+  "MBBS", "BDS", "B.Sc. Nursing", "BPT", "BASLP", "Pharmacy", "Other",
+];
+
 export interface ClubSettings {
   charteredCertificateUrl?: string;
   charteredCertificateType?: "image" | "pdf";
@@ -96,3 +106,9 @@ export interface ClubEvent {
 export const CLUB_ESTABLISHED = "June 11, 2024";
 export const CLUB_FACEBOOK = "https://www.facebook.com/share/1B5inBvASe/?mibextid=wwXIfr";
 export const CLUB_TIKTOK = "https://www.tiktok.com/@leoclub.kusms";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+/** Sort key for chronological ordering of Leo year + month */
+export function activitySortKey(year: string, month: string): number {
+  return LEO_YEARS.indexOf(year) * 12 + MONTHS.indexOf(month);
+}

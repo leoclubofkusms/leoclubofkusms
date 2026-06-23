@@ -9,9 +9,10 @@ import BodManagement from "./admin/BodManagement";
 import ClubSettings from "./admin/ClubSettings";
 import AwardsManagement from "./admin/AwardsManagement";
 import EventsManagement from "./admin/EventsManagement";
+import AnnualReport from "./admin/AnnualReport";
 import {
   PlusCircle, Users, List, QrCode, LogOut, Home, Crown, Settings,
-  Award, CalendarDays, ShieldCheck,
+  Award, CalendarDays, ShieldCheck, FileText,
 } from "lucide-react";
 
 const ADMIN_TABS = [
@@ -23,6 +24,7 @@ const ADMIN_TABS = [
   { id: "bod", label: "Board of Directors", icon: Crown },
   { id: "qr", label: "QR Generator", icon: QrCode },
   { id: "settings", label: "Club Settings", icon: Settings },
+  { id: "annual-report", label: "Annual Report", icon: FileText },
 ] as const;
 
 const OPERATOR_TABS = [
@@ -146,6 +148,7 @@ export default function AdminDashboard() {
           {activeTab === "bod" && isAdmin && <BodManagement />}
           {activeTab === "qr" && <QRGenerator />}
           {activeTab === "settings" && isAdmin && <ClubSettings />}
+          {activeTab === "annual-report" && isAdmin && <AnnualReport />}
         </div>
       </div>
     </div>
