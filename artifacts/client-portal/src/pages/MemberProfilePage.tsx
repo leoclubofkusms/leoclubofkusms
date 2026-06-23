@@ -5,7 +5,7 @@ import { LEO_YEARS, MONTHS, activitySortKey } from "@/lib/types";
 import { Link } from "wouter";
 import {
   ArrowLeft, Calendar, Award as AwardIcon, CheckCircle,
-  Clock, Shield, Star, User,
+  Clock, Shield, Star, User, Download, Loader2,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -35,6 +35,27 @@ export default function MemberProfilePage({ memberId }: Props) {
   const [awards, setAwards] = useState<Award[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [downloadingCard, setDownloadingCard] = useState(false);
+
+  async function downloadIDCard() {
+    const el = document.getElementById("member-id-card-capture");
+    if (!el || !member) return;
+    setDownloadingCard(true);
+    try {
+      const { default: html2canvas } = await import("html2canvas") as {
+        default: (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
+      };
+      const canvas = await html2canvas(el, {
+        scale: 3, backgroundColor: "#fff", useCORS: true, allowTaint: true,
+      });
+      const link = document.createElement("a");
+      link.download = `${member.memberId}-id-card.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } finally {
+      setDownloadingCard(false);
+    }
+  }
 
   useEffect(() => {
     Promise.all([getMembers(), getActivities(), getAwards()])
@@ -100,7 +121,7 @@ export default function MemberProfilePage({ memberId }: Props) {
             )}
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-start gap-6">
             {member.photoUrl ? (
               <img src={member.photoUrl} alt={member.name}
                 className={`w-24 h-24 rounded-2xl object-cover border-2 shrink-0 ${isActive ? "border-[#D4AF37]" : "border-white/30"}`} />
@@ -109,7 +130,7 @@ export default function MemberProfilePage({ memberId }: Props) {
                 <span className="text-3xl font-bold text-white">{member.name[0]}</span>
               </div>
             )}
-            <div>
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap mb-1">
                 <h1 className="text-2xl md:text-3xl font-bold text-white">{member.name}</h1>
                 {member.currentRole && (
@@ -125,7 +146,72 @@ export default function MemberProfilePage({ memberId }: Props) {
                   {yearsServed(member) > 0 && ` · ${yearsServed(member)} year${yearsServed(member) > 1 ? "s" : ""}`}
                 </div>
               )}
+              <button
+                onClick={downloadIDCard}
+                disabled={downloadingCard}
+                className="mt-4 inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all disabled:opacity-60"
+              >
+                {downloadingCard
+                  ? <><Loader2 size={13} className="animate-spin" /> Generating…</>
+                  : <><Download size={13} /> Download ID Card</>
+                }
+              </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hidden ID card for html2canvas capture */}
+      <div style={{ position: "fixed", left: "-9999px", top: 0, zIndex: -1 }} aria-hidden>
+        <div
+          id="member-id-card-capture"
+          style={{
+            width: "340px", height: "214px", borderRadius: "12px", overflow: "hidden",
+            background: "#fff", fontFamily: "system-ui, -apple-system, sans-serif", position: "relative",
+          }}
+        >
+          {/* Navy header */}
+          <div style={{ background: "linear-gradient(135deg,#002147 0%,#003575 100%)", height: "68px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", position: "relative" }}>
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "#D4AF37" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+              <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#D4AF37", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", fontSize: "13px", color: "#002147", flexShrink: 0 }}>LC</div>
+              <div>
+                <div style={{ color: "#fff", fontWeight: "700", fontSize: "11px", lineHeight: 1.2 }}>Leo Club of KUSMS</div>
+                <div style={{ color: "#D4AF37", fontSize: "8.5px", letterSpacing: "0.8px", marginTop: "2px" }}>LIONS CLUBS INTERNATIONAL · D325L</div>
+              </div>
+            </div>
+            <div style={{ padding: "3px 9px", borderRadius: "20px", fontSize: "9px", fontWeight: "700", letterSpacing: "0.8px", background: isActive ? "rgba(34,197,94,0.18)" : "rgba(255,255,255,0.12)", color: isActive ? "#4ade80" : "rgba(255,255,255,0.5)", border: `1px solid ${isActive ? "rgba(74,222,128,0.35)" : "rgba(255,255,255,0.18)"}` }}>
+              {isActive ? "● ACTIVE" : "◌ PAST"}
+            </div>
+          </div>
+          {/* Body */}
+          <div style={{ display: "flex", alignItems: "flex-start", padding: "12px 14px", gap: "12px" }}>
+            {member.photoUrl
+              ? <img src={member.photoUrl} alt={member.name} style={{ width: "64px", height: "64px", borderRadius: "10px", objectFit: "cover", border: "2px solid #002147", flexShrink: 0 }} />
+              : <div style={{ width: "64px", height: "64px", borderRadius: "10px", background: "#002147", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", fontWeight: "700", color: "#D4AF37", flexShrink: 0 }}>{member.name[0]}</div>
+            }
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: "800", fontSize: "14px", color: "#002147", lineHeight: 1.2, marginBottom: "3px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{member.name}</div>
+              <div style={{ fontSize: "9.5px", color: "#D4AF37", fontWeight: "700", letterSpacing: "0.5px", marginBottom: "6px" }}>{member.currentRole || "Leo Member"}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <div style={{ fontSize: "8.5px", color: "#555", display: "flex", gap: "5px" }}><span style={{ color: "#002147", fontWeight: "600" }}>ID</span><span style={{ fontFamily: "monospace" }}>{member.memberId}</span></div>
+                {member.faculty && <div style={{ fontSize: "8.5px", color: "#555", display: "flex", gap: "5px" }}><span style={{ color: "#002147", fontWeight: "600" }}>Faculty</span><span>{member.faculty}</span></div>}
+                <div style={{ fontSize: "8.5px", color: "#555", display: "flex", gap: "5px" }}><span style={{ color: "#002147", fontWeight: "600" }}>Batch</span><span>{member.batch}</span></div>
+                {serviceYears(member) && <div style={{ fontSize: "8.5px", color: "#555", display: "flex", gap: "5px" }}><span style={{ color: "#002147", fontWeight: "600" }}>Leo Year</span><span>{serviceYears(member)}{yearsServed(member) > 0 ? ` (${yearsServed(member)} yr${yearsServed(member) !== 1 ? "s" : ""})` : ""}</span></div>}
+              </div>
+            </div>
+            <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px" }}>
+              <div style={{ padding: "5px", background: "#fff", borderRadius: "8px", border: "1.5px solid #002147" }}>
+                <QRCodeSVG value={verifyUrl} size={56} fgColor="#002147" level="M" />
+              </div>
+              <div style={{ fontSize: "7px", color: "#aaa", textAlign: "center" }}>Scan to verify</div>
+            </div>
+          </div>
+          {/* Footer */}
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "#F8FAFC", borderTop: "1px solid #eee", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 14px" }}>
+            <div style={{ fontSize: "7.5px", color: "#aaa" }}>Roll No: {member.rollNo}</div>
+            <div style={{ fontSize: "7.5px", color: "#aaa" }}>leoclubofkusms.org</div>
+            <div style={{ fontSize: "7.5px", color: "#D4AF37", fontWeight: "700" }}>VERIFIED ✓</div>
           </div>
         </div>
       </div>
