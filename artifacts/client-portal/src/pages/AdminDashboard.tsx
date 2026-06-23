@@ -12,9 +12,10 @@ import AwardsManagement from "./admin/AwardsManagement";
 import EventsManagement from "./admin/EventsManagement";
 import AnnualReport from "./admin/AnnualReport";
 import CertificateGenerator from "./admin/CertificateGenerator";
+import ConstitutionManager from "./admin/ConstitutionManager";
 import {
   PlusCircle, Users, List, QrCode, LogOut, Home, Crown, Settings,
-  Award, CalendarDays, ShieldCheck, FileText, CreditCard, Scroll,
+  Award, CalendarDays, ShieldCheck, FileText, CreditCard, Scroll, BookOpen,
 } from "lucide-react";
 
 const ADMIN_TABS = [
@@ -27,6 +28,7 @@ const ADMIN_TABS = [
   { id: "qr", label: "QR Generator", icon: QrCode },
   { id: "id-cards", label: "ID Cards", icon: CreditCard },
   { id: "certificates", label: "Certificates", icon: Scroll },
+  { id: "constitution", label: "Constitution", icon: BookOpen },
   { id: "settings", label: "Club Settings", icon: Settings },
   { id: "annual-report", label: "Annual Report", icon: FileText },
 ] as const;
@@ -155,6 +157,7 @@ export default function AdminDashboard() {
           {activeTab === "qr" && <QRGenerator />}
           {activeTab === "id-cards" && <IDCardGenerator />}
           {activeTab === "certificates" && <CertificateGenerator />}
+          {activeTab === "constitution" && isAdmin && <ConstitutionManager />}
           {activeTab === "settings" && isAdmin && <ClubSettings />}
           {activeTab === "annual-report" && isAdmin && <AnnualReport />}
         </div>

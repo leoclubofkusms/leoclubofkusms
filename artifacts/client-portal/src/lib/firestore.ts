@@ -14,7 +14,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Member, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings } from "./types";
+import type { Member, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings, Constitution } from "./types";
 
 // ── Members ──────────────────────────────────────────────────────────────────
 
@@ -345,4 +345,15 @@ export async function getClubSettings(): Promise<ClubSettings> {
 
 export async function updateClubSettings(data: Partial<ClubSettings>): Promise<void> {
   await setDoc(doc(db, "settings", "clubSettings"), data, { merge: true });
+}
+
+// ── Constitution ──────────────────────────────────────────────────────────────
+
+export async function getConstitution(): Promise<Constitution> {
+  const snap = await getDoc(doc(db, "settings", "constitution"));
+  return snap.exists() ? (snap.data() as Constitution) : { sections: [] };
+}
+
+export async function updateConstitution(data: Constitution): Promise<void> {
+  await setDoc(doc(db, "settings", "constitution"), data, { merge: true });
 }

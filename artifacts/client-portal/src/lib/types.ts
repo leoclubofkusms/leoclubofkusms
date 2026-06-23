@@ -103,6 +103,22 @@ export interface ClubEvent {
   eventType?: string;
 }
 
+// ── Constitution ──────────────────────────────────────────────────────────────
+export interface ConstitutionSection {
+  id: string;
+  number: string;   // e.g. "Article I", "Section 2.1"
+  title: string;
+  content: string;
+}
+
+export interface Constitution {
+  title?: string;
+  adoptedDate?: string;
+  lastAmended?: string;
+  pdfUrl?: string;
+  sections: ConstitutionSection[];
+}
+
 export const CLUB_ESTABLISHED = "June 11, 2024";
 export const CLUB_FACEBOOK = "https://www.facebook.com/share/1B5inBvASe/?mibextid=wwXIfr";
 export const CLUB_TIKTOK = "https://www.tiktok.com/@leoclub.kusms";
