@@ -5,7 +5,7 @@ import type { Member, Activity, MemberActivity } from "@/lib/types";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Search, User, Award, Calendar, ExternalLink,
-  ChevronRight, X, Clock, Shield,
+  ChevronRight, X, Clock, Shield, Filter,
 } from "lucide-react";
 
 interface ActivityRecord {
@@ -13,9 +13,18 @@ interface ActivityRecord {
   memberActivity: MemberActivity;
 }
 
+// Derive a stable sort key from a batch string like "MBBS 2026" or "BDS 2025"
+function batchSortKey(batch: string) {
+  const parts = batch.trim().split(/\s+/);
+  const year = parts.find((p) => /^\d{4}$/.test(p)) ?? "0000";
+  const faculty = parts.find((p) => !/^\d/.test(p)) ?? "";
+  return `${faculty.toLowerCase()}-${year}`;
+}
+
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [query, setQuery] = useState("");
+  const [activeBatch, setActiveBatch] = useState<string>("all");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [records, setRecords] = useState<ActivityRecord[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
@@ -84,13 +93,39 @@ export default function MembersPage() {
     inputRef.current?.focus();
   }
 
-  const filtered = members.filter(
-    (m) =>
-      m.memberId.toLowerCase().includes(query.toLowerCase()) ||
-      m.name.toLowerCase().includes(query.toLowerCase()) ||
-      m.rollNo.toLowerCase().includes(query.toLowerCase()) ||
-      m.batch.toLowerCase().includes(query.toLowerCase())
-  );
+  // Unique batches sorted by faculty then year
+  const batches = Array.from(new Set(members.map((m) => m.batch.trim())))
+    .filter(Boolean)
+    .sort((a, b) => batchSortKey(a).localeCompare(batchSortKey(b)));
+
+  // Unique faculties derived from batch strings
+  const faculties = Array.from(
+    new Set(
+      batches.map((b) => {
+        const parts = b.trim().split(/\s+/);
+        return parts.find((p) => !/^\d/.test(p)) ?? b;
+      })
+    )
+  ).sort();
+
+  const filtered = members.filter((m) => {
+    const q = query.toLowerCase();
+    const matchesSearch =
+      !q ||
+      m.memberId.toLowerCase().includes(q) ||
+      m.name.toLowerCase().includes(q) ||
+      m.rollNo.toLowerCase().includes(q) ||
+      m.batch.toLowerCase().includes(q);
+
+    const matchesBatch =
+      activeBatch === "all" ||
+      // Faculty-level filter (e.g. "MBBS" matches "MBBS 2026", "MBBS 2025", …)
+      (faculties.includes(activeBatch) && m.batch.trim().startsWith(activeBatch)) ||
+      // Exact batch filter
+      m.batch.trim() === activeBatch;
+
+    return matchesSearch && matchesBatch;
+  });
 
   const byYear: Record<string, ActivityRecord[]> = {};
   records.forEach((r) => {
@@ -142,8 +177,72 @@ export default function MembersPage() {
             </div>
           )}
 
+          {/* Batch / Faculty filter pills */}
+          {!loadingMembers && batches.length > 0 && !selectedMember && (
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center gap-2 text-white/40 text-xs">
+                <Filter size={11} /> Filter by batch
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {/* All pill */}
+                <button
+                  onClick={() => setActiveBatch("all")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    activeBatch === "all"
+                      ? "bg-[#D4AF37] text-[#002147]"
+                      : "bg-white/10 text-white/70 hover:bg-white/20"
+                  }`}
+                >
+                  All ({members.length})
+                </button>
+
+                {/* Faculty-level grouping pills when multiple batches per faculty */}
+                {faculties.map((faculty) => {
+                  const facultyBatches = batches.filter((b) => b.trim().startsWith(faculty));
+                  const count = members.filter((m) => m.batch.trim().startsWith(faculty)).length;
+                  if (facultyBatches.length <= 1) return null;
+                  return (
+                    <button
+                      key={`fac-${faculty}`}
+                      onClick={() =>
+                        setActiveBatch(activeBatch === faculty ? "all" : faculty)
+                      }
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                        activeBatch === faculty
+                          ? "bg-[#002147] border-[#D4AF37] text-[#D4AF37]"
+                          : "bg-white/5 border-white/20 text-white/60 hover:border-white/40 hover:text-white"
+                      }`}
+                    >
+                      {faculty} <span className="opacity-60">({count})</span>
+                    </button>
+                  );
+                })}
+
+                {/* Individual batch pills */}
+                {batches.map((batch) => {
+                  const count = members.filter((m) => m.batch.trim() === batch).length;
+                  return (
+                    <button
+                      key={batch}
+                      onClick={() =>
+                        setActiveBatch(activeBatch === batch ? "all" : batch)
+                      }
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                        activeBatch === batch
+                          ? "bg-[#D4AF37] text-[#002147]"
+                          : "bg-white/10 text-white/70 hover:bg-white/20"
+                      }`}
+                    >
+                      {batch} <span className="opacity-60">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Search bar */}
-          <div className="relative mt-8" ref={dropdownRef}>
+          <div className="relative mt-6" ref={dropdownRef}>
             <div
               className={`flex items-center bg-white rounded-2xl shadow-lg overflow-hidden transition-all ${
                 dropdownOpen ? "ring-2 ring-[#D4AF37]" : ""
@@ -225,15 +324,27 @@ export default function MembersPage() {
         {/* Directory grid — shown when nothing selected and no active search */}
         {!selectedMember && !query && (
           <div>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-[#002147]">
-                All Active Members
-                {!loadingMembers && (
-                  <span className="text-gray-400 font-normal text-sm ml-2">
-                    ({members.length} registered)
-                  </span>
+            <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-[#002147]">
+                  {activeBatch === "all"
+                    ? "All Active Members"
+                    : `${activeBatch} Members`}
+                  {!loadingMembers && (
+                    <span className="text-gray-400 font-normal text-sm ml-2">
+                      ({filtered.length}{activeBatch !== "all" ? ` of ${members.length}` : ""} registered)
+                    </span>
+                  )}
+                </h2>
+                {activeBatch !== "all" && (
+                  <button
+                    onClick={() => setActiveBatch("all")}
+                    className="text-xs text-[#002147] hover:text-red-500 flex items-center gap-1 mt-1 transition-colors"
+                  >
+                    <X size={11} /> Clear filter
+                  </button>
                 )}
-              </h2>
+              </div>
               <Link
                 href="/past-members"
                 className="inline-flex items-center gap-1.5 text-sm text-[#002147] border border-[#002147]/20 px-3 py-1.5 rounded-xl hover:bg-[#002147] hover:text-white transition-all"
