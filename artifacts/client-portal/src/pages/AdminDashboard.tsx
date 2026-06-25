@@ -13,9 +13,10 @@ import EventsManagement from "./admin/EventsManagement";
 import AnnualReport from "./admin/AnnualReport";
 import CertificateGenerator from "./admin/CertificateGenerator";
 import ConstitutionManager from "./admin/ConstitutionManager";
+import BatchEditor from "./admin/BatchEditor";
 import {
   PlusCircle, Users, List, QrCode, LogOut, Home, Crown, Settings,
-  Award, CalendarDays, ShieldCheck, FileText, CreditCard, Scroll, BookOpen,
+  Award, CalendarDays, ShieldCheck, FileText, CreditCard, Scroll, BookOpen, Wrench,
 } from "lucide-react";
 
 const ADMIN_TABS = [
@@ -29,6 +30,7 @@ const ADMIN_TABS = [
   { id: "id-cards", label: "ID Cards", icon: CreditCard },
   { id: "certificates", label: "Certificates", icon: Scroll },
   { id: "constitution", label: "Constitution", icon: BookOpen },
+  { id: "batch-editor", label: "Data Tools", icon: Wrench },
   { id: "settings", label: "Club Settings", icon: Settings },
   { id: "annual-report", label: "Annual Report", icon: FileText },
 ] as const;
@@ -158,6 +160,7 @@ export default function AdminDashboard() {
           {activeTab === "id-cards" && <IDCardGenerator />}
           {activeTab === "certificates" && <CertificateGenerator />}
           {activeTab === "constitution" && isAdmin && <ConstitutionManager />}
+          {activeTab === "batch-editor" && isAdmin && <BatchEditor />}
           {activeTab === "settings" && isAdmin && <ClubSettings />}
           {activeTab === "annual-report" && isAdmin && <AnnualReport />}
         </div>

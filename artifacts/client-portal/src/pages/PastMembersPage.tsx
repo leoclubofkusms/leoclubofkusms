@@ -4,8 +4,16 @@ import type { Member } from "@/lib/types";
 import { LEO_YEARS } from "@/lib/types";
 import { Link } from "wouter";
 import {
-  Clock, Award, Calendar, Shield, Search, User, Users, ChevronRight,
+  Clock, Calendar, Shield, Search, User, Users, ChevronRight, Filter, X,
 } from "lucide-react";
+
+// Stable sort key: faculty-year (same as MembersPage)
+function batchSortKey(batch: string) {
+  const parts = batch.trim().split(/\s+/);
+  const year = parts.find((p) => /^\d{4}$/.test(p)) ?? "0000";
+  const faculty = parts.find((p) => !/^\d/.test(p)) ?? "";
+  return `${faculty.toLowerCase()}-${year}`;
+}
 
 function serviceYears(member: Member): string {
   const joined = member.joinedLeoYear ?? LEO_YEARS[0];
@@ -29,10 +37,10 @@ export default function PastMembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [activeBatch, setActiveBatch] = useState<string>("all");
 
   useEffect(() => {
     getMembers()
-      // Past members = explicitly marked isActive: false
       .then((all) =>
         setMembers(
           all
@@ -44,14 +52,36 @@ export default function PastMembersPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = members.filter(
-    (m) =>
-      !search ||
-      m.name.toLowerCase().includes(search.toLowerCase()) ||
-      m.memberId.toLowerCase().includes(search.toLowerCase()) ||
-      (m.faculty ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      m.batch.toLowerCase().includes(search.toLowerCase())
-  );
+  // Unique batches sorted by faculty then year
+  const batches = Array.from(new Set(members.map((m) => m.batch.trim())))
+    .filter(Boolean)
+    .sort((a, b) => batchSortKey(a).localeCompare(batchSortKey(b)));
+
+  const faculties = Array.from(
+    new Set(
+      batches.map((b) => {
+        const parts = b.trim().split(/\s+/);
+        return parts.find((p) => !/^\d/.test(p)) ?? b;
+      })
+    )
+  ).sort();
+
+  const filtered = members.filter((m) => {
+    const q = search.toLowerCase();
+    const matchesSearch =
+      !q ||
+      m.name.toLowerCase().includes(q) ||
+      m.memberId.toLowerCase().includes(q) ||
+      (m.faculty ?? "").toLowerCase().includes(q) ||
+      m.batch.toLowerCase().includes(q);
+
+    const matchesBatch =
+      activeBatch === "all" ||
+      (faculties.includes(activeBatch) && m.batch.trim().startsWith(activeBatch)) ||
+      m.batch.trim() === activeBatch;
+
+    return matchesSearch && matchesBatch;
+  });
 
   // Group by the year they LEFT (or joined if no left year recorded)
   const grouped: Record<string, Member[]> = {};
@@ -111,13 +141,84 @@ export default function PastMembersPage() {
               </div>
             </div>
           )}
+
+          {/* Batch / Faculty filter pills */}
+          {!loading && batches.length > 0 && (
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center gap-2 text-white/40 text-xs">
+                <Filter size={11} /> Filter by batch
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setActiveBatch("all")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    activeBatch === "all"
+                      ? "bg-[#D4AF37] text-[#002147]"
+                      : "bg-white/10 text-white/70 hover:bg-white/20"
+                  }`}
+                >
+                  All ({members.length})
+                </button>
+
+                {faculties.map((faculty) => {
+                  const facultyBatches = batches.filter((b) => b.trim().startsWith(faculty));
+                  const count = members.filter((m) => m.batch.trim().startsWith(faculty)).length;
+                  if (facultyBatches.length <= 1) return null;
+                  return (
+                    <button
+                      key={`fac-${faculty}`}
+                      onClick={() => setActiveBatch(activeBatch === faculty ? "all" : faculty)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                        activeBatch === faculty
+                          ? "bg-[#002147] border-[#D4AF37] text-[#D4AF37]"
+                          : "bg-white/5 border-white/20 text-white/60 hover:border-white/40 hover:text-white"
+                      }`}
+                    >
+                      {faculty} <span className="opacity-60">({count})</span>
+                    </button>
+                  );
+                })}
+
+                {batches.map((batch) => {
+                  const count = members.filter((m) => m.batch.trim() === batch).length;
+                  return (
+                    <button
+                      key={batch}
+                      onClick={() => setActiveBatch(activeBatch === batch ? "all" : batch)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                        activeBatch === batch
+                          ? "bg-[#D4AF37] text-[#002147]"
+                          : "bg-white/10 text-white/70 hover:bg-white/20"
+                      }`}
+                    >
+                      {batch} <span className="opacity-60">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-        {/* Search */}
-        <div className="relative mb-8">
+        {/* Search + active filter label */}
+        <div className="flex items-center gap-3 mb-5 flex-wrap">
+          {activeBatch !== "all" && (
+            <div className="flex items-center gap-1.5 bg-[#002147] text-[#D4AF37] text-xs font-bold px-3 py-1.5 rounded-xl">
+              {activeBatch}
+              <button onClick={() => setActiveBatch("all")} className="ml-1 hover:text-white transition-colors">
+                <X size={11} />
+              </button>
+            </div>
+          )}
+          <span className="text-sm text-gray-400">
+            {filtered.length} of {members.length} past member{members.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        <div className="relative mb-6">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
