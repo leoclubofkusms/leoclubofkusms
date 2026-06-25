@@ -10,7 +10,7 @@ import {
   toggleMemberActive,
 } from "@/lib/firestore";
 import type { Member, MemberActivity } from "@/lib/types";
-import { LEO_YEARS, MONTHS, FACULTIES } from "@/lib/types";
+import { LEO_YEARS, MONTHS, FACULTIES, BATCH_YEARS } from "@/lib/types";
 import {
   Plus,
   Pencil,
@@ -539,16 +539,19 @@ export default function MemberManagement() {
 
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Batch *
+                  Batch Year *
                 </label>
-                <input
-                  type="text"
+                <select
                   value={form.batch}
                   onChange={(e) => setForm({ ...form, batch: e.target.value })}
-                  placeholder="MBBS 2026"
                   required
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
-                />
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
+                >
+                  <option value="">Select admission year…</option>
+                  {BATCH_YEARS.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="sm:col-span-2">

@@ -1,38 +1,25 @@
 import { useState, useEffect } from "react";
 import { getMembers, updateMember } from "@/lib/firestore";
 import type { Member } from "@/lib/types";
+import { BATCH_YEARS } from "@/lib/types";
 import {
-  AlertTriangle, Check, Loader2, Pencil, X, RefreshCw,
-  ChevronDown, ChevronUp, Search, Users, Wand2,
+  AlertTriangle, Check, Loader2, X, RefreshCw,
+  ChevronDown, ChevronUp, Search, Users, ArrowRight,
 } from "lucide-react";
 
-function batchSortKey(batch: string) {
-  const parts = batch.trim().split(/\s+/);
-  const year = parts.find((p) => /^\d{4}$/.test(p)) ?? "0000";
-  const faculty = parts.find((p) => !/^\d/.test(p)) ?? "";
-  return `${faculty.toUpperCase()}-${year}`;
-}
-
-// Normalise a raw batch string: trim + uppercase faculty portion
-function normaliseBatch(raw: string): string {
-  return raw
-    .trim()
-    .replace(/^([a-zA-Z\s]+?)(\s+\d)/, (_, fac, rest) => fac.trim().toUpperCase() + rest);
-}
-
 interface BatchGroup {
-  raw: string;        // original value in DB
+  raw: string;
   members: Member[];
+  isValid: boolean; // is it a known BATCH_YEARS value
 }
 
 export default function BatchEditor() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);  // raw batch being saved
+  const [saving, setSaving] = useState<string | null>(null);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
-  // edit state per batch: raw → new value
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [searchQ, setSearchQ] = useState("");
@@ -49,7 +36,6 @@ export default function BatchEditor() {
 
   useEffect(() => { reload(); }, []);
 
-  // Group members by their exact batch string
   const groups: BatchGroup[] = (() => {
     const map: Record<string, Member[]> = {};
     members.forEach((m) => {
@@ -58,8 +44,12 @@ export default function BatchEditor() {
       map[key].push(m);
     });
     return Object.entries(map)
-      .map(([raw, mems]) => ({ raw, members: mems }))
-      .sort((a, b) => batchSortKey(a.raw).localeCompare(batchSortKey(b.raw)));
+      .map(([raw, mems]) => ({
+        raw,
+        members: mems,
+        isValid: BATCH_YEARS.includes(raw),
+      }))
+      .sort((a, b) => a.raw.localeCompare(b.raw, undefined, { numeric: true }));
   })();
 
   const filtered = groups.filter(
@@ -69,8 +59,7 @@ export default function BatchEditor() {
       g.members.some((m) => m.name.toLowerCase().includes(searchQ.toLowerCase()))
   );
 
-  // Detect groups with likely inconsistent casing
-  const suspicious = groups.filter((g) => g.raw !== normaliseBatch(g.raw));
+  const invalid = groups.filter((g) => !g.isValid);
 
   function flash(msg: string, isErr = false) {
     if (isErr) { setError(msg); setTimeout(() => setError(""), 5000); }
@@ -82,32 +71,12 @@ export default function BatchEditor() {
     if (!newBatch || newBatch === group.raw) return;
     setSaving(group.raw);
     try {
-      await Promise.all(
-        group.members.map((m) =>
-          updateMember(m.memberId, { batch: newBatch })
-        )
-      );
-      flash(`Renamed "${group.raw}" → "${newBatch}" for ${group.members.length} member(s)`);
+      await Promise.all(group.members.map((m) => updateMember(m.memberId, { batch: newBatch })));
+      flash(`Moved ${group.members.length} member(s) from "${group.raw}" → "${newBatch}"`);
       await reload();
       setEdits((e) => { const next = { ...e }; delete next[group.raw]; return next; });
     } catch (e) {
       flash(e instanceof Error ? e.message : "Save failed.", true);
-    } finally { setSaving(null); }
-  }
-
-  async function autoFixAll() {
-    if (!suspicious.length) return;
-    if (!confirm(`Auto-fix capitalisation for ${suspicious.length} batch group(s)?`)) return;
-    setSaving("__all__");
-    try {
-      for (const g of suspicious) {
-        const fixed = normaliseBatch(g.raw);
-        await Promise.all(g.members.map((m) => updateMember(m.memberId, { batch: fixed })));
-      }
-      flash(`Fixed capitalisation for ${suspicious.length} batch group(s)`);
-      await reload();
-    } catch (e) {
-      flash(e instanceof Error ? e.message : "Auto-fix failed.", true);
     } finally { setSaving(null); }
   }
 
@@ -120,14 +89,14 @@ export default function BatchEditor() {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-lg font-bold text-[#002147]">Batch / Faculty Editor</h3>
+        <h3 className="text-lg font-bold text-[#002147]">Batch Year Editor</h3>
         <p className="text-sm text-gray-500">
-          Rename batch labels in bulk. All members in a group update at once — fixes capitalisation
-          inconsistencies like "MBBs 2026" → "MBBS 2026".
+          Batch is stored as an admission year (e.g. <code className="bg-gray-100 px-1 rounded">2026</code>).
+          Use this tool to migrate any legacy values (like "MBBS 2026") to the correct year-only format.
+          All members in a group update at once.
         </p>
       </div>
 
-      {/* Alerts */}
       {success && (
         <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">
           <Check size={14} /> {success}
@@ -139,38 +108,32 @@ export default function BatchEditor() {
         </div>
       )}
 
-      {/* Auto-fix banner */}
-      {suspicious.length > 0 && (
-        <div className="flex items-center justify-between gap-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+      {/* Non-standard values banner */}
+      {invalid.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
           <div className="flex items-start gap-2.5">
             <AlertTriangle size={15} className="text-amber-500 shrink-0 mt-0.5" />
             <div>
               <div className="text-sm font-semibold text-amber-800">
-                {suspicious.length} batch group{suspicious.length !== 1 ? "s" : ""} with inconsistent capitalisation detected
+                {invalid.length} non-standard batch value{invalid.length !== 1 ? "s" : ""} detected
               </div>
               <div className="text-xs text-amber-600 mt-0.5">
-                {suspicious.map((g) => `"${g.raw}"`).join(", ")}
+                These aren't plain years — use the dropdowns below to migrate them:{" "}
+                {invalid.map((g) => `"${g.raw}"`).join(", ")}
               </div>
             </div>
           </div>
-          <button
-            onClick={autoFixAll}
-            disabled={saving === "__all__"}
-            className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60 shrink-0"
-          >
-            {saving === "__all__"
-              ? <Loader2 size={13} className="animate-spin" />
-              : <Wand2 size={13} />}
-            Auto-fix All
-          </button>
         </div>
       )}
 
-      {/* Stats + search row */}
+      {/* Stats + search */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <Users size={14} className="text-[#002147]" />
-          <span><strong className="text-[#002147]">{groups.length}</strong> batch groups · <strong className="text-[#002147]">{members.length}</strong> total members</span>
+          <span>
+            <strong className="text-[#002147]">{groups.length}</strong> batch groups ·{" "}
+            <strong className="text-[#002147]">{members.length}</strong> total members
+          </span>
         </div>
         <div className="flex-1" />
         <div className="relative">
@@ -183,70 +146,68 @@ export default function BatchEditor() {
             className="pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#002147] w-44"
           />
         </div>
-        <button onClick={reload} className="p-2 text-gray-400 hover:text-[#002147] border border-gray-200 rounded-xl transition-colors">
+        <button
+          onClick={reload}
+          className="p-2 text-gray-400 hover:text-[#002147] border border-gray-200 rounded-xl transition-colors"
+        >
           <RefreshCw size={13} />
         </button>
       </div>
 
-      {/* Groups table */}
+      {/* Groups */}
       <div className="space-y-2">
         {filtered.length === 0 && (
           <div className="text-center py-10 text-gray-400 text-sm">No batch groups found.</div>
         )}
 
         {filtered.map((group) => {
-          const editVal = edits[group.raw] ?? group.raw;
-          const isDirty = editVal.trim() !== group.raw;
+          const editVal = edits[group.raw] ?? "";
+          const isDirty = editVal !== "" && editVal !== group.raw;
           const isSaving = saving === group.raw;
-          const isSuspect = group.raw !== normaliseBatch(group.raw);
           const isExpanded = !!expanded[group.raw];
 
           return (
             <div
               key={group.raw}
               className={`border rounded-xl overflow-hidden transition-all ${
-                isSuspect ? "border-amber-200 bg-amber-50/30" : "border-gray-200 bg-white"
+                !group.isValid
+                  ? "border-amber-200 bg-amber-50/30"
+                  : "border-gray-200 bg-white"
               }`}
             >
-              {/* Group header row */}
               <div className="flex items-center gap-3 px-4 py-3">
-                {/* Suspect indicator */}
-                {isSuspect && (
+                {!group.isValid && (
                   <AlertTriangle size={13} className="text-amber-400 shrink-0" />
                 )}
 
-                {/* Edit field */}
-                <div className="flex-1 flex items-center gap-2 min-w-0">
-                  <div className="relative flex-1">
-                    <Pencil size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
-                    <input
-                      type="text"
-                      value={editVal}
-                      onChange={(e) =>
-                        setEdits((prev) => ({ ...prev, [group.raw]: e.target.value }))
-                      }
-                      className={`w-full pl-7 pr-2 py-1.5 border rounded-lg text-sm font-mono focus:outline-none focus:border-[#002147] transition-colors ${
-                        isDirty ? "border-[#D4AF37] bg-[#D4AF37]/5" : "border-gray-200"
-                      }`}
-                    />
-                  </div>
+                {/* Current value (read-only label) */}
+                <span className="font-mono text-sm font-semibold text-[#002147] shrink-0 w-28 truncate">
+                  {group.raw}
+                </span>
 
-                  <span className="text-xs text-gray-400 shrink-0">
-                    {group.members.length} member{group.members.length !== 1 ? "s" : ""}
-                  </span>
+                {/* Arrow + target dropdown */}
+                <ArrowRight size={13} className="text-gray-300 shrink-0" />
 
-                  {/* Auto-fix suggestion */}
-                  {isSuspect && !isDirty && (
-                    <button
-                      onClick={() =>
-                        setEdits((prev) => ({ ...prev, [group.raw]: normaliseBatch(group.raw) }))
-                      }
-                      className="text-xs text-amber-600 hover:text-amber-700 border border-amber-200 px-2 py-1 rounded-lg whitespace-nowrap transition-colors"
-                    >
-                      → {normaliseBatch(group.raw)}
-                    </button>
-                  )}
-                </div>
+                <select
+                  value={editVal}
+                  onChange={(e) =>
+                    setEdits((prev) => ({ ...prev, [group.raw]: e.target.value }))
+                  }
+                  className={`flex-1 border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-[#002147] bg-white transition-colors ${
+                    isDirty ? "border-[#D4AF37]" : "border-gray-200 text-gray-400"
+                  }`}
+                >
+                  <option value="">— rename to… —</option>
+                  {BATCH_YEARS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+
+                <span className="text-xs text-gray-400 shrink-0">
+                  {group.members.length} member{group.members.length !== 1 ? "s" : ""}
+                </span>
 
                 {/* Actions */}
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -257,12 +218,20 @@ export default function BatchEditor() {
                         disabled={!!saving}
                         className="inline-flex items-center gap-1 bg-[#002147] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#003575] disabled:opacity-60 transition-colors"
                       >
-                        {isSaving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                        {isSaving ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <Check size={11} />
+                        )}
                         Apply
                       </button>
                       <button
                         onClick={() =>
-                          setEdits((prev) => { const n = { ...prev }; delete n[group.raw]; return n; })
+                          setEdits((prev) => {
+                            const n = { ...prev };
+                            delete n[group.raw];
+                            return n;
+                          })
                         }
                         className="p-1.5 text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg transition-colors"
                       >
@@ -271,7 +240,9 @@ export default function BatchEditor() {
                     </>
                   )}
                   <button
-                    onClick={() => setExpanded((e) => ({ ...e, [group.raw]: !e[group.raw] }))}
+                    onClick={() =>
+                      setExpanded((e) => ({ ...e, [group.raw]: !e[group.raw] }))
+                    }
                     className="p-1.5 text-gray-400 hover:text-[#002147] border border-gray-200 rounded-lg transition-colors"
                   >
                     {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
@@ -284,9 +255,18 @@ export default function BatchEditor() {
                 <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 space-y-1">
                   {group.members.map((m) => (
                     <div key={m.memberId} className="flex items-center gap-3 text-sm">
-                      <span className="font-mono text-xs text-gray-400 w-20 shrink-0">{m.memberId}</span>
+                      <span className="font-mono text-xs text-gray-400 w-20 shrink-0">
+                        {m.memberId}
+                      </span>
                       <span className="text-gray-700 flex-1 truncate">{m.name}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${m.isActive !== false ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"}`}>
+                      <span className="text-xs text-gray-400">{m.faculty ?? "—"}</span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full ${
+                          m.isActive !== false
+                            ? "bg-green-50 text-green-600"
+                            : "bg-gray-100 text-gray-400"
+                        }`}
+                      >
                         {m.isActive !== false ? "Active" : "Past"}
                       </span>
                     </div>
@@ -299,7 +279,8 @@ export default function BatchEditor() {
       </div>
 
       <div className="text-xs text-gray-400 border-t border-gray-100 pt-4">
-        Changes apply immediately to Firestore. Reload the page if member filters don't refresh.
+        Changes apply immediately to Firestore. The Members and Past Members pages refresh their
+        filter pills automatically on next load.
       </div>
     </div>
   );

@@ -72,6 +72,10 @@ export const FACULTIES = [
   "MBBS", "BDS", "B.Sc. Nursing", "BPT", "BASLP", "Pharmacy", "Other",
 ];
 
+// Admission years available as batch options
+export const BATCH_YEARS: string[] = [];
+for (let y = 2018; y <= 2035; y++) BATCH_YEARS.push(String(y));
+
 export interface ClubSettings {
   charteredCertificateUrl?: string;
   charteredCertificateType?: "image" | "pdf";

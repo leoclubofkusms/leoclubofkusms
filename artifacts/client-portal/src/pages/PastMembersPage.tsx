@@ -7,13 +7,6 @@ import {
   Clock, Calendar, Shield, Search, User, Users, ChevronRight, Filter, X,
 } from "lucide-react";
 
-// Stable sort key: faculty-year (same as MembersPage)
-function batchSortKey(batch: string) {
-  const parts = batch.trim().split(/\s+/);
-  const year = parts.find((p) => /^\d{4}$/.test(p)) ?? "0000";
-  const faculty = parts.find((p) => !/^\d/.test(p)) ?? "";
-  return `${faculty.toLowerCase()}-${year}`;
-}
 
 function serviceYears(member: Member): string {
   const joined = member.joinedLeoYear ?? LEO_YEARS[0];
@@ -52,19 +45,10 @@ export default function PastMembersPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Unique batches sorted by faculty then year
+  // Unique batch years sorted numerically
   const batches = Array.from(new Set(members.map((m) => m.batch.trim())))
     .filter(Boolean)
-    .sort((a, b) => batchSortKey(a).localeCompare(batchSortKey(b)));
-
-  const faculties = Array.from(
-    new Set(
-      batches.map((b) => {
-        const parts = b.trim().split(/\s+/);
-        return parts.find((p) => !/^\d/.test(p)) ?? b;
-      })
-    )
-  ).sort();
+    .sort();
 
   const filtered = members.filter((m) => {
     const q = search.toLowerCase();
@@ -75,10 +59,7 @@ export default function PastMembersPage() {
       (m.faculty ?? "").toLowerCase().includes(q) ||
       m.batch.toLowerCase().includes(q);
 
-    const matchesBatch =
-      activeBatch === "all" ||
-      (faculties.includes(activeBatch) && m.batch.trim().startsWith(activeBatch)) ||
-      m.batch.trim() === activeBatch;
+    const matchesBatch = activeBatch === "all" || m.batch.trim() === activeBatch;
 
     return matchesSearch && matchesBatch;
   });
@@ -142,11 +123,11 @@ export default function PastMembersPage() {
             </div>
           )}
 
-          {/* Batch / Faculty filter pills */}
+          {/* Batch year filter pills */}
           {!loading && batches.length > 0 && (
             <div className="mt-6 space-y-2">
               <div className="flex items-center gap-2 text-white/40 text-xs">
-                <Filter size={11} /> Filter by batch
+                <Filter size={11} /> Filter by batch year
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -159,25 +140,6 @@ export default function PastMembersPage() {
                 >
                   All ({members.length})
                 </button>
-
-                {faculties.map((faculty) => {
-                  const facultyBatches = batches.filter((b) => b.trim().startsWith(faculty));
-                  const count = members.filter((m) => m.batch.trim().startsWith(faculty)).length;
-                  if (facultyBatches.length <= 1) return null;
-                  return (
-                    <button
-                      key={`fac-${faculty}`}
-                      onClick={() => setActiveBatch(activeBatch === faculty ? "all" : faculty)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
-                        activeBatch === faculty
-                          ? "bg-[#002147] border-[#D4AF37] text-[#D4AF37]"
-                          : "bg-white/5 border-white/20 text-white/60 hover:border-white/40 hover:text-white"
-                      }`}
-                    >
-                      {faculty} <span className="opacity-60">({count})</span>
-                    </button>
-                  );
-                })}
 
                 {batches.map((batch) => {
                   const count = members.filter((m) => m.batch.trim() === batch).length;
