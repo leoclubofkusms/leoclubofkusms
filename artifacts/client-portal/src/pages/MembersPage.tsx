@@ -4,14 +4,8 @@ import { getMembers, getActivity } from "@/lib/firestore";
 import type { Member, Activity, MemberActivity } from "@/lib/types";
 import { QRCodeSVG } from "qrcode.react";
 import {
-  Search,
-  User,
-  Award,
-  Calendar,
-  ExternalLink,
-  ChevronRight,
-  ArrowLeft,
-  X,
+  Search, User, Award, Calendar, ExternalLink,
+  ChevronRight, X, Clock, Shield,
 } from "lucide-react";
 
 interface ActivityRecord {
@@ -32,12 +26,17 @@ export default function MembersPage() {
 
   useEffect(() => {
     getMembers()
-      .then((m) => setMembers(m.sort((a, b) => a.name.localeCompare(b.name))))
+      .then((all) => {
+        // Active members only — excludes anyone explicitly marked isActive: false
+        const active = all
+          .filter((m) => m.isActive !== false)
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setMembers(active);
+      })
       .catch(console.error)
       .finally(() => setLoadingMembers(false));
   }, []);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (
@@ -93,7 +92,6 @@ export default function MembersPage() {
       m.batch.toLowerCase().includes(query.toLowerCase())
   );
 
-  // Group records by year
   const byYear: Record<string, ActivityRecord[]> = {};
   records.forEach((r) => {
     const y = r.memberActivity.year;
@@ -110,16 +108,39 @@ export default function MembersPage() {
       {/* Header */}
       <div className="bg-[#002147] text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-6 transition-colors"
-          >
-            <ArrowLeft size={16} /> Back to Home
-          </Link>
-          <h1 className="text-4xl font-bold mb-2">Member Search</h1>
+          {/* Page type indicator */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center gap-2 bg-[#D4AF37] text-[#002147] text-xs font-bold px-3 py-1.5 rounded-full">
+              <Shield size={11} /> Active Members
+            </div>
+            <Link
+              href="/past-members"
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-medium px-3 py-1.5 rounded-full transition-colors"
+            >
+              <Clock size={11} /> View Past Members
+            </Link>
+          </div>
+
+          <h1 className="text-4xl font-bold mb-2">Active Members</h1>
           <p className="text-white/60">
-            Search by member ID, name, roll number, or batch to view all activities and achievements.
+            Search by member ID, name, roll number, or batch to view activities and achievements.
           </p>
+
+          {/* Stats row */}
+          {!loadingMembers && (
+            <div className="flex gap-6 mt-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-[#D4AF37]">{members.length}</div>
+                <div className="text-white/50 text-xs">Active Members</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-[#D4AF37]">
+                  {members.reduce((s, m) => s + (m.activities?.length ?? 0), 0)}
+                </div>
+                <div className="text-white/50 text-xs">Total Activities</div>
+              </div>
+            </div>
+          )}
 
           {/* Search bar */}
           <div className="relative mt-8" ref={dropdownRef}>
@@ -142,7 +163,7 @@ export default function MembersPage() {
                   }
                 }}
                 onFocus={() => setDropdownOpen(true)}
-                placeholder="Type a member ID (e.g. MBBS2101) or name..."
+                placeholder="Search by member ID, name, roll number, or batch…"
                 className="flex-1 py-4 px-4 text-gray-800 placeholder-gray-400 focus:outline-none text-base"
               />
               {query && (
@@ -160,7 +181,7 @@ export default function MembersPage() {
               <div className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 mt-2 z-50 overflow-hidden max-h-72 overflow-y-auto">
                 {filtered.length === 0 ? (
                   <div className="px-5 py-6 text-center text-gray-400 text-sm">
-                    No members match your search
+                    No active members match your search
                   </div>
                 ) : (
                   filtered.map((m) => (
@@ -200,24 +221,31 @@ export default function MembersPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* No selection state — show all members */}
+
+        {/* Directory grid — shown when nothing selected and no active search */}
         {!selectedMember && !query && (
           <div>
-            <h2 className="text-lg font-bold text-[#002147] mb-4">
-              All Members
-              {!loadingMembers && (
-                <span className="text-gray-400 font-normal text-sm ml-2">
-                  ({members.length} registered)
-                </span>
-              )}
-            </h2>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-[#002147]">
+                All Active Members
+                {!loadingMembers && (
+                  <span className="text-gray-400 font-normal text-sm ml-2">
+                    ({members.length} registered)
+                  </span>
+                )}
+              </h2>
+              <Link
+                href="/past-members"
+                className="inline-flex items-center gap-1.5 text-sm text-[#002147] border border-[#002147]/20 px-3 py-1.5 rounded-xl hover:bg-[#002147] hover:text-white transition-all"
+              >
+                <Clock size={13} /> Past Members
+              </Link>
+            </div>
+
             {loadingMembers ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div
-                    key={i}
-                    className="bg-white border border-gray-100 rounded-2xl p-4 animate-pulse flex items-center gap-3"
-                  >
+                  <div key={i} className="bg-white border border-gray-100 rounded-2xl p-4 animate-pulse flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-gray-200 shrink-0" />
                     <div className="flex-1">
                       <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
@@ -229,7 +257,7 @@ export default function MembersPage() {
             ) : members.length === 0 ? (
               <div className="text-center py-20 text-gray-400">
                 <User size={48} className="mx-auto mb-3 opacity-30" />
-                <p>No members registered yet.</p>
+                <p>No active members registered yet.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -240,47 +268,47 @@ export default function MembersPage() {
                     className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3 hover:shadow-md hover:border-[#002147]/20 transition-all text-left group"
                   >
                     {m.photoUrl ? (
-                      <img
-                        src={m.photoUrl}
-                        alt={m.name}
-                        className="w-12 h-12 rounded-full object-cover shrink-0"
-                      />
+                      <img src={m.photoUrl} alt={m.name} className="w-12 h-12 rounded-full object-cover shrink-0" />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-[#002147] text-white flex items-center justify-center font-bold shrink-0 group-hover:bg-[#D4AF37] group-hover:text-[#002147] transition-colors">
                         {m.name.charAt(0)}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-[#002147] truncate text-sm">
-                        {m.name}
-                      </div>
-                      <div className="text-xs text-gray-400 mt-0.5 truncate">
-                        {m.memberId} · {m.batch}
-                      </div>
+                      <div className="font-semibold text-[#002147] truncate text-sm">{m.name}</div>
+                      <div className="text-xs text-gray-400 mt-0.5 truncate">{m.memberId} · {m.batch}</div>
                       {m.currentRole && (
-                        <div className="text-xs text-[#D4AF37] font-medium mt-0.5 truncate">
-                          {m.currentRole}
-                        </div>
+                        <div className="text-xs text-[#D4AF37] font-medium mt-0.5 truncate">{m.currentRole}</div>
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-xs font-bold text-[#002147]">
-                        {m.activities.length}
-                      </div>
+                      <div className="text-xs font-bold text-[#002147]">{m.activities.length}</div>
                       <div className="text-xs text-gray-400">acts</div>
                     </div>
                   </button>
                 ))}
               </div>
             )}
+
+            {/* Note about past members */}
+            <div className="mt-8 bg-[#002147]/5 border border-[#002147]/10 rounded-2xl p-5 flex items-start gap-3">
+              <Clock size={16} className="text-[#002147] shrink-0 mt-0.5" />
+              <div className="text-sm text-gray-600">
+                Looking for alumni?{" "}
+                <Link href="/past-members" className="text-[#002147] font-semibold underline-offset-2 hover:underline">
+                  View Past Members →
+                </Link>{" "}
+                to see the full history of members who have served Leo Club of KUSMS.
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Filtered but not selected */}
+        {/* Search results — not yet selected */}
         {!selectedMember && query && !dropdownOpen && filtered.length > 0 && (
           <div>
             <p className="text-sm text-gray-500 mb-4">
-              {filtered.length} result{filtered.length !== 1 ? "s" : ""} for "{query}"
+              {filtered.length} active member{filtered.length !== 1 ? "s" : ""} matching "{query}"
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {filtered.map((m) => (
@@ -310,7 +338,6 @@ export default function MembersPage() {
         {/* Selected member profile + activities */}
         {selectedMember && (
           <div>
-            {/* Profile card */}
             <div className="bg-white rounded-3xl shadow border border-gray-100 overflow-hidden mb-8">
               <div className="bg-gradient-to-r from-[#002147] to-[#003575] p-6 md:p-8">
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
@@ -327,28 +354,16 @@ export default function MembersPage() {
                   )}
                   <div className="text-center md:text-left flex-1">
                     <div className="inline-flex items-center gap-1.5 bg-[#D4AF37]/20 border border-[#D4AF37]/40 rounded-full px-3 py-1 text-[#D4AF37] text-xs font-medium mb-2">
-                      <Award size={12} /> Verified Member
+                      <Award size={12} /> Active Member
                     </div>
-                    <h2 className="text-2xl md:text-3xl font-bold text-white">
-                      {selectedMember.name}
-                    </h2>
+                    <h2 className="text-2xl md:text-3xl font-bold text-white">{selectedMember.name}</h2>
                     <p className="text-white/70 mt-1">{selectedMember.currentRole}</p>
                     <div className="flex flex-wrap gap-4 mt-3 justify-center md:justify-start text-sm">
-                      <span className="text-white/60">
-                        Roll No:{" "}
-                        <span className="text-white font-medium">{selectedMember.rollNo}</span>
-                      </span>
-                      <span className="text-white/60">
-                        Batch:{" "}
-                        <span className="text-white font-medium">{selectedMember.batch}</span>
-                      </span>
-                      <span className="text-white/60">
-                        ID:{" "}
-                        <span className="text-white font-medium">{selectedMember.memberId}</span>
-                      </span>
+                      <span className="text-white/60">Roll No: <span className="text-white font-medium">{selectedMember.rollNo}</span></span>
+                      <span className="text-white/60">Batch: <span className="text-white font-medium">{selectedMember.batch}</span></span>
+                      <span className="text-white/60">ID: <span className="text-white font-medium">{selectedMember.memberId}</span></span>
                     </div>
                   </div>
-                  {/* QR + verify link */}
                   <div className="flex flex-col items-center gap-2 shrink-0">
                     <div className="bg-white p-2.5 rounded-xl">
                       <QRCodeSVG value={pageUrl} size={80} fgColor="#002147" />
@@ -362,11 +377,10 @@ export default function MembersPage() {
                   </div>
                 </div>
               </div>
-
               <div className="px-6 py-3 bg-[#F8FAFC] border-t border-gray-100 flex items-center justify-between">
                 <div className="text-sm text-gray-600">
                   <span className="font-bold text-[#002147]">{records.length}</span>{" "}
-                  {loadingActivities ? "loading activities..." : `activit${records.length === 1 ? "y" : "ies"} recorded`}
+                  {loadingActivities ? "loading activities…" : `activit${records.length === 1 ? "y" : "ies"} recorded`}
                 </div>
                 <button
                   onClick={clearSelection}
@@ -377,10 +391,8 @@ export default function MembersPage() {
               </div>
             </div>
 
-            {/* Activity Timeline */}
             <h3 className="text-xl font-bold text-[#002147] mb-5 flex items-center gap-2">
-              <Calendar size={18} className="text-[#D4AF37]" />
-              Activities & Achievements
+              <Calendar size={18} className="text-[#D4AF37]" /> Activities & Achievements
             </h3>
 
             {loadingActivities ? (
@@ -400,82 +412,65 @@ export default function MembersPage() {
               </div>
             ) : (
               <div className="space-y-8">
-                {Object.keys(byYear)
-                  .sort()
-                  .map((year) => (
-                    <div key={year}>
-                      {/* Year label */}
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="bg-[#002147] text-[#D4AF37] font-bold text-sm px-4 py-1.5 rounded-full">
-                          Leo Year {year}
-                        </div>
-                        <div className="flex-1 h-px bg-gray-200" />
-                        <span className="text-sm text-gray-400">
-                          {byYear[year].length} activit{byYear[year].length === 1 ? "y" : "ies"}
-                        </span>
+                {Object.keys(byYear).sort().map((year) => (
+                  <div key={year}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="bg-[#002147] text-[#D4AF37] font-bold text-sm px-4 py-1.5 rounded-full">
+                        Leo Year {year}
                       </div>
-
-                      {/* Activity cards */}
-                      <div className="ml-4 border-l-2 border-[#D4AF37]/30 pl-6 space-y-4">
-                        {byYear[year].map((r, i) => (
-                          <div
-                            key={`${r.activity.id}-${i}`}
-                            className="relative bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow"
-                          >
-                            {/* Timeline dot */}
-                            <div className="absolute -left-9 top-6 w-4 h-4 rounded-full bg-[#D4AF37] border-2 border-white" />
-
-                            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 text-xs text-gray-400 mb-1.5">
-                                  <Calendar size={11} />
-                                  {r.memberActivity.month} · Leo Year {r.memberActivity.year}
+                      <div className="flex-1 h-px bg-gray-200" />
+                      <span className="text-sm text-gray-400">
+                        {byYear[year].length} activit{byYear[year].length === 1 ? "y" : "ies"}
+                      </span>
+                    </div>
+                    <div className="ml-4 border-l-2 border-[#D4AF37]/30 pl-6 space-y-4">
+                      {byYear[year].map((r, i) => (
+                        <div
+                          key={`${r.activity.id}-${i}`}
+                          className="relative bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow"
+                        >
+                          <div className="absolute -left-9 top-6 w-4 h-4 rounded-full bg-[#D4AF37] border-2 border-white" />
+                          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 text-xs text-gray-400 mb-1.5">
+                                <Calendar size={11} />
+                                {r.memberActivity.month} · Leo Year {r.memberActivity.year}
+                              </div>
+                              <h4 className="font-semibold text-[#002147] text-base mb-1">{r.activity.title}</h4>
+                              <p className="text-gray-500 text-sm line-clamp-2 mb-3">{r.activity.description}</p>
+                              {r.memberActivity.awardTitle && (
+                                <div className="inline-flex items-center gap-1.5 bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-full px-3 py-1 text-[#002147] text-xs font-semibold">
+                                  <Award size={11} className="text-[#D4AF37]" />
+                                  {r.memberActivity.awardTitle}
                                 </div>
-                                <h4 className="font-semibold text-[#002147] text-base mb-1">
-                                  {r.activity.title}
-                                </h4>
-                                <p className="text-gray-500 text-sm line-clamp-2 mb-3">
-                                  {r.activity.description}
-                                </p>
-
-                                {/* Award badge */}
-                                {r.memberActivity.awardTitle && (
-                                  <div className="inline-flex items-center gap-1.5 bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-full px-3 py-1 text-[#002147] text-xs font-semibold">
-                                    <Award size={11} className="text-[#D4AF37]" />
-                                    {r.memberActivity.awardTitle}
-                                  </div>
-                                )}
-
-                                {/* Participation count */}
-                                {r.activity.participants.length > 0 && (
-                                  <div className="mt-2 text-xs text-gray-400">
-                                    {r.activity.participants.length} total participants in this activity
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Photos thumbnail */}
-                              <div className="flex items-start gap-3 shrink-0">
-                                {r.activity.photos[0] && (
-                                  <img
-                                    src={r.activity.photos[0]}
-                                    alt={r.activity.title}
-                                    className="w-20 h-20 rounded-xl object-cover hidden sm:block"
-                                  />
-                                )}
-                                <Link
-                                  href={`/archive/${r.memberActivity.year.replace("/", "-")}/${r.memberActivity.month.toLowerCase()}`}
-                                  className="inline-flex items-center gap-1.5 text-[#002147] text-xs font-medium hover:text-[#D4AF37] transition-colors whitespace-nowrap"
-                                >
-                                  View Activity <ExternalLink size={12} />
-                                </Link>
-                              </div>
+                              )}
+                              {r.activity.participants.length > 0 && (
+                                <div className="mt-2 text-xs text-gray-400">
+                                  {r.activity.participants.length} total participants in this activity
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-start gap-3 shrink-0">
+                              {r.activity.photos[0] && (
+                                <img
+                                  src={r.activity.photos[0]}
+                                  alt={r.activity.title}
+                                  className="w-20 h-20 rounded-xl object-cover hidden sm:block"
+                                />
+                              )}
+                              <Link
+                                href={`/archive/${r.memberActivity.year.replace("/", "-")}/${r.memberActivity.month.toLowerCase()}`}
+                                className="inline-flex items-center gap-1.5 text-[#002147] text-xs font-medium hover:text-[#D4AF37] transition-colors whitespace-nowrap"
+                              >
+                                View Activity <ExternalLink size={12} />
+                              </Link>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                ))}
               </div>
             )}
           </div>
