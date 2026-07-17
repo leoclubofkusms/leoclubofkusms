@@ -38,6 +38,7 @@ const EMPTY_MEMBER: Member = {
   faculty: FACULTIES[0],
   currentRole: "",
   photoUrl: "",
+  email: "",
   activities: [],
   isActive: true,
   joinedLeoYear: LEO_YEARS[0],
@@ -648,6 +649,17 @@ export default function MemberManagement() {
                   </select>
                 </div>
               )}
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Email Address (optional)</label>
+                <input
+                  type="email"
+                  value={form.email ?? ""}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="member@example.com"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+                />
+              </div>
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-gray-600 mb-1">Short Bio (optional)</label>

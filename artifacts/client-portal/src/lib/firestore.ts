@@ -64,11 +64,16 @@ export async function deleteMember(memberId: string): Promise<void> {
 // ── Activities ────────────────────────────────────────────────────────────────
 
 export async function getActivities(): Promise<Activity[]> {
-  const q = query(collection(db, "activities"), orderBy("year"), orderBy("month"));
-  const snap = await getDocs(q).catch(async () => {
-    return getDocs(collection(db, "activities"));
+  const snap = await getDocs(collection(db, "activities"));
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
+  // Sort newest first using createdAt if available, else by year+month (oldest = lower index, reverse for newest first)
+  return items.sort((a, b) => {
+    if (a.createdAt && b.createdAt) return b.createdAt.localeCompare(a.createdAt);
+    const ya = a.year.localeCompare(b.year);
+    if (ya !== 0) return -ya;
+    const MONTHS_ORDER = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    return -(MONTHS_ORDER.indexOf(b.month) - MONTHS_ORDER.indexOf(a.month));
   });
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
 }
 
 export async function getFeaturedActivities(): Promise<Activity[]> {
@@ -135,7 +140,11 @@ export async function getActivitiesByMonth(
     where("month", "==", month)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
+  // Newest first within the month
+  return items.sort((a, b) =>
+    a.createdAt && b.createdAt ? b.createdAt.localeCompare(a.createdAt) : 0
+  );
 }
 
 export async function createActivity(data: ActivityFormData): Promise<string> {
@@ -143,6 +152,7 @@ export async function createActivity(data: ActivityFormData): Promise<string> {
     ...data,
     id: "",
     featured: false,
+    createdAt: new Date().toISOString(),
   });
   await updateDoc(ref, { id: ref.id });
 

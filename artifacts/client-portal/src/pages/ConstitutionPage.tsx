@@ -269,7 +269,7 @@ export default function ConstitutionPage() {
               {constitution?.adoptedDate && (
                 <div>· Adopted {constitution.adoptedDate}</div>
               )}
-              <div>· Lions Clubs International, District 325L</div>
+              <div>· Lions Clubs International, District 325L · Club #172194</div>
             </div>
           </div>
         )}

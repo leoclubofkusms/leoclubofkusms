@@ -15,6 +15,7 @@ export interface Member {
   currentRole: string;
   role?: string;
   photoUrl: string;
+  email?: string;
   activities: MemberActivity[];
   isActive?: boolean;
   joinedLeoYear?: string;
@@ -37,6 +38,7 @@ export interface Activity {
   participants: ActivityParticipant[];
   featured?: boolean;
   manual?: boolean;
+  createdAt?: string;  // ISO date string for chronological ordering
 }
 
 export interface ActivityFormData {
@@ -132,6 +134,7 @@ export interface Announcement {
   type: "info" | "update" | "event";
 }
 
+export const CLUB_ID = "172194";
 export const CLUB_ESTABLISHED = "June 11, 2024";
 export const CLUB_FACEBOOK = "https://www.facebook.com/share/1B5inBvASe/?mibextid=wwXIfr";
 export const CLUB_TIKTOK = "https://www.tiktok.com/@leoclub.kusms";

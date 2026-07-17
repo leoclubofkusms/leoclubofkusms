@@ -162,7 +162,7 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
               Leo Club of KUSMS
             </div>
             <div style={{ color: accentColor, fontSize: `${s(8)}px`, letterSpacing: `${s(1.2)}px`, fontFamily: "system-ui,sans-serif", marginTop: `${s(1)}px` }}>
-              LIONS CLUBS INTERNATIONAL · DISTRICT 325L
+              LIONS CLUBS INTERNATIONAL · DISTRICT 325L · CLUB #172194
             </div>
           </div>
         </div>

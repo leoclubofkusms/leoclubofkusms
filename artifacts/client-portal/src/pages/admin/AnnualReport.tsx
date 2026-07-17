@@ -105,7 +105,7 @@ export default function AnnualReport() {
           {/* Header */}
           <div style={{ background: "#002147", color: "#fff", borderRadius: 12, padding: "24px 32px", marginBottom: 28 }}>
             <div style={{ fontSize: 10, letterSpacing: 3, color: "rgba(212,175,55,0.8)", textTransform: "uppercase", marginBottom: 6 }}>
-              Lions Clubs International — District 325L
+              Lions Clubs International — District 325L · Club #172194
             </div>
             <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>
               Leo Club of KUSMS
@@ -212,7 +212,7 @@ export default function AnnualReport() {
 
           {/* Footer */}
           <div style={{ marginTop: 28, paddingTop: 16, borderTop: "1px solid #eee", textAlign: "center", fontSize: 9, color: "#aaa" }}>
-            Leo Club of Kathmandu University School of Medical Sciences (KUSMS) · District 325L ·
+            Leo Club of Kathmandu University School of Medical Sciences (KUSMS) · District 325L · Club #172194 ·
             Generated on {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
           </div>
         </div>

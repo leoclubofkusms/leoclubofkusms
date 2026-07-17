@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { getMembers, getActivities, getBodMembers, getFeaturedActivities, getClubSettings, getAwards, getAnnouncements } from "@/lib/firestore";
 import type { Member, Activity, BodMember, ClubSettings, Award as AwardType, Announcement } from "@/lib/types";
-import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, LEO_YEARS, MONTHS } from "@/lib/types";
+import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ID, LEO_YEARS, MONTHS } from "@/lib/types";
 import {
   ArrowRight, Award, Users, Calendar, Shield, Mail, Phone,
   ChevronLeft, ChevronRight, Pin, Info, Facebook, ExternalLink,
@@ -526,7 +526,7 @@ export default function HomePage() {
 
   const president = bod[0] ?? null;
   const otherBod = bod.slice(1);
-  const latest = [...activities].reverse().slice(0, 6);
+  const latest = activities.slice(0, 6); // already sorted newest-first from Firestore
 
   const stats = [
     { label: "Active Members", value: loading ? "—" : members.length, icon: Users },
@@ -549,7 +549,7 @@ export default function HomePage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/40 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-6">
-              <Award size={14} /> Lions Clubs International — District 325L
+              <Award size={14} /> Lions Clubs International — District 325L · Club #{CLUB_ID}
             </div>
             <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-2">
               Leo Club of Kathmandu University
@@ -858,7 +858,7 @@ export default function HomePage() {
         <section>
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-[#002147]">Official Charter</h2>
-            <p className="text-gray-500 text-sm mt-1">Officially established by Lions Clubs International District 325L</p>
+            <p className="text-gray-500 text-sm mt-1">Officially established by Lions Clubs International District 325L · Club #172194</p>
           </div>
           <div className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-3xl overflow-hidden shadow-xl text-white">
             <div className="p-8 md:p-10 flex flex-col md:flex-row gap-8 items-center">
@@ -869,7 +869,7 @@ export default function HomePage() {
                 </div>
                 <h3 className="text-2xl font-bold mb-2">Leo Club of KUSMS</h3>
                 <p className="text-white/70 text-sm mb-4 leading-relaxed">
-                  Chartered by Lions Clubs International under District 325L.<br />
+                  Chartered by Lions Clubs International under District 325L · Club #172194.<br />
                   Handover ceremony held on <span className="text-[#D4AF37] font-semibold">{CLUB_ESTABLISHED}</span>.
                 </p>
                 <div className="flex flex-wrap gap-3 justify-center md:justify-start text-sm">
@@ -879,7 +879,7 @@ export default function HomePage() {
                   </div>
                   <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
                     <Award size={14} className="text-[#D4AF37]" />
-                    <span>District 325L</span>
+                    <span>District 325L · Club #{CLUB_ID}</span>
                   </div>
                 </div>
                 <div className="flex gap-3 mt-5 justify-center md:justify-start">
@@ -991,7 +991,7 @@ export default function HomePage() {
               </div>
               <div className="mt-8 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-2xl p-4">
                 <div className="text-[#D4AF37] font-bold text-sm mb-1">Chartered since {CLUB_ESTABLISHED}</div>
-                <div className="text-white/50 text-xs">Lions Clubs International · District 325L</div>
+                <div className="text-white/50 text-xs">Lions Clubs International · District 325L · Club #{CLUB_ID}</div>
               </div>
             </div>
           </div>

@@ -135,7 +135,7 @@ export default function AwardCertificateModal({ award, onClose }: Props) {
               <div style={{ flex: 1, textAlign: "center" }}>
                 {/* Lions header */}
                 <div style={{ color: "rgba(212,175,55,0.7)", fontSize: 9, letterSpacing: 4, textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>
-                  Lions Clubs International — District 325L
+                  Lions Clubs International — District 325L · Club #172194
                 </div>
                 <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 8, letterSpacing: 3, textTransform: "uppercase", marginBottom: 16 }}>
                   Leo Club of Kathmandu University School of Medical Sciences (KUSMS)

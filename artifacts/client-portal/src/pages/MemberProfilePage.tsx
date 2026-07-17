@@ -177,7 +177,7 @@ export default function MemberProfilePage({ memberId }: Props) {
               <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#D4AF37", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", fontSize: "13px", color: "#002147", flexShrink: 0 }}>LC</div>
               <div>
                 <div style={{ color: "#fff", fontWeight: "700", fontSize: "11px", lineHeight: 1.2 }}>Leo Club of KUSMS</div>
-                <div style={{ color: "#D4AF37", fontSize: "8.5px", letterSpacing: "0.8px", marginTop: "2px" }}>LIONS CLUBS INTERNATIONAL · D325L</div>
+                <div style={{ color: "#D4AF37", fontSize: "8.5px", letterSpacing: "0.8px", marginTop: "2px" }}>LIONS CLUBS INTERNATIONAL · D325L · CLUB #172194</div>
               </div>
             </div>
             <div style={{ padding: "3px 9px", borderRadius: "20px", fontSize: "9px", fontWeight: "700", letterSpacing: "0.8px", background: isActive ? "rgba(34,197,94,0.18)" : "rgba(255,255,255,0.12)", color: isActive ? "#4ade80" : "rgba(255,255,255,0.5)", border: `1px solid ${isActive ? "rgba(74,222,128,0.35)" : "rgba(255,255,255,0.18)"}` }}>

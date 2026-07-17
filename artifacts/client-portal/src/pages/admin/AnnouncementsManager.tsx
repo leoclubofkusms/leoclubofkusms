@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import {
-  getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement,
+  getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement, getMembers,
 } from "@/lib/firestore";
-import type { Announcement } from "@/lib/types";
+import type { Announcement, Member } from "@/lib/types";
+import { ADMIN_EMAIL } from "@/lib/types";
 import {
   Plus, Pencil, Trash2, Pin, PinOff, Check, X, Loader2,
-  Megaphone, Info, Zap, CalendarDays,
+  Megaphone, Info, Zap, CalendarDays, Mail, Users,
 } from "lucide-react";
 
 const TYPE_META = {
@@ -31,6 +32,8 @@ export default function AnnouncementsManager() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<Announcement, "id">>(EMPTY);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [notifying, setNotifying] = useState<string | null>(null);
+  const [notifyResult, setNotifyResult] = useState<{ id: string; count: number } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -87,6 +90,39 @@ export default function AnnouncementsManager() {
       await updateAnnouncement(a.id, { pinned: next });
       setItems((prev) => prev.map((x) => x.id === a.id ? { ...x, pinned: next } : x));
     } catch (e) { setError(e instanceof Error ? e.message : "Update failed."); }
+  }
+
+  async function handleNotifyEmail(a: Announcement) {
+    setNotifying(a.id);
+    setNotifyResult(null);
+    try {
+      const members: Member[] = await getMembers();
+      const emails = members
+        .filter((m) => m.isActive !== false && m.email && m.email.trim())
+        .map((m) => m.email!.trim());
+
+      const subject = encodeURIComponent(`[Leo Club of KUSMS] ${a.title}`);
+      const body = encodeURIComponent(
+        `Dear Leo Club Members,\n\n${a.title}\n\n${a.body ? a.body + "\n\n" : ""}` +
+        `This announcement was posted on ${new Date(a.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}.\n\n` +
+        `Best regards,\nLeo Club of KUSMS`
+      );
+
+      if (emails.length === 0) {
+        // No member emails stored — open blank compose to admin
+        window.open(`mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`, "_blank");
+        setNotifyResult({ id: a.id, count: 0 });
+      } else {
+        // BCC all members, To = club email
+        const bcc = encodeURIComponent(emails.join(","));
+        window.open(`mailto:${ADMIN_EMAIL}?bcc=${bcc}&subject=${subject}&body=${body}`, "_blank");
+        setNotifyResult({ id: a.id, count: emails.length });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load members.");
+    } finally {
+      setNotifying(null);
+    }
   }
 
   const sorted = [...items].sort((a, b) => {
@@ -203,6 +239,7 @@ export default function AnnouncementsManager() {
           {sorted.map((a) => {
             const meta = TYPE_META[a.type];
             const Icon = meta.icon;
+            const justNotified = notifyResult?.id === a.id;
             return (
               <div
                 key={a.id}
@@ -225,8 +262,28 @@ export default function AnnouncementsManager() {
                     <p className="text-xs text-gray-400 mt-1.5">
                       {new Date(a.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
                     </p>
+                    {justNotified && (
+                      <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                        <Check size={10} />
+                        {notifyResult!.count > 0
+                          ? `Email compose opened with ${notifyResult!.count} member(s) BCC'd`
+                          : "Email compose opened — no member emails stored yet. Add emails in the Members tab."}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    {/* Email notification */}
+                    <button
+                      onClick={() => handleNotifyEmail(a)}
+                      disabled={notifying === a.id}
+                      title="Notify members by email"
+                      className="flex items-center gap-1 px-2 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:text-[#002147] hover:border-[#002147] hover:bg-blue-50 transition-colors disabled:opacity-50"
+                    >
+                      {notifying === a.id
+                        ? <Loader2 size={12} className="animate-spin" />
+                        : <Mail size={12} />}
+                      <span className="hidden sm:inline">Notify</span>
+                    </button>
                     <button
                       onClick={() => handleTogglePin(a)}
                       title={a.pinned ? "Unpin" : "Pin to top"}
@@ -266,6 +323,14 @@ export default function AnnouncementsManager() {
           })}
         </div>
       )}
+
+      {/* Email tip */}
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3">
+        <Users size={16} className="text-blue-400 shrink-0 mt-0.5" />
+        <div className="text-xs text-blue-600">
+          <span className="font-semibold">Email notifications:</span> Click "Notify" on any announcement to open a pre-filled email to all members. Add member email addresses in the <span className="font-semibold">Members</span> tab to include them automatically.
+        </div>
+      </div>
     </div>
   );
 }

@@ -25,7 +25,7 @@ export default function AboutPage() {
             <ArrowLeft size={16} /> Back to Home
           </Link>
           <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/40 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-4">
-            <Award size={14} /> Lions Clubs International — District 325L
+            <Award size={14} /> Lions Clubs International — District 325L · Club #172194
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-3">About Our Club</h1>
           <p className="text-white/70 text-lg max-w-2xl mb-6">

@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ESTABLISHED } from "@/lib/types";
+import { CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ESTABLISHED, CLUB_ID } from "@/lib/types";
 import { Facebook, ExternalLink, Mail, MapPin, Calendar } from "lucide-react";
 
 export default function Footer() {
@@ -97,7 +97,7 @@ export default function Footer() {
 
         <div className="border-t border-white/10 mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-white/30">
           <p>© {new Date().getFullYear()} Leo Club of Kathmandu University School of Medical Sciences (KUSMS). All rights reserved.</p>
-          <p>Part of Lions Clubs International District 325L</p>
+          <p>Lions Clubs International · District 325L · Club #{CLUB_ID}</p>
         </div>
       </div>
     </footer>

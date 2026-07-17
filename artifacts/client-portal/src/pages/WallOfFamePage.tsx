@@ -349,7 +349,7 @@ export default function WallOfFamePage() {
             <div className="border-t border-gray-200 pt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400">
               <div className="flex items-center gap-1.5">
                 <Shield size={12} className="text-[#D4AF37]" />
-                Leo Club of KUSMS — Lions Clubs International, District 325L
+                Leo Club of KUSMS — Lions Clubs International, District 325L · Club #172194
               </div>
               <div>· Serving with pride since {new Date().getFullYear()}</div>
             </div>
