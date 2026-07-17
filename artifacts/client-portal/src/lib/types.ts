@@ -123,6 +123,15 @@ export interface Constitution {
   sections: ConstitutionSection[];
 }
 
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;  // ISO date string
+  pinned: boolean;
+  type: "info" | "update" | "event";
+}
+
 export const CLUB_ESTABLISHED = "June 11, 2024";
 export const CLUB_FACEBOOK = "https://www.facebook.com/share/1B5inBvASe/?mibextid=wwXIfr";
 export const CLUB_TIKTOK = "https://www.tiktok.com/@leoclub.kusms";

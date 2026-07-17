@@ -27,6 +27,7 @@ import {
   Loader2,
   Clock,
   CheckCircle,
+  Download,
 } from "lucide-react";
 
 const EMPTY_MEMBER: Member = {
@@ -457,17 +458,44 @@ export default function MemberManagement() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h3 className="text-lg font-bold text-[#002147]">Members</h3>
           <p className="text-sm text-gray-500">{members.length} members registered</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="inline-flex items-center gap-2 bg-[#002147] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors"
-        >
-          <Plus size={16} /> Add Member
-        </button>
+        <div className="flex items-center gap-2">
+          {members.length > 0 && (
+            <button
+              onClick={() => {
+                const headers = ["Member ID", "Name", "Roll No", "Faculty", "Batch", "Current Role", "Joined Leo Year", "Left Leo Year", "Active", "Activities"];
+                const rows = members.map((m) => [
+                  m.memberId, m.name, m.rollNo, m.faculty ?? "", m.batch,
+                  m.currentRole ?? "", m.joinedLeoYear ?? "", m.leftLeoYear ?? "",
+                  m.isActive === false ? "Past" : "Active",
+                  m.activities?.length ?? 0,
+                ]);
+                const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `leo-club-members-${new Date().toISOString().split("T")[0]}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="inline-flex items-center gap-2 border border-gray-200 text-gray-600 px-3 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+              title="Export all members as CSV"
+            >
+              <Download size={14} /> Export CSV
+            </button>
+          )}
+          <button
+            onClick={openAdd}
+            className="inline-flex items-center gap-2 bg-[#002147] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors"
+          >
+            <Plus size={16} /> Add Member
+          </button>
+        </div>
       </div>
 
       {success && (

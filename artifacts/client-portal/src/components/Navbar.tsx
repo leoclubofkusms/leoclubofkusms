@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { LEO_YEARS, MONTHS } from "@/lib/types";
-import { Menu, X, ChevronDown, Search, Info, CalendarDays, Award, Clock, BookOpen, Trophy } from "lucide-react";
+import { Menu, X, ChevronDown, Search, Info, CalendarDays, Award, Clock, BookOpen, Trophy, BarChart3 } from "lucide-react";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -27,7 +27,16 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-full bg-[#D4AF37] flex items-center justify-center font-bold text-[#002147] text-sm shrink-0">
+            <img
+              src="/logo.png"
+              alt="Leo Club of KUSMS"
+              className="w-9 h-9 rounded-full object-cover shrink-0"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+                (e.currentTarget.nextSibling as HTMLElement).style.display = "flex";
+              }}
+            />
+            <div className="w-9 h-9 rounded-full bg-[#D4AF37] items-center justify-center font-bold text-[#002147] text-sm shrink-0 hidden">
               LC
             </div>
             <span className="font-bold text-lg tracking-wide group-hover:text-[#D4AF37] transition-colors">
@@ -73,6 +82,10 @@ export default function Navbar() {
 
             <Link href="/constitution" className="hover:text-[#D4AF37] transition-colors text-sm font-medium flex items-center gap-1">
               <BookOpen size={14} /> Constitution
+            </Link>
+
+            <Link href="/stats" className="hover:text-[#D4AF37] transition-colors text-sm font-medium flex items-center gap-1">
+              <BarChart3 size={14} /> Stats
             </Link>
 
             {/* Archive dropdown */}
@@ -177,6 +190,9 @@ export default function Navbar() {
           </Link>
           <Link href="/constitution" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium flex items-center gap-1">
             <BookOpen size={15} /> Constitution
+          </Link>
+          <Link href="/stats" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium flex items-center gap-1">
+            <BarChart3 size={15} /> Stats
           </Link>
           <div>
             <div className="text-sm font-semibold text-white/60 mb-2">Archive</div>

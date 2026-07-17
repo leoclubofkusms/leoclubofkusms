@@ -14,9 +14,10 @@ import AnnualReport from "./admin/AnnualReport";
 import CertificateGenerator from "./admin/CertificateGenerator";
 import ConstitutionManager from "./admin/ConstitutionManager";
 import BatchEditor from "./admin/BatchEditor";
+import AnnouncementsManager from "./admin/AnnouncementsManager";
 import {
   PlusCircle, Users, List, QrCode, LogOut, Home, Crown, Settings,
-  Award, CalendarDays, ShieldCheck, FileText, CreditCard, Scroll, BookOpen, Wrench,
+  Award, CalendarDays, FileText, CreditCard, Scroll, BookOpen, Wrench, Megaphone, ShieldCheck,
 } from "lucide-react";
 
 const ADMIN_TABS = [
@@ -29,6 +30,7 @@ const ADMIN_TABS = [
   { id: "qr", label: "QR Generator", icon: QrCode },
   { id: "id-cards", label: "ID Cards", icon: CreditCard },
   { id: "certificates", label: "Certificates", icon: Scroll },
+  { id: "announcements", label: "Announcements", icon: Megaphone },
   { id: "constitution", label: "Constitution", icon: BookOpen },
   { id: "batch-editor", label: "Data Tools", icon: Wrench },
   { id: "settings", label: "Club Settings", icon: Settings },
@@ -159,6 +161,7 @@ export default function AdminDashboard() {
           {activeTab === "qr" && <QRGenerator />}
           {activeTab === "id-cards" && <IDCardGenerator />}
           {activeTab === "certificates" && <CertificateGenerator />}
+          {activeTab === "announcements" && isAdmin && <AnnouncementsManager />}
           {activeTab === "constitution" && isAdmin && <ConstitutionManager />}
           {activeTab === "batch-editor" && isAdmin && <BatchEditor />}
           {activeTab === "settings" && isAdmin && <ClubSettings />}

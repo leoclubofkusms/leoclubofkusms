@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "wouter";
-import { getMembers, getActivities, getBodMembers, getFeaturedActivities, getClubSettings, getAwards } from "@/lib/firestore";
-import type { Member, Activity, BodMember, ClubSettings, Award as AwardType } from "@/lib/types";
+import { getMembers, getActivities, getBodMembers, getFeaturedActivities, getClubSettings, getAwards, getAnnouncements } from "@/lib/firestore";
+import type { Member, Activity, BodMember, ClubSettings, Award as AwardType, Announcement } from "@/lib/types";
 import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, LEO_YEARS, MONTHS } from "@/lib/types";
 import {
   ArrowRight, Award, Users, Calendar, Shield, Mail, Phone,
   ChevronLeft, ChevronRight, Pin, Info, Facebook, ExternalLink,
   Star, Building, Quote, Heart, TrendingUp, MessageCircle,
-  Zap, Trophy, Flame, BarChart3,
+  Zap, Trophy, Flame, BarChart3, Megaphone, X as XIcon,
 } from "lucide-react";
 
 // ── Animated counter hook ──────────────────────────────────────────────────────
@@ -498,6 +498,8 @@ export default function HomePage() {
   const [bod, setBod] = useState<BodMember[]>([]);
   const [clubSettings, setClubSettings] = useState<ClubSettings>({});
   const [awards, setAwards] = useState<AwardType[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [dismissedAnnouncements, setDismissedAnnouncements] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -508,15 +510,19 @@ export default function HomePage() {
       getBodMembers().catch(() => [] as BodMember[]),
       getClubSettings().catch(() => ({} as ClubSettings)),
       getAwards().catch(() => [] as AwardType[]),
-    ]).then(([m, a, f, b, s, aw]) => {
+      getAnnouncements().catch(() => [] as Announcement[]),
+    ]).then(([m, a, f, b, s, aw, ann]) => {
       setMembers(m);
       setActivities(a);
       setFeaturedActivities(f);
       setBod(b);
       setClubSettings(s);
       setAwards(aw);
+      setAnnouncements(ann);
     }).finally(() => setLoading(false));
   }, []);
+
+  const visibleAnnouncements = announcements.filter((a) => !dismissedAnnouncements.has(a.id));
 
   const president = bod[0] ?? null;
   const otherBod = bod.slice(1);
@@ -597,6 +603,43 @@ export default function HomePage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
+
+        {/* ── Announcements Banner ──────────────────────────────────────────── */}
+        {visibleAnnouncements.length > 0 && (
+          <section>
+            <div className="space-y-3">
+              {visibleAnnouncements.map((ann) => {
+                const typeColors = {
+                  info: { bg: "bg-blue-50 border-blue-200", icon: "text-blue-600", title: "text-blue-900", body: "text-blue-700" },
+                  update: { bg: "bg-amber-50 border-amber-200", icon: "text-amber-600", title: "text-amber-900", body: "text-amber-700" },
+                  event: { bg: "bg-green-50 border-green-200", icon: "text-green-600", title: "text-green-900", body: "text-green-700" },
+                }[ann.type];
+                return (
+                  <div key={ann.id} className={`rounded-2xl border px-5 py-4 flex items-start gap-4 ${typeColors.bg}`}>
+                    <Megaphone size={18} className={`shrink-0 mt-0.5 ${typeColors.icon}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`font-bold text-sm ${typeColors.title}`}>{ann.title}</span>
+                        {ann.pinned && <span className="text-xs font-semibold opacity-60">📌 Pinned</span>}
+                        <span className={`text-xs opacity-50 ${typeColors.body}`}>
+                          {new Date(ann.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+                      {ann.body && <p className={`text-sm mt-0.5 ${typeColors.body}`}>{ann.body}</p>}
+                    </div>
+                    <button
+                      onClick={() => setDismissedAnnouncements((prev) => new Set([...prev, ann.id]))}
+                      className={`shrink-0 p-1 rounded-lg hover:bg-black/10 transition-colors ${typeColors.icon}`}
+                      aria-label="Dismiss"
+                    >
+                      <XIcon size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* ── President & BOD ─────────────────────────────────────────────────── */}
         {(president || bod.length > 0) && (

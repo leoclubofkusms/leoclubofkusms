@@ -5,7 +5,7 @@ import type { Member, Activity, MemberActivity } from "@/lib/types";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Search, User, Award, Calendar, ExternalLink,
-  ChevronRight, X, Clock, Shield, Filter,
+  ChevronRight, X, Clock, Shield,
 } from "lucide-react";
 
 interface ActivityRecord {
@@ -17,7 +17,6 @@ interface ActivityRecord {
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [query, setQuery] = useState("");
-  const [activeBatch, setActiveBatch] = useState<string>("all");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [records, setRecords] = useState<ActivityRecord[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
@@ -86,24 +85,16 @@ export default function MembersPage() {
     inputRef.current?.focus();
   }
 
-  // Unique batch years sorted numerically
-  const batches = Array.from(new Set(members.map((m) => m.batch.trim())))
-    .filter(Boolean)
-    .sort();
-
   const filtered = members.filter((m) => {
     const q = query.toLowerCase();
-    const matchesSearch =
+    return (
       !q ||
       m.memberId.toLowerCase().includes(q) ||
       m.name.toLowerCase().includes(q) ||
       m.rollNo.toLowerCase().includes(q) ||
       m.batch.toLowerCase().includes(q) ||
-      (m.faculty ?? "").toLowerCase().includes(q);
-
-    const matchesBatch = activeBatch === "all" || m.batch.trim() === activeBatch;
-
-    return matchesSearch && matchesBatch;
+      (m.faculty ?? "").toLowerCase().includes(q)
+    );
   });
 
   const byYear: Record<string, ActivityRecord[]> = {};
@@ -152,47 +143,6 @@ export default function MembersPage() {
                   {members.reduce((s, m) => s + (m.activities?.length ?? 0), 0)}
                 </div>
                 <div className="text-white/50 text-xs">Total Activities</div>
-              </div>
-            </div>
-          )}
-
-          {/* Batch / Faculty filter pills */}
-          {!loadingMembers && batches.length > 0 && !selectedMember && (
-            <div className="mt-6 space-y-2">
-              <div className="flex items-center gap-2 text-white/40 text-xs">
-                <Filter size={11} /> Filter by batch
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {/* All pill */}
-                <button
-                  onClick={() => setActiveBatch("all")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                    activeBatch === "all"
-                      ? "bg-[#D4AF37] text-[#002147]"
-                      : "bg-white/10 text-white/70 hover:bg-white/20"
-                  }`}
-                >
-                  All ({members.length})
-                </button>
-
-                {batches.map((batch) => {
-                  const count = members.filter((m) => m.batch.trim() === batch).length;
-                  return (
-                    <button
-                      key={batch}
-                      onClick={() =>
-                        setActiveBatch(activeBatch === batch ? "all" : batch)
-                      }
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                        activeBatch === batch
-                          ? "bg-[#D4AF37] text-[#002147]"
-                          : "bg-white/10 text-white/70 hover:bg-white/20"
-                      }`}
-                    >
-                      {batch} <span className="opacity-60">({count})</span>
-                    </button>
-                  );
-                })}
               </div>
             </div>
           )}
@@ -283,23 +233,13 @@ export default function MembersPage() {
             <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
               <div>
                 <h2 className="text-lg font-bold text-[#002147]">
-                  {activeBatch === "all"
-                    ? "All Active Members"
-                    : `${activeBatch} Members`}
+                  All Active Members
                   {!loadingMembers && (
                     <span className="text-gray-400 font-normal text-sm ml-2">
-                      ({filtered.length}{activeBatch !== "all" ? ` of ${members.length}` : ""} registered)
+                      ({members.length} registered)
                     </span>
                   )}
                 </h2>
-                {activeBatch !== "all" && (
-                  <button
-                    onClick={() => setActiveBatch("all")}
-                    className="text-xs text-[#002147] hover:text-red-500 flex items-center gap-1 mt-1 transition-colors"
-                  >
-                    <X size={11} /> Clear filter
-                  </button>
-                )}
               </div>
               <Link
                 href="/past-members"

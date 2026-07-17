@@ -14,7 +14,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Member, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings, Constitution } from "./types";
+import type { Member, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings, Constitution, Announcement } from "./types";
 
 // ── Members ──────────────────────────────────────────────────────────────────
 
@@ -356,4 +356,28 @@ export async function getConstitution(): Promise<Constitution> {
 
 export async function updateConstitution(data: Constitution): Promise<void> {
   await setDoc(doc(db, "settings", "constitution"), data, { merge: true });
+}
+
+// ── Announcements ──────────────────────────────────────────────────────────────
+
+export async function getAnnouncements(): Promise<Announcement[]> {
+  const snap = await getDocs(collection(db, "announcements"));
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Announcement));
+  return items.sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+}
+
+export async function addAnnouncement(data: Omit<Announcement, "id">): Promise<void> {
+  const ref = await addDoc(collection(db, "announcements"), data);
+  await updateDoc(ref, { id: ref.id });
+}
+
+export async function updateAnnouncement(id: string, data: Partial<Announcement>): Promise<void> {
+  await updateDoc(doc(db, "announcements", id), data as Record<string, unknown>);
+}
+
+export async function deleteAnnouncement(id: string): Promise<void> {
+  await deleteDoc(doc(db, "announcements", id));
 }

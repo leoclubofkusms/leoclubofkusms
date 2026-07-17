@@ -4,7 +4,7 @@ import type { Member } from "@/lib/types";
 import { LEO_YEARS } from "@/lib/types";
 import { Link } from "wouter";
 import {
-  Clock, Calendar, Shield, Search, User, Users, ChevronRight, Filter, X,
+  Clock, Calendar, Shield, Search, User, Users, ChevronRight,
 } from "lucide-react";
 
 
@@ -30,7 +30,6 @@ export default function PastMembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [activeBatch, setActiveBatch] = useState<string>("all");
 
   useEffect(() => {
     getMembers()
@@ -45,23 +44,15 @@ export default function PastMembersPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Unique batch years sorted numerically
-  const batches = Array.from(new Set(members.map((m) => m.batch.trim())))
-    .filter(Boolean)
-    .sort();
-
   const filtered = members.filter((m) => {
     const q = search.toLowerCase();
-    const matchesSearch =
+    return (
       !q ||
       m.name.toLowerCase().includes(q) ||
       m.memberId.toLowerCase().includes(q) ||
       (m.faculty ?? "").toLowerCase().includes(q) ||
-      m.batch.toLowerCase().includes(q);
-
-    const matchesBatch = activeBatch === "all" || m.batch.trim() === activeBatch;
-
-    return matchesSearch && matchesBatch;
+      m.batch.toLowerCase().includes(q)
+    );
   });
 
   // Group by the year they LEFT (or joined if no left year recorded)
@@ -123,58 +114,12 @@ export default function PastMembersPage() {
             </div>
           )}
 
-          {/* Batch year filter pills */}
-          {!loading && batches.length > 0 && (
-            <div className="mt-6 space-y-2">
-              <div className="flex items-center gap-2 text-white/40 text-xs">
-                <Filter size={11} /> Filter by batch year
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setActiveBatch("all")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                    activeBatch === "all"
-                      ? "bg-[#D4AF37] text-[#002147]"
-                      : "bg-white/10 text-white/70 hover:bg-white/20"
-                  }`}
-                >
-                  All ({members.length})
-                </button>
-
-                {batches.map((batch) => {
-                  const count = members.filter((m) => m.batch.trim() === batch).length;
-                  return (
-                    <button
-                      key={batch}
-                      onClick={() => setActiveBatch(activeBatch === batch ? "all" : batch)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                        activeBatch === batch
-                          ? "bg-[#D4AF37] text-[#002147]"
-                          : "bg-white/10 text-white/70 hover:bg-white/20"
-                      }`}
-                    >
-                      {batch} <span className="opacity-60">({count})</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-        {/* Search + active filter label */}
         <div className="flex items-center gap-3 mb-5 flex-wrap">
-          {activeBatch !== "all" && (
-            <div className="flex items-center gap-1.5 bg-[#002147] text-[#D4AF37] text-xs font-bold px-3 py-1.5 rounded-xl">
-              {activeBatch}
-              <button onClick={() => setActiveBatch("all")} className="ml-1 hover:text-white transition-colors">
-                <X size={11} />
-              </button>
-            </div>
-          )}
           <span className="text-sm text-gray-400">
             {filtered.length} of {members.length} past member{members.length !== 1 ? "s" : ""}
           </span>

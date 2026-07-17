@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { getActivities, deleteActivity, toggleActivityFeatured, updateActivityMeta } from "@/lib/firestore";
 import type { Activity } from "@/lib/types";
 import { LEO_YEARS, MONTHS } from "@/lib/types";
+import { QRCodeSVG } from "qrcode.react";
 import {
   Calendar, Trash2, Eye, ChevronDown, ChevronRight, Users, Pin, PinOff,
-  Pencil, Check, X, Loader2,
+  Pencil, Check, X, Loader2, QrCode, Download,
 } from "lucide-react";
 
 export default function ActivityList({
@@ -24,6 +25,8 @@ export default function ActivityList({
   const [editForm, setEditForm] = useState({ title: "", description: "", photoInput: "" });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+  const [qrActivity, setQrActivity] = useState<Activity | null>(null);
+  const qrRef = useRef<HTMLDivElement>(null);
 
   async function load() {
     setLoading(true);
@@ -85,12 +88,61 @@ export default function ActivityList({
     grouped[act.year][act.month].push(act);
   });
 
-  const sortedYears = LEO_YEARS.filter((y) => grouped[y]);
-  const sortedMonths = (year: string) => MONTHS.filter((m) => grouped[year]?.[m]);
+  // Most recent year/month first
+  const sortedYears = [...LEO_YEARS].filter((y) => grouped[y]).reverse();
+  const sortedMonths = (year: string) => [...MONTHS].filter((m) => grouped[year]?.[m]).reverse();
+
+  function downloadQR() {
+    const svg = qrRef.current?.querySelector("svg");
+    if (!svg) return;
+    const data = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([data], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `activity-qr-${qrActivity?.id ?? "unknown"}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const qrUrl = qrActivity
+    ? `${window.location.origin}${import.meta.env.BASE_URL}activity/${qrActivity.id}`
+    : "";
   const featuredCount = activities.filter((a) => a.featured).length;
 
   return (
     <div>
+      {/* QR Modal */}
+      {qrActivity && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setQrActivity(null)}>
+          <div className="bg-white rounded-2xl p-7 shadow-2xl max-w-sm w-full text-center" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setQrActivity(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            <div className="w-10 h-10 bg-[#002147] rounded-xl flex items-center justify-center mx-auto mb-3">
+              <QrCode size={20} className="text-[#D4AF37]" />
+            </div>
+            <h3 className="font-bold text-[#002147] text-lg mb-1">Activity QR Code</h3>
+            <p className="text-xs text-gray-500 mb-1 font-medium truncate">{qrActivity.title}</p>
+            <p className="text-sm text-gray-500 mb-5">Scan to open the public activity page. Attach to participation certificates.</p>
+            <div ref={qrRef} className="flex justify-center mb-5">
+              <div className="p-3 border-2 border-[#002147] rounded-xl">
+                <QRCodeSVG value={qrUrl} size={160} fgColor="#002147" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 break-all mb-5">{qrUrl}</p>
+            <div className="flex gap-2">
+              <button onClick={downloadQR}
+                className="flex-1 flex items-center justify-center gap-2 bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors">
+                <Download size={14} /> Download SVG
+              </button>
+              <button onClick={() => navigator.clipboard.writeText(qrUrl)}
+                className="flex items-center gap-2 border border-gray-200 text-gray-600 px-3 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors">
+                Copy Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-bold text-[#002147]">All Activities</h3>
@@ -203,6 +255,11 @@ export default function ActivityList({
                                   title={act.featured ? "Unpin from home page" : "Pin to home page"}
                                   className={`p-2 rounded-lg transition-colors ${act.featured ? "text-[#D4AF37] hover:bg-[#D4AF37]/10" : "text-gray-400 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10"} ${toggling === act.id ? "opacity-50" : ""}`}>
                                   {act.featured ? <PinOff size={15} /> : <Pin size={15} />}
+                                </button>
+                                <button onClick={() => setQrActivity(act)}
+                                  title="Get activity QR code for certificate"
+                                  className="p-2 text-gray-400 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg transition-colors">
+                                  <QrCode size={15} />
                                 </button>
                                 <Link href={`/archive/${year.replace("/", "-")}/${month.toLowerCase()}`}
                                   className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors" title="View public page">

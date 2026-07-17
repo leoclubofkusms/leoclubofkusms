@@ -17,6 +17,8 @@ import MemberProfilePage from "@/pages/MemberProfilePage";
 import PastMembersPage from "@/pages/PastMembersPage";
 import ConstitutionPage from "@/pages/ConstitutionPage";
 import WallOfFamePage from "@/pages/WallOfFamePage";
+import ActivityPage from "@/pages/ActivityPage";
+import StatsPage from "@/pages/StatsPage";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +55,10 @@ function AppLayout() {
                 </Route>
                 <Route path="/archive/:year/:month">
                   {(params) => <ArchivePage year={params.year} month={params.month} />}
+                </Route>
+                <Route path="/stats" component={StatsPage} />
+                <Route path="/activity/:id">
+                  {(params) => <ActivityPage activityId={params.id} />}
                 </Route>
                 <Route path="/verify/member/:memberId">
                   {(params) => <VerifyPage memberId={params.memberId} />}
