@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getClubEvents } from "@/lib/firestore";
 import type { ClubEvent } from "@/lib/types";
-import { CalendarDays, MapPin, Clock, ArrowLeft, CheckCircle, XCircle } from "lucide-react";
+import { CalendarDays, MapPin, Clock, ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight, LayoutList, Calendar } from "lucide-react";
 import { Link } from "wouter";
 
 const STATUS_CONFIG = {
@@ -10,10 +10,153 @@ const STATUS_CONFIG = {
   cancelled: { label: "Cancelled", color: "bg-red-100 text-red-600", icon: XCircle },
 };
 
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+function CalendarView({ events }: { events: ClubEvent[] }) {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth()); // 0-indexed
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Map date string "YYYY-MM-DD" to events
+  const eventsMap: Record<string, ClubEvent[]> = {};
+  for (const ev of events) {
+    const d = ev.date?.slice(0, 10);
+    if (!d) continue;
+    const [ey, em] = d.split("-").map(Number);
+    if (ey === year && em === month + 1) {
+      if (!eventsMap[d]) eventsMap[d] = [];
+      eventsMap[d].push(ev);
+    }
+  }
+
+  function prevMonth() {
+    if (month === 0) { setMonth(11); setYear((y) => y - 1); }
+    else setMonth((m) => m - 1);
+  }
+  function nextMonth() {
+    if (month === 11) { setMonth(0); setYear((y) => y + 1); }
+    else setMonth((m) => m + 1);
+  }
+
+  const today = now.toISOString().slice(0, 10);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const selectedEvents = selected ? (eventsMap[selected] ?? []) : [];
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div>
+      {/* Month navigator */}
+      <div className="flex items-center justify-between mb-5">
+        <button onClick={prevMonth} className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+          <ChevronLeft size={16} />
+        </button>
+        <h3 className="font-bold text-[#002147] text-lg">{MONTH_NAMES[month]} {year}</h3>
+        <button onClick={nextMonth} className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
+      {/* Day names */}
+      <div className="grid grid-cols-7 mb-2">
+        {DAY_NAMES.map((d) => (
+          <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1">{d}</div>
+        ))}
+      </div>
+
+      {/* Cells */}
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((day, idx) => {
+          if (day === null) return <div key={`e-${idx}`} />;
+          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const dayEvents = eventsMap[dateStr] ?? [];
+          const isToday = dateStr === today;
+          const isSelected = dateStr === selected;
+
+          return (
+            <button
+              key={dateStr}
+              onClick={() => setSelected(isSelected ? null : dateStr)}
+              className={`relative min-h-[44px] rounded-xl border text-sm font-medium transition-all p-1 text-center ${
+                isSelected ? "bg-[#002147] text-white border-[#002147] shadow-md" :
+                isToday ? "bg-[#D4AF37]/20 border-[#D4AF37] text-[#002147]" :
+                dayEvents.length > 0 ? "bg-white border-[#002147]/20 text-[#002147] hover:border-[#002147]/50 hover:shadow-sm" :
+                "bg-white border-gray-100 text-gray-400 hover:bg-gray-50"
+              }`}
+            >
+              <span className="block">{day}</span>
+              {dayEvents.length > 0 && (
+                <div className="flex justify-center gap-0.5 mt-0.5">
+                  {dayEvents.slice(0, 3).map((ev, i) => (
+                    <div key={i} className={`w-1.5 h-1.5 rounded-full ${
+                      isSelected ? "bg-white" :
+                      ev.status === "cancelled" ? "bg-red-400" :
+                      ev.date >= today ? "bg-blue-500" : "bg-green-500"
+                    }`} />
+                  ))}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Selected day events */}
+      {selected && (
+        <div className="mt-5 border-t border-gray-100 pt-5">
+          <h4 className="font-semibold text-[#002147] mb-3">
+            {new Date(selected + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </h4>
+          {selectedEvents.length === 0 ? (
+            <p className="text-sm text-gray-400">No events on this day.</p>
+          ) : (
+            <div className="space-y-3">
+              {selectedEvents.map((ev) => {
+                const cfg = STATUS_CONFIG[ev.status];
+                const StatusIcon = cfg.icon;
+                return (
+                  <div key={ev.id} className="bg-[#F8FAFC] rounded-xl border border-gray-100 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${cfg.color}`}>
+                        <StatusIcon size={11} /> {cfg.label}
+                      </span>
+                      {ev.eventType && <span className="text-xs bg-[#002147]/10 text-[#002147] px-2.5 py-1 rounded-full">{ev.eventType}</span>}
+                    </div>
+                    <h5 className="font-bold text-[#002147]">{ev.title}</h5>
+                    {ev.description && <p className="text-sm text-gray-500 mt-1">{ev.description}</p>}
+                    {ev.location && <p className="flex items-center gap-1.5 text-xs text-gray-400 mt-2"><MapPin size={11} className="text-[#D4AF37]" /> {ev.location}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Legend */}
+      <div className="mt-5 flex flex-wrap gap-4 text-xs text-gray-500 border-t border-gray-100 pt-4">
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> Upcoming</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Completed</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" /> Cancelled</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#D4AF37] inline-block" /> Today</span>
+      </div>
+    </div>
+  );
+}
+
 export default function EventsPage() {
   const [events, setEvents] = useState<ClubEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "upcoming" | "past">("upcoming");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
   useEffect(() => {
     getClubEvents().then(setEvents).catch(console.error).finally(() => setLoading(false));
@@ -44,7 +187,6 @@ export default function EventsPage() {
           </div>
           <p className="text-white/70">Upcoming service activities, health camps, meetings, and more.</p>
 
-          {/* Stats */}
           <div className="flex gap-6 mt-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-[#D4AF37]">{upcoming.length}</div>
@@ -59,19 +201,37 @@ export default function EventsPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Filter tabs */}
-        <div className="flex gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 mb-8 shadow-sm w-fit">
-          {(["upcoming", "past", "all"] as const).map((f) => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`px-5 py-2 rounded-xl text-sm font-medium transition-all capitalize ${filter === f ? "bg-[#002147] text-white shadow-sm" : "text-gray-500 hover:text-[#002147]"}`}>
-              {f === "all" ? "All Events" : f === "upcoming" ? `Upcoming (${upcoming.length})` : `Past (${past.length})`}
+        {/* Controls row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+          {/* Filter tabs */}
+          <div className="flex gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 shadow-sm">
+            {(["upcoming", "past", "all"] as const).map((f) => (
+              <button key={f} onClick={() => setFilter(f)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all capitalize ${filter === f ? "bg-[#002147] text-white shadow-sm" : "text-gray-500 hover:text-[#002147]"}`}>
+                {f === "all" ? "All" : f === "upcoming" ? `Upcoming (${upcoming.length})` : `Past (${past.length})`}
+              </button>
+            ))}
+          </div>
+          {/* View toggle */}
+          <div className="flex gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 shadow-sm">
+            <button onClick={() => setViewMode("list")}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${viewMode === "list" ? "bg-[#002147] text-white shadow-sm" : "text-gray-500 hover:text-[#002147]"}`}>
+              <LayoutList size={14} /> List
             </button>
-          ))}
+            <button onClick={() => setViewMode("calendar")}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${viewMode === "calendar" ? "bg-[#002147] text-white shadow-sm" : "text-gray-500 hover:text-[#002147]"}`}>
+              <Calendar size={14} /> Calendar
+            </button>
+          </div>
         </div>
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {[1,2,3].map(i => <div key={i} className="bg-white rounded-2xl border border-gray-100 h-48 animate-pulse" />)}
+          </div>
+        ) : viewMode === "calendar" ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <CalendarView events={events} />
           </div>
         ) : displayed.length === 0 ? (
           <div className="text-center py-16 text-gray-400">

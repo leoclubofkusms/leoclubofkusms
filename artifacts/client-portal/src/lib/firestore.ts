@@ -14,7 +14,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Member, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings, Constitution, Announcement } from "./types";
+import type { Member, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings, Constitution, Announcement, LeaderQuote, PastLeader } from "./types";
 
 // ── Members ──────────────────────────────────────────────────────────────────
 
@@ -390,4 +390,48 @@ export async function updateAnnouncement(id: string, data: Partial<Announcement>
 
 export async function deleteAnnouncement(id: string): Promise<void> {
   await deleteDoc(doc(db, "announcements", id));
+}
+
+// ── Leader Quotes ─────────────────────────────────────────────────────────────
+
+export async function getLeaderQuotes(): Promise<LeaderQuote[]> {
+  const snap = await getDocs(collection(db, "leaderQuotes"));
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() } as LeaderQuote));
+  return items.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+}
+
+export async function addLeaderQuote(data: Omit<LeaderQuote, "id">): Promise<string> {
+  const ref = await addDoc(collection(db, "leaderQuotes"), data);
+  await updateDoc(ref, { id: ref.id });
+  return ref.id;
+}
+
+export async function updateLeaderQuote(id: string, data: Partial<LeaderQuote>): Promise<void> {
+  await updateDoc(doc(db, "leaderQuotes", id), data as Record<string, unknown>);
+}
+
+export async function deleteLeaderQuote(id: string): Promise<void> {
+  await deleteDoc(doc(db, "leaderQuotes", id));
+}
+
+// ── Past Leaders ──────────────────────────────────────────────────────────────
+
+export async function getPastLeaders(): Promise<PastLeader[]> {
+  const snap = await getDocs(collection(db, "pastLeaders"));
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() } as PastLeader));
+  return items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+export async function addPastLeader(data: Omit<PastLeader, "id">): Promise<string> {
+  const ref = await addDoc(collection(db, "pastLeaders"), data);
+  await updateDoc(ref, { id: ref.id });
+  return ref.id;
+}
+
+export async function updatePastLeader(id: string, data: Partial<PastLeader>): Promise<void> {
+  await updateDoc(doc(db, "pastLeaders", id), data as Record<string, unknown>);
+}
+
+export async function deletePastLeader(id: string): Promise<void> {
+  await deleteDoc(doc(db, "pastLeaders", id));
 }

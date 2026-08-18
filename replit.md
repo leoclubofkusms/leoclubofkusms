@@ -54,6 +54,34 @@ Before the app works with real data, you need to:
          allow read: if true;
          allow write: if request.auth != null && request.auth.token.email == 'leoclubofkusms@gmail.com';
        }
+        match /events/{eventId} {
+          allow read: if true;
+          allow write: if request.auth != null && request.auth.token.email == 'leoclubofkusms@gmail.com';
+        }
+        match /awards/{awardId} {
+          allow read: if true;
+          allow write: if request.auth != null && request.auth.token.email == 'leoclubofkusms@gmail.com';
+        }
+        match /bod/{memberId} {
+          allow read: if true;
+          allow write: if request.auth != null && request.auth.token.email == 'leoclubofkusms@gmail.com';
+        }
+        match /leaderQuotes/{quoteId} {
+          allow read: if true;
+          allow write: if request.auth != null && request.auth.token.email == 'leoclubofkusms@gmail.com';
+        }
+        match /pastLeaders/{leaderId} {
+          allow read: if true;
+          allow write: if request.auth != null && request.auth.token.email == 'leoclubofkusms@gmail.com';
+        }
+        match /announcements/{announcementId} {
+          allow read: if true;
+          allow write: if request.auth != null && request.auth.token.email == 'leoclubofkusms@gmail.com';
+        }
+        match /settings/{settingId} {
+          allow read: if true;
+          allow write: if request.auth != null && request.auth.token.email == 'leoclubofkusms@gmail.com';
+        }
      }
    }
    ```

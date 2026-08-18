@@ -1,20 +1,59 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { getBodMembers } from "@/lib/firestore";
-import type { BodMember } from "@/lib/types";
+import { getBodMembers, getLeaderQuotes, getPastLeaders, getClubSettings } from "@/lib/firestore";
+import type { BodMember, LeaderQuote, PastLeader, ClubSettings } from "@/lib/types";
 import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK } from "@/lib/types";
-import { Mail, Phone, ArrowLeft, Award, Heart, Target, Users, Calendar, Facebook, ExternalLink } from "lucide-react";
+import { Mail, Phone, ArrowLeft, Award, Heart, Target, Users, Calendar, Facebook, ExternalLink, Quote, Crown, Play, Pause } from "lucide-react";
 
 export default function AboutPage() {
   const [bod, setBod] = useState<BodMember[]>([]);
+  const [quotes, setQuotes] = useState<LeaderQuote[]>([]);
+  const [pastLeaders, setPastLeaders] = useState<PastLeader[]>([]);
+  const [clubSettings, setClubSettings] = useState<ClubSettings>({});
   const [loading, setLoading] = useState(true);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    getBodMembers().then(setBod).catch(console.error).finally(() => setLoading(false));
+    Promise.allSettled([
+      getBodMembers(),
+      getLeaderQuotes(),
+      getPastLeaders(),
+      getClubSettings(),
+    ]).then(([b, q, p, s]) => {
+      // Keep each public section independent: a missing/locked new collection
+      // must not hide existing BOD information.
+      if (b.status === "fulfilled") setBod(b.value);
+      if (q.status === "fulfilled") setQuotes(q.value);
+      if (p.status === "fulfilled") setPastLeaders(p.value);
+      if (s.status === "fulfilled") setClubSettings(s.value);
+    }).finally(() => setLoading(false));
   }, []);
 
   const president = bod[0] ?? null;
   const others = bod.slice(1);
+
+  // Sort past leaders by Leo Year
+  const sortedPast = [...pastLeaders].sort((a, b) => {
+    const ay = a.leoYear ?? ""; const by = b.leoYear ?? "";
+    return ay.localeCompare(by) || (a.order - b.order);
+  });
+
+  function toggleAudio(item: LeaderQuote) {
+    if (!item.audioUrl) return;
+    if (playingId === item.id) {
+      audio?.pause();
+      setPlayingId(null);
+      setAudio(null);
+    } else {
+      audio?.pause();
+      const a = new Audio(item.audioUrl);
+      a.play();
+      a.onended = () => { setPlayingId(null); setAudio(null); };
+      setPlayingId(item.id);
+      setAudio(a);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -32,7 +71,6 @@ export default function AboutPage() {
             Leo Club of Kathmandu University School of Medical Sciences (KUSMS) —
             a community of future healthcare leaders united by the spirit of service.
           </p>
-          {/* Established badge */}
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm">
             <Calendar size={14} className="text-[#D4AF37]" />
             <span className="text-white/80">Officially chartered on</span>
@@ -110,12 +148,21 @@ export default function AboutPage() {
                             <Phone size={14} className="text-[#D4AF37]" /> {president.phone}
                           </a>
                         )}
+                        {clubSettings.presidentWhatsApp && (
+                          <a
+                            href={`https://wa.me/${clubSettings.presidentWhatsApp.replace(/\D/g, "")}?text=${encodeURIComponent(clubSettings.presidentWhatsAppMessage || "Hello President, I would like to connect with Leo Club of KUSMS.")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 bg-[#25D366] hover:bg-[#20b858] text-white rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+                          >
+                            WhatsApp President
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
               )}
-
               {others.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {others.map((m) => (
@@ -149,6 +196,100 @@ export default function AboutPage() {
             </>
           )}
         </section>
+
+        {/* What Our Leaders Say */}
+        {(loading || quotes.length > 0) && (
+          <section>
+            <h2 className="text-2xl font-bold text-[#002147] mb-2 text-center">What Our Leaders Say</h2>
+            <p className="text-gray-500 text-center text-sm mb-8">Voices from our current and past leadership.</p>
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {[1, 2].map(i => <div key={i} className="bg-white rounded-2xl border border-gray-100 h-36 animate-pulse" />)}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {quotes.map((q) => (
+                  <div key={q.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow relative overflow-hidden">
+                    {/* decorative quote mark */}
+                    <Quote size={64} className="absolute -top-2 -right-2 text-[#D4AF37]/10 rotate-180" />
+                    <div className="flex items-start gap-4">
+                      {q.photoUrl ? (
+                        <img src={q.photoUrl} alt={q.name} className="w-14 h-14 rounded-xl object-cover border-2 border-[#D4AF37]/30 shrink-0" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-xl bg-[#002147] text-white flex items-center justify-center font-bold text-xl shrink-0">
+                          {q.name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-[#002147]">{q.name}</div>
+                        <div className="text-xs text-[#D4AF37] font-semibold mb-3">
+                          {q.role}{q.leoYear ? ` · ${q.leoYear}` : ""}
+                        </div>
+                        <p className="text-gray-600 text-sm leading-relaxed italic">"{q.quote}"</p>
+                        {q.introduction && <p className="text-gray-400 text-xs leading-relaxed mt-2">{q.introduction}</p>}
+                        {q.audioUrl && (
+                          <button
+                            onClick={() => toggleAudio(q)}
+                            className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                              playingId === q.id
+                                ? "bg-green-100 text-green-700 border border-green-200"
+                                : "bg-[#002147]/8 text-[#002147] border border-[#002147]/10 hover:bg-[#002147]/15"
+                            }`}
+                          >
+                            {playingId === q.id ? <><Pause size={12} /> Stop audio</> : <><Play size={12} /> Listen</>}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Past Leaders */}
+        {(loading || sortedPast.length > 0) && (
+          <section>
+            <h2 className="text-2xl font-bold text-[#002147] mb-2 text-center">Past Leaders</h2>
+            <p className="text-gray-500 text-center text-sm mb-8">Honoring those who led our journey from chartered year to present.</p>
+            {loading ? (
+              <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="bg-white rounded-2xl border border-gray-100 h-14 animate-pulse" />)}</div>
+            ) : (
+              <div className="relative">
+                {/* Timeline line */}
+                <div className="absolute left-[2.35rem] top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#D4AF37] via-[#D4AF37]/40 to-transparent hidden sm:block" />
+                <div className="space-y-3">
+                  {sortedPast.map((leader, idx) => (
+                    <div key={leader.id} className="flex items-center gap-4 relative">
+                      {/* Timeline dot */}
+                      <div className="hidden sm:flex w-[4.7rem] shrink-0 items-center justify-center">
+                        <div className={`w-4 h-4 rounded-full border-2 z-10 ${idx === sortedPast.length - 1 ? "bg-[#D4AF37] border-[#D4AF37]" : "bg-white border-[#D4AF37]"}`} />
+                      </div>
+                      <div className="flex-1 bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-4 hover:shadow-sm transition-shadow">
+                        {leader.photoUrl ? (
+                          <img src={leader.photoUrl} alt={leader.name} className="w-10 h-10 rounded-xl object-cover border border-gray-200 shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 flex items-center justify-center shrink-0">
+                            <Crown size={16} className="text-[#D4AF37]" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <span className="font-bold text-[#002147]">{leader.name}</span>
+                          <div className="flex items-center flex-wrap gap-2 mt-0.5">
+                            <span className="text-xs text-[#D4AF37] font-medium">{leader.role}</span>
+                            <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{leader.leoYear}</span>
+                            {leader.note && <span className="text-xs text-gray-400 italic">{leader.note}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Social Media */}
         <section>

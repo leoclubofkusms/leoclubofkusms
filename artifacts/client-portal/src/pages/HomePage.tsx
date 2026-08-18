@@ -436,7 +436,7 @@ function FeaturedCarousel({ activities }: { activities: Activity[] }) {
 }
 
 // ── President Card ────────────────────────────────────────────────────────────
-function PresidentCard({ president }: { president: BodMember }) {
+function PresidentCard({ president, whatsappNumber, whatsappMessage }: { president: BodMember; whatsappNumber?: string; whatsappMessage?: string }) {
   return (
     <div className="bg-gradient-to-br from-[#002147] to-[#003575] text-white rounded-3xl overflow-hidden shadow-2xl">
       <div className="p-8 md:p-10 flex flex-col md:flex-row items-center gap-8">
@@ -481,6 +481,17 @@ function PresidentCard({ president }: { president: BodMember }) {
               >
                 <Phone size={14} className="text-[#D4AF37]" />
                 <span>{president.phone}</span>
+              </a>
+            )}
+            {whatsappNumber && (
+              <a
+                href={`https://wa.me/${whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(whatsappMessage || "Hello President, I would like to connect with Leo Club of KUSMS.")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-[#25D366] hover:bg-[#20b858] rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+              >
+                <MessageCircle size={14} />
+                <span>Contact President</span>
               </a>
             )}
           </div>
@@ -657,7 +668,11 @@ export default function HomePage() {
             {/* President */}
             {president && (
               <div className="mb-6">
-                <PresidentCard president={president} />
+                 <PresidentCard
+                   president={president}
+                   whatsappNumber={clubSettings.presidentWhatsApp}
+                   whatsappMessage={clubSettings.presidentWhatsAppMessage}
+                 />
               </div>
             )}
 
@@ -710,6 +725,13 @@ export default function HomePage() {
             {/* President's Slogan */}
             {clubSettings.presidentSlogan && (
               <div className="mt-6 bg-gradient-to-r from-[#002147] to-[#003575] rounded-2xl px-6 py-5 flex items-center gap-4">
+                {clubSettings.presidentSloganPhotoUrl && (
+                  <img
+                    src={clubSettings.presidentSloganPhotoUrl}
+                    alt="President's slogan"
+                    className="w-16 h-16 md:w-20 md:h-20 rounded-xl object-cover border-2 border-[#D4AF37]/50 shrink-0"
+                  />
+                )}
                 <Quote size={28} className="text-[#D4AF37] shrink-0 opacity-70" />
                 <div className="flex-1">
                   <p className="text-white/60 text-xs uppercase tracking-widest mb-1">President's Slogan — Leo Year 2026/27</p>
@@ -1002,6 +1024,68 @@ export default function HomePage() {
           <LeoAnalytics members={members} activities={activities} awards={awards} />
         )}
 
+        {/* ── Donate Now ───────────────────────────────────────────────────── */}
+        <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              {/* Left */}
+              <div className="p-8 md:p-10 flex flex-col justify-center">
+                <div className="inline-flex items-center gap-2 bg-[#D4AF37]/10 text-[#002147] text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider mb-5 w-fit">
+                  <Heart size={12} className="text-[#D4AF37]" /> Support Us
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-[#002147] mb-3">Donate Now</h2>
+                <p className="text-gray-500 mb-6 leading-relaxed">
+                  Your contribution helps us carry out health camps, community outreach, and service activities. Every donation makes a difference.
+                </p>
+                {(clubSettings.donationBankName || clubSettings.donationAccountName || clubSettings.donationAccountNumber) && (
+                  <div className="bg-[#F8FAFC] border border-gray-200 rounded-2xl p-5 space-y-3">
+                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Bank Details</div>
+                    {clubSettings.donationBankName && (
+                      <div className="flex justify-between items-center gap-4">
+                        <span className="text-sm text-gray-500">Bank</span>
+                        <span className="text-sm font-semibold text-[#002147]">{clubSettings.donationBankName}</span>
+                      </div>
+                    )}
+                    {clubSettings.donationAccountName && (
+                      <div className="flex justify-between items-center gap-4">
+                        <span className="text-sm text-gray-500">Account Name</span>
+                        <span className="text-sm font-semibold text-[#002147]">{clubSettings.donationAccountName}</span>
+                      </div>
+                    )}
+                    {clubSettings.donationAccountNumber && (
+                      <div className="flex justify-between items-center gap-4 border-t border-gray-200 pt-3">
+                        <span className="text-sm text-gray-500">Account No.</span>
+                        <span className="text-base font-bold text-[#002147] font-mono tracking-wide">{clubSettings.donationAccountNumber}</span>
+                      </div>
+                    )}
+                    {clubSettings.donationNote && (
+                      <p className="text-xs text-gray-400 italic border-t border-gray-100 pt-3">{clubSettings.donationNote}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* Right: QR code */}
+              <div className="bg-[#002147] p-8 md:p-10 flex flex-col items-center justify-center gap-5">
+                {clubSettings.donationQrUrl ? (
+                  <>
+                    <div className="bg-white rounded-2xl p-4 shadow-lg">
+                      <img src={clubSettings.donationQrUrl} alt="Donation QR Code"
+                        className="w-48 h-48 object-contain" />
+                    </div>
+                    <p className="text-white/60 text-sm text-center">Scan the QR code to donate</p>
+                  </>
+                ) : (
+                  <div className="text-center text-white/40">
+                    <Heart size={48} className="mx-auto mb-3 opacity-40" />
+                    <p className="text-sm">QR code coming soon</p>
+                  </div>
+                )}
+                <a href={`mailto:leoclubofkusms@gmail.com?subject=Donation Inquiry`}
+                  className="flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#c9a432] transition-colors">
+                  <Mail size={15} /> Contact for Queries
+                </a>
+              </div>
+            </div>
+          </section>
         {/* ── CTA ─────────────────────────────────────────────────────────────── */}
         <section className="bg-gradient-to-r from-[#002147] to-[#003575] text-white rounded-3xl p-10 text-center shadow-xl">
           <div className="w-14 h-14 rounded-2xl bg-[#D4AF37] flex items-center justify-center mx-auto mb-5">

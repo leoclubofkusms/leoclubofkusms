@@ -15,9 +15,11 @@ import CertificateGenerator from "./admin/CertificateGenerator";
 import ConstitutionManager from "./admin/ConstitutionManager";
 import BatchEditor from "./admin/BatchEditor";
 import AnnouncementsManager from "./admin/AnnouncementsManager";
+import LeaderQuotesManager from "./admin/LeaderQuotesManager";
+import PastLeadersManager from "./admin/PastLeadersManager";
 import {
   PlusCircle, Users, List, QrCode, LogOut, Home, Crown, Settings,
-  Award, CalendarDays, FileText, CreditCard, Scroll, BookOpen, Wrench, Megaphone, ShieldCheck,
+  Award, CalendarDays, FileText, CreditCard, Scroll, BookOpen, Wrench, Megaphone, ShieldCheck, Quote,
 } from "lucide-react";
 
 const ADMIN_TABS = [
@@ -27,6 +29,8 @@ const ADMIN_TABS = [
   { id: "awards", label: "Awards", icon: Award },
   { id: "events", label: "Events", icon: CalendarDays },
   { id: "bod", label: "Board of Directors", icon: Crown },
+  { id: "leader-quotes", label: "Leader Quotes", icon: Quote },
+  { id: "past-leaders", label: "Past Leaders", icon: Crown },
   { id: "qr", label: "QR Generator", icon: QrCode },
   { id: "id-cards", label: "ID Cards", icon: CreditCard },
   { id: "certificates", label: "Certificates", icon: Scroll },
@@ -108,7 +112,7 @@ export default function AdminDashboard() {
           </h1>
           <p className="text-gray-500 text-sm mt-1">
             {isAdmin
-              ? "Manage members, activities, awards, events, board of directors, and club settings."
+              ? "Manage members, activities, awards, events, board of directors, leader quotes, and club settings."
               : "Add activities, manage events & awards, and generate certificates."}
           </p>
         </div>
@@ -158,6 +162,8 @@ export default function AdminDashboard() {
           {activeTab === "awards" && <AwardsManagement />}
           {activeTab === "events" && <EventsManagement />}
           {activeTab === "bod" && isAdmin && <BodManagement />}
+          {activeTab === "leader-quotes" && isAdmin && <LeaderQuotesManager />}
+          {activeTab === "past-leaders" && isAdmin && <PastLeadersManager />}
           {activeTab === "qr" && <QRGenerator />}
           {activeTab === "id-cards" && <IDCardGenerator />}
           {activeTab === "certificates" && <CertificateGenerator />}

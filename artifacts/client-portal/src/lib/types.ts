@@ -82,6 +82,36 @@ export interface ClubSettings {
   charteredCertificateUrl?: string;
   charteredCertificateType?: "image" | "pdf";
   presidentSlogan?: string;
+  presidentSloganPhotoUrl?: string;
+  presidentWhatsApp?: string;
+  presidentWhatsAppMessage?: string;
+  donationQrUrl?: string;
+  donationBankName?: string;
+  donationAccountName?: string;
+  donationAccountNumber?: string;
+  donationNote?: string;
+}
+
+export interface LeaderQuote {
+  id: string;
+  name: string;
+  role: string;
+  quote: string;
+  introduction?: string;
+  photoUrl?: string;
+  audioUrl?: string;
+  priority: number;
+  leoYear?: string;
+}
+
+export interface PastLeader {
+  id: string;
+  name: string;
+  role: string;
+  leoYear: string;   // e.g. "2024/25"
+  photoUrl?: string;
+  note?: string;
+  order: number;
 }
 
 export interface Award {

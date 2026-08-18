@@ -1,0 +1,1 @@
+- [Firebase public collections](firebase-public-collections.md) — public Firestore-backed sections require explicit collection rules before visitors can see admin-managed content.
