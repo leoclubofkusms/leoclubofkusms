@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { LEO_YEARS, MONTHS } from "@/lib/types";
 import { Menu, X, ChevronDown, Search, Info, CalendarDays, Award, Clock, BookOpen, Trophy, BarChart3 } from "lucide-react";
+import BrandMark from "@/components/BrandMark";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -27,18 +28,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <img
-              src="/logo.png"
-              alt="Leo Club of KUSMS"
-              className="w-9 h-9 rounded-full object-cover shrink-0"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-                (e.currentTarget.nextSibling as HTMLElement).style.display = "flex";
-              }}
-            />
-            <div className="w-9 h-9 rounded-full bg-[#D4AF37] items-center justify-center font-bold text-[#002147] text-sm shrink-0 hidden">
-              LC
-            </div>
+            <BrandMark />
             <span className="font-bold text-lg tracking-wide group-hover:text-[#D4AF37] transition-colors">
               Leo Club of KUSMS
             </span>

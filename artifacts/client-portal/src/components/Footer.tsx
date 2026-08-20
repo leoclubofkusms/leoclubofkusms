@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ESTABLISHED, CLUB_ID } from "@/lib/types";
 import { Facebook, ExternalLink, Mail, MapPin, Calendar } from "lucide-react";
+import BrandMark from "@/components/BrandMark";
 
 export default function Footer() {
   return (
@@ -10,9 +11,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-full bg-[#D4AF37] flex items-center justify-center font-bold text-[#002147] text-sm shrink-0">
-                LC
-              </div>
+              <BrandMark />
               <span className="font-bold text-base">Leo Club of KUSMS</span>
             </div>
             <p className="text-white/60 text-sm leading-relaxed mb-3">

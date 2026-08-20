@@ -67,13 +67,22 @@ function IDCard({
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "#D4AF37" }} />
 
         <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-          {/* LC badge */}
+          {/* Club mark; the official logo is used automatically when uploaded. */}
           <div style={{
+            position: "relative", overflow: "hidden",
             width: "32px", height: "32px", borderRadius: "8px",
             background: "#D4AF37", display: "flex", alignItems: "center",
             justifyContent: "center", fontWeight: "900", fontSize: "13px",
             color: "#002147", flexShrink: 0, letterSpacing: "-0.5px",
-          }}>LC</div>
+          }}>
+            <span>LEO</span>
+            <img
+              src="/logo.png"
+              alt=""
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+              onError={(event) => { event.currentTarget.style.display = "none"; }}
+            />
+          </div>
           <div>
             <div style={{ color: "#fff", fontWeight: "700", fontSize: "11px", lineHeight: 1.2 }}>
               Leo Club of KUSMS

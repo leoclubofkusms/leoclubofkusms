@@ -153,10 +153,18 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: s(10), marginBottom: s(6) }}>
           <div style={{
-            width: s(36), height: s(36), borderRadius: s(9), background: "#D4AF37",
+            position: "relative", width: s(36), height: s(36), borderRadius: s(9), background: "#D4AF37",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: "900", fontSize: `${s(14)}px`, color: "#002147", flexShrink: 0,
-          }}>LC</div>
+            fontWeight: "900", fontSize: `${s(11)}px`, color: "#002147", flexShrink: 0, overflow: "hidden",
+          }}>
+            <span>LEO</span>
+            <img
+              src="/logo.png"
+              alt=""
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+              onError={(event) => { event.currentTarget.style.display = "none"; }}
+            />
+          </div>
           <div style={{ textAlign: "left" }}>
             <div style={{ color: textMain, fontWeight: "700", fontSize: `${s(11)}px`, fontFamily: "system-ui,sans-serif" }}>
               Leo Club of KUSMS

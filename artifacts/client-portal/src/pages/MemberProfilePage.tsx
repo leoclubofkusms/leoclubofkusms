@@ -8,6 +8,7 @@ import {
   Clock, Shield, Star, User, Download, Loader2,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import BrandMark from "@/components/BrandMark";
 
 function serviceYears(member: Member): string {
   const joined = member.joinedLeoYear ?? "";
@@ -174,7 +175,7 @@ export default function MemberProfilePage({ memberId }: Props) {
           <div style={{ background: "linear-gradient(135deg,#002147 0%,#003575 100%)", height: "68px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", position: "relative" }}>
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "#D4AF37" }} />
             <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-              <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#D4AF37", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", fontSize: "13px", color: "#002147", flexShrink: 0 }}>LC</div>
+              <BrandMark size="sm" className="rounded-lg" />
               <div>
                 <div style={{ color: "#fff", fontWeight: "700", fontSize: "11px", lineHeight: 1.2 }}>Leo Club of KUSMS</div>
                 <div style={{ color: "#D4AF37", fontSize: "8.5px", letterSpacing: "0.8px", marginTop: "2px" }}>LIONS CLUBS INTERNATIONAL · D325L · CLUB #172194</div>

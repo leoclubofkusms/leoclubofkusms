@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, Redirect } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Lock, Mail, Eye, EyeOff } from "lucide-react";
+import BrandMark from "@/components/BrandMark";
 
 export default function AdminLoginPage() {
   const { signIn, isAdmin, loading } = useAuth();
@@ -35,9 +36,7 @@ export default function AdminLoginPage() {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Header */}
           <div className="bg-[#002147] p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-[#D4AF37] flex items-center justify-center font-bold text-[#002147] text-xl mx-auto mb-4">
-              LC
-            </div>
+            <BrandMark size="lg" className="mx-auto mb-4" />
             <h1 className="text-xl font-bold text-white leading-tight text-center px-2">Leo Club of Kathmandu University<br />School of Medical Sciences (KUSMS)</h1>
             <p className="text-white/60 text-sm mt-1">Admin Portal</p>
           </div>

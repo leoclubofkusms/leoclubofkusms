@@ -21,6 +21,7 @@ import {
   PlusCircle, Users, List, QrCode, LogOut, Home, Crown, Settings,
   Award, CalendarDays, FileText, CreditCard, Scroll, BookOpen, Wrench, Megaphone, ShieldCheck, Quote,
 } from "lucide-react";
+import BrandMark from "@/components/BrandMark";
 
 const ADMIN_TABS = [
   { id: "new-activity", label: "New Activity", icon: PlusCircle },
@@ -66,9 +67,7 @@ export default function AdminDashboard() {
       {/* Top bar */}
       <div className="bg-[#002147] text-white px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#D4AF37] flex items-center justify-center font-bold text-[#002147] text-sm">
-            LC
-          </div>
+          <BrandMark size="sm" />
           <div>
             <div className="font-bold text-sm">Leo Club of KUSMS</div>
             <div className="flex items-center gap-2">
