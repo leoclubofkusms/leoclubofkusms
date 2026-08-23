@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
 import {
   getMembers,
   setMember,
@@ -67,27 +65,8 @@ function PhotoPicker({
   const [uploadError, setUploadError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadError("");
-    setUploading(true);
-    try {
-      const path = `member-photos/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-      const sRef = storageRef(storage, path);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
-      onChange(url);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Upload failed.";
-      setUploadError(
-        msg.includes("storage/unauthorized")
-          ? "Storage permission denied. Enable Firebase Storage and set rules in Firebase Console."
-          : msg
-      );
-    } finally {
-      setUploading(false);
-    }
+  function handleFile() {
+    setUploadError("File uploads are disabled on the free Firebase plan. Paste a public image URL instead.");
   }
 
   return (
@@ -147,13 +126,7 @@ function PhotoPicker({
             />
           ) : (
             <>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFile}
-              />
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}

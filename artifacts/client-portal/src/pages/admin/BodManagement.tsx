@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { getBodMembers, setBodMember, deleteBodMember } from "@/lib/firestore";
 import type { BodMember } from "@/lib/types";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
 import {
   Plus, Pencil, Trash2, X, Check, User, Upload, Link as LinkIcon,
   GripVertical, Loader2, Crown,
@@ -55,19 +53,8 @@ export default function BodManagement() {
     setShowForm(true);
   }
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadError(""); setUploading(true);
-    try {
-      const path = `bod-photos/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-      const sRef = storageRef(storage, path);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
-      setForm((f) => ({ ...f, photoUrl: url }));
-    } catch (err: unknown) {
-      setUploadError(err instanceof Error ? err.message : "Upload failed.");
-    } finally { setUploading(false); }
+  function handlePhotoUpload() {
+    setUploadError("File uploads are disabled on the free Firebase plan. Paste a public image URL instead.");
   }
 
   async function handleSubmit(e: React.FormEvent) {

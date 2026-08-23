@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import { getPastLeaders, addPastLeader, updatePastLeader, deletePastLeader } from "@/lib/firestore";
 import type { PastLeader } from "@/lib/types";
 import { LEO_YEARS } from "@/lib/types";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
-import { Plus, Trash2, Pencil, Check, X, Loader2, Upload, Crown } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Loader2, Crown } from "lucide-react";
 
 const EMPTY: Omit<PastLeader, "id"> = {
   name: "",
@@ -42,21 +40,6 @@ export default function PastLeadersManager() {
     setForm({ ...EMPTY, order: items.length });
     setShowForm(false);
     setError("");
-  }
-
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const path = `past-leaders/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-      const sRef = storageRef(storage, path);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
-      setForm((f) => ({ ...f, photoUrl: url }));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-    } finally { setUploading(false); }
   }
 
   async function handleSave() {

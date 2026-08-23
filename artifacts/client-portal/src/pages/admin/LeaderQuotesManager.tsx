@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import { getLeaderQuotes, addLeaderQuote, updateLeaderQuote, deleteLeaderQuote } from "@/lib/firestore";
 import type { LeaderQuote } from "@/lib/types";
 import { LEO_YEARS } from "@/lib/types";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
-import { Plus, Trash2, Pencil, Check, X, Loader2, Upload, Play, Pause, GripVertical, Quote } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Loader2, Play, Pause, GripVertical, Quote } from "lucide-react";
 
 const EMPTY: Omit<LeaderQuote, "id"> = {
   name: "",
@@ -46,21 +44,6 @@ export default function LeaderQuotesManager() {
     setForm(EMPTY);
     setShowForm(false);
     setError("");
-  }
-
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>, type: "photo" | "audio") {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(type);
-    try {
-      const path = `leader-quotes/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-      const sRef = storageRef(storage, path);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
-      setForm((f) => ({ ...f, [type === "photo" ? "photoUrl" : "audioUrl"]: url }));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-    } finally { setUploading(null); }
   }
 
   async function handleSave() {

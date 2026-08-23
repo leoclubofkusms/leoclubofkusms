@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import { getClubSettings, updateClubSettings } from "@/lib/firestore";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
 import type { ClubSettings } from "@/lib/types";
 import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK } from "@/lib/types";
 import {
-  Upload, Link as LinkIcon, Check, Loader2, X, ExternalLink,
+  Link as LinkIcon, Check, Loader2, X, ExternalLink,
   Facebook, Settings, Calendar, Award, Quote, ShieldCheck, Heart, Image,
 } from "lucide-react";
 
@@ -15,11 +13,9 @@ export default function ClubSettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [sloganSaving, setSloganSaving] = useState(false);
   const [donationSaving, setDonationSaving] = useState(false);
-  const [uploading, setUploading] = useState<"cert" | "sloganPhoto" | "donationQr" | null>(null);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [urlInput, setUrlInput] = useState("");
-  const [mode, setMode] = useState<"upload" | "url">("upload");
   const [sloganInput, setSloganInput] = useState("");
   const [presidentContact, setPresidentContact] = useState({
     presidentWhatsApp: "",
