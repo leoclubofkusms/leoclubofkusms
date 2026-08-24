@@ -38,8 +38,8 @@ app.use(express.static(websitePath));
 // ✅ API ROUTES
 app.use("/api", router);
 
-// ✅ IF NO API ROUTE, SERVE WEBSITE
-app.get("/*", (_req, res) => {
+// ✅ SIMPLE FALLBACK - NO WILDCARD
+app.get("/", (_req, res) => {
   res.sendFile(path.join(websitePath, "index.html"));
 });
 
