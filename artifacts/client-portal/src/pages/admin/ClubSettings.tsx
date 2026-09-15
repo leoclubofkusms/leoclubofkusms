@@ -3,7 +3,7 @@ import { getClubSettings, updateClubSettings } from "@/lib/firestore";
 import type { ClubSettings } from "@/lib/types";
 import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK } from "@/lib/types";
 import {
-  Link as LinkIcon, Check, Loader2, X, ExternalLink,
+  Upload, Link as LinkIcon, Check, Loader2, X, ExternalLink,
   Facebook, Settings, Calendar, Award, Quote, ShieldCheck, Heart, Image,
 } from "lucide-react";
 
@@ -13,9 +13,11 @@ export default function ClubSettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [sloganSaving, setSloganSaving] = useState(false);
   const [donationSaving, setDonationSaving] = useState(false);
+  const [uploading, setUploading] = useState<"cert" | "sloganPhoto" | "donationQr" | null>(null);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [urlInput, setUrlInput] = useState("");
+  const [mode, setMode] = useState<"upload" | "url">("url");
   const [sloganInput, setSloganInput] = useState("");
   const [presidentContact, setPresidentContact] = useState({
     presidentWhatsApp: "",
@@ -57,22 +59,8 @@ export default function ClubSettingsPanel() {
   }
 
   async function handleCertFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setError(""); setUploading("cert");
-    try {
-      const isPdf = file.type === "application/pdf";
-      const path = `club-documents/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-      const sRef = storageRef(storage, path);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
-      const newSettings: ClubSettings = { ...settings, charteredCertificateUrl: url, charteredCertificateType: isPdf ? "pdf" : "image" };
-      await updateClubSettings(newSettings);
-      setSettings(newSettings);
-      setUrlInput(url);
-      showSuccess("Certificate uploaded and saved!");
-    } catch (err) { setError(err instanceof Error ? err.message : "Upload failed."); }
-    finally { setUploading(null); }
+    e.target.value = "";
+    setError("File uploads are disabled on the free Firebase plan. Select Paste URL and use a public certificate URL.");
   }
 
   async function handleUrlSave() {
@@ -110,19 +98,8 @@ export default function ClubSettingsPanel() {
   }
 
   async function handleSloganPhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setError(""); setUploading("sloganPhoto");
-    try {
-      const path = `club-documents/slogan-photo-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-      const sRef = storageRef(storage, path);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
-      await updateClubSettings({ presidentSloganPhotoUrl: url });
-      setSettings((s) => ({ ...s, presidentSloganPhotoUrl: url }));
-      showSuccess("Slogan photo saved!");
-    } catch (err) { setError(err instanceof Error ? err.message : "Upload failed."); }
-    finally { setUploading(null); }
+    e.target.value = "";
+    setError("File uploads are disabled on the free Firebase plan. Save a public image URL instead.");
   }
 
   async function handleSavePresidentContact() {
@@ -148,17 +125,8 @@ export default function ClubSettingsPanel() {
   }
 
   async function handleDonationQrUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setError(""); setUploading("donationQr");
-    try {
-      const path = `club-documents/donation-qr-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-      const sRef = storageRef(storage, path);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
-      setDonationForm((f) => ({ ...f, donationQrUrl: url }));
-    } catch (err) { setError(err instanceof Error ? err.message : "Upload failed."); }
-    finally { setUploading(null); }
+    e.target.value = "";
+    setError("File uploads are disabled on the free Firebase plan. Paste a public QR image URL instead.");
   }
 
   async function handleSaveDonation() {
@@ -219,7 +187,7 @@ export default function ClubSettingsPanel() {
           <h5 className="text-sm font-semibold text-[#002147] flex items-center gap-2 mb-2">
             <Image size={14} className="text-[#D4AF37]" /> Slogan Photo (optional)
           </h5>
-          <p className="text-xs text-gray-500 mb-3">Upload a photo to display alongside the slogan — e.g. a group photo or campaign banner.</p>
+           <p className="text-xs text-gray-500 mb-3">Paste a public image URL to display alongside the slogan. File uploads are unavailable on the free Firebase plan.</p>
           {settings.presidentSloganPhotoUrl && (
             <div className="mb-3">
               <img src={settings.presidentSloganPhotoUrl} alt="Slogan photo"
@@ -229,10 +197,14 @@ export default function ClubSettingsPanel() {
               </button>
             </div>
           )}
-          <label className="inline-flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 hover:border-[#D4AF37] rounded-xl px-4 py-2.5 text-sm text-gray-500 transition-colors">
-            {uploading === "sloganPhoto" ? <><Loader2 size={14} className="animate-spin" /> Uploading…</> : <><Upload size={14} /> Upload photo (JPG, PNG)</>}
-            <input type="file" accept="image/*" className="hidden" onChange={handleSloganPhotoUpload} disabled={uploading !== null} />
-          </label>
+           <div className="flex gap-2">
+             <input type="url" value={settings.presidentSloganPhotoUrl ?? ""}
+               onChange={(e) => setSettings((s) => ({ ...s, presidentSloganPhotoUrl: e.target.value }))}
+               placeholder="https://example.com/slogan-photo.jpg"
+               className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]" />
+             <button onClick={async () => { await updateClubSettings({ presidentSloganPhotoUrl: settings.presidentSloganPhotoUrl ?? "" }); showSuccess("Slogan photo URL saved."); }}
+               className="bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold">Save URL</button>
+           </div>
         </div>
       </div>
 
@@ -282,7 +254,7 @@ export default function ClubSettingsPanel() {
         <h4 className="font-semibold text-[#002147] flex items-center gap-2 mb-1">
           <Heart size={16} className="text-[#D4AF37]" /> Donation / Support Section
         </h4>
-        <p className="text-sm text-gray-500 mb-5">Upload a QR code photo and enter bank details. These appear on the public Donate page.</p>
+         <p className="text-sm text-gray-500 mb-5">Paste a public QR image URL and enter bank details. These appear on the public Donate page.</p>
 
         {/* QR Code */}
         <div className="mb-5">
@@ -297,10 +269,10 @@ export default function ClubSettingsPanel() {
               </button>
             </div>
           )}
-          <label className="inline-flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 hover:border-[#D4AF37] rounded-xl px-4 py-2.5 text-sm text-gray-500 transition-colors">
-            {uploading === "donationQr" ? <><Loader2 size={14} className="animate-spin" /> Uploading…</> : <><Upload size={14} /> Upload QR code image</>}
-            <input type="file" accept="image/*" className="hidden" onChange={handleDonationQrUpload} disabled={uploading !== null} />
-          </label>
+           <input type="url" value={donationForm.donationQrUrl}
+             onChange={(e) => setDonationForm((f) => ({ ...f, donationQrUrl: e.target.value }))}
+             placeholder="https://example.com/donation-qr.png"
+             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]" />
         </div>
 
         {/* Bank Details */}

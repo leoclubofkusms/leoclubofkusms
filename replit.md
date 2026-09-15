@@ -28,7 +28,7 @@ A complete club management system — members, activities, verification, and QR 
 Before the app works with real data, you need to:
 
 1. **Enable Firestore Database** in Firebase Console:
-   - Go to [Firebase Console](https://console.firebase.google.com) → leo-club-kusms project
+    - Go to [Firebase Console](https://console.firebase.google.com) → `kusms-leo-club` project
    - Click "Firestore Database" → "Create database"
    - Choose "Start in production mode"
    - Select a region and click "Enable"
@@ -37,9 +37,10 @@ Before the app works with real data, you need to:
    - Go to Authentication → Users
    - Add user with email: `leoclubofkusms@gmail.com` and set a password
 
-3. **Enable Firebase Storage**:
-   - Go to Storage → Get started
-   - Set rules to allow admin writes
+3. **File hosting (free Spark plan)**:
+    - Firebase Storage is intentionally not used because new Firebase Storage buckets require the Blaze plan.
+    - Use public image/audio/PDF URLs in the admin forms instead. The portal stores those URLs in Firestore.
+    - The club logo files are bundled in `artifacts/client-portal/public/`.
 
 4. **Firestore Security Rules**:
    ```
@@ -86,18 +87,6 @@ Before the app works with real data, you need to:
    }
    ```
 
-5. **Storage Security Rules**:
-   ```
-   rules_version = '2';
-   service firebase.storage {
-     match /b/{bucket}/o {
-       match /{allPaths=**} {
-         allow read: if true;
-         allow write: if request.auth != null && request.auth.token.email == 'leoclubofkusms@gmail.com';
-       }
-     }
-   }
-   ```
 
 ## Pages & Routes
 

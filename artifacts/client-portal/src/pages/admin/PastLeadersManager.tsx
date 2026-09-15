@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { getPastLeaders, addPastLeader, updatePastLeader, deletePastLeader } from "@/lib/firestore";
 import type { PastLeader } from "@/lib/types";
 import { LEO_YEARS } from "@/lib/types";
-import { Plus, Trash2, Pencil, Check, X, Loader2, Crown } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Loader2, Upload, Crown } from "lucide-react";
 
 const EMPTY: Omit<PastLeader, "id"> = {
   name: "",
@@ -23,6 +23,11 @@ export default function PastLeadersManager() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
+
+  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    e.target.value = "";
+    setError("File uploads are disabled on the free Firebase plan. Paste a public image URL in the photo field instead.");
+  }
 
   useEffect(() => {
     getPastLeaders().then(setItems).catch(console.error).finally(() => setLoading(false));
@@ -126,13 +131,11 @@ export default function PastLeadersManager() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Photo (optional)</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Photo URL (optional)</label>
             {form.photoUrl && <img src={form.photoUrl} alt="preview" className="w-16 h-16 rounded-xl object-cover mb-2 border border-gray-200" />}
-            <label className="inline-flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 hover:border-[#D4AF37] rounded-xl px-3 py-2 text-xs text-gray-500 transition-colors">
-              {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-              {uploading ? "Uploading…" : "Upload photo"}
-              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
-            </label>
+            <input type="url" value={form.photoUrl} onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
+              placeholder="https://example.com/past-leader.jpg"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#002147]" />
             {form.photoUrl && (
               <button onClick={() => setForm((f) => ({ ...f, photoUrl: "" }))} className="ml-2 text-xs text-red-400 hover:text-red-600">Remove</button>
             )}

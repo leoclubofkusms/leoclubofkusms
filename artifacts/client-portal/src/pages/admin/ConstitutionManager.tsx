@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { getConstitution, updateConstitution } from "@/lib/firestore";
 import type { Constitution, ConstitutionSection } from "@/lib/types";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
 import {
   Plus, Trash2, Pencil, Check, X, Upload, Link as LinkIcon,
   GripVertical, Loader2, FileText, AlertCircle, ChevronDown, ChevronUp,
@@ -65,20 +63,8 @@ export default function ConstitutionManager() {
   }
 
   async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true); setError("");
-    try {
-      const path = `club-documents/constitution-${Date.now()}.pdf`;
-      const sRef = storageRef(storage, path);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
-      const updated = { ...data, pdfUrl: url };
-      await save(updated);
-      setPdfUrlInput(url);
-    } catch (e) {
-      flash(e instanceof Error ? e.message : "Upload failed.", true);
-    } finally { setUploading(false); }
+    e.target.value = "";
+    flash("File uploads are disabled on the free Firebase plan. Select Paste URL and use a public PDF URL.", true);
   }
 
   async function handlePdfUrlSave() {

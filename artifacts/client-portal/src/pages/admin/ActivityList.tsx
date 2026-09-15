@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { getActivities, deleteActivity, toggleActivityFeatured, updateActivityMeta } from "@/lib/firestore";
-import type { Activity } from "@/lib/types";
+import { getActivities, getMembers, deleteActivity, toggleActivityFeatured, updateActivity } from "@/lib/firestore";
+import type { Activity, ActivityParticipant, Member } from "@/lib/types";
 import { LEO_YEARS, MONTHS } from "@/lib/types";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -22,7 +22,8 @@ export default function ActivityList({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [toggling, setToggling] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ title: "", description: "", photoInput: "" });
+  const [editForm, setEditForm] = useState({ title: "", description: "", photoInput: "", participants: [] as ActivityParticipant[] });
+  const [members, setMembers] = useState<Member[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const [qrActivity, setQrActivity] = useState<Activity | null>(null);
@@ -31,8 +32,9 @@ export default function ActivityList({
   async function load() {
     setLoading(true);
     try {
-      const acts = await getActivities();
+      const [acts, memberList] = await Promise.all([getActivities(), getMembers()]);
       setActivities(acts);
+      setMembers(memberList);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
@@ -61,7 +63,7 @@ export default function ActivityList({
 
   function startEdit(act: Activity) {
     setEditId(act.id);
-    setEditForm({ title: act.title, description: act.description, photoInput: act.photos.join("\n") });
+    setEditForm({ title: act.title, description: act.description, photoInput: act.photos.join("\n"), participants: [...act.participants] });
     setEditError("");
   }
 
@@ -70,9 +72,23 @@ export default function ActivityList({
     setEditSaving(true); setEditError("");
     try {
       const photos = editForm.photoInput.split("\n").map((s) => s.trim()).filter(Boolean);
-      await updateActivityMeta(act.id, { title: editForm.title.trim(), description: editForm.description.trim(), photos });
+      const updatedTitle = editForm.title.trim();
+      const updatedDescription = editForm.description.trim();
+      await updateActivity(act.id, {
+        title: updatedTitle,
+        description: updatedDescription,
+        photos,
+        participants: editForm.participants,
+      }, act.participants, {
+        year: act.year,
+        month: act.month,
+        title: updatedTitle,
+        description: updatedDescription,
+        photos,
+        participants: editForm.participants,
+      });
       setActivities((prev) => prev.map((a) =>
-        a.id === act.id ? { ...a, title: editForm.title.trim(), description: editForm.description.trim(), photos } : a
+        a.id === act.id ? { ...a, title: updatedTitle, description: updatedDescription, photos, participants: editForm.participants } : a
       ));
       setEditId(null);
       onActivityUpdated?.();
@@ -215,6 +231,57 @@ export default function ActivityList({
                                   onChange={(e) => setEditForm((f) => ({ ...f, photoInput: e.target.value }))}
                                   placeholder="https://…"
                                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#002147] resize-none font-mono" />
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-500 font-medium mb-1 block">Participating members</label>
+                                <select
+                                  value=""
+                                  onChange={(e) => {
+                                    const memberId = e.target.value;
+                                    if (!memberId) return;
+                                    setEditForm((f) => ({
+                                      ...f,
+                                      participants: f.participants.some((p) => p.memberId === memberId)
+                                        ? f.participants
+                                        : [...f.participants, { memberId, awardTitle: "" }],
+                                    }));
+                                  }}
+                                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#002147] bg-white"
+                                >
+                                  <option value="">Add a member…</option>
+                                  {members
+                                    .filter((m) => !editForm.participants.some((p) => p.memberId === m.memberId))
+                                    .map((m) => <option key={m.memberId} value={m.memberId}>{m.name} · {m.memberId}</option>)}
+                                </select>
+                                {editForm.participants.length > 0 && (
+                                  <div className="mt-2 space-y-1.5">
+                                    {editForm.participants.map((participant) => {
+                                      const member = members.find((m) => m.memberId === participant.memberId);
+                                      return (
+                                        <div key={participant.memberId} className="flex items-center gap-2 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                                          <span className="text-xs text-gray-700 flex-1 truncate">{member?.name ?? participant.memberId}</span>
+                                          <input
+                                            value={participant.awardTitle}
+                                            onChange={(e) => setEditForm((f) => ({
+                                              ...f,
+                                              participants: f.participants.map((p) => p.memberId === participant.memberId ? { ...p, awardTitle: e.target.value } : p),
+                                            }))}
+                                            placeholder="Role / award"
+                                            className="w-32 border border-gray-200 rounded-md px-2 py-1 text-xs"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => setEditForm((f) => ({ ...f, participants: f.participants.filter((p) => p.memberId !== participant.memberId) }))}
+                                            className="text-gray-400 hover:text-red-500"
+                                            title="Remove participant"
+                                          >
+                                            <X size={13} />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                               {editError && <p className="text-xs text-red-500">{editError}</p>}
                               <div className="flex gap-2">

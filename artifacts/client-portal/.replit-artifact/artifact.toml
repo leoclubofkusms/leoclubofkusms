@@ -12,14 +12,14 @@ version = "1.0.0"
 [[services]]
 name = "web"
 paths = [ "/" ]
-localPort = 25516
+localPort = 5173
 
 [services.development]
 run = "pnpm --filter @workspace/client-portal run dev"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/client-portal", "run", "build" ]
-publicDir = "artifacts/client-portal/dist/public"
+publicDir = "artifacts/client-portal/dist"
 serve = "static"
 
 [[services.production.rewrites]]
@@ -27,5 +27,5 @@ from = "/*"
 to = "/index.html"
 
 [services.env]
-PORT = "25516"
+PORT = "5173"
 BASE_PATH = "/"

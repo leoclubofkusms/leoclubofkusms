@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { getLeaderQuotes, addLeaderQuote, updateLeaderQuote, deleteLeaderQuote } from "@/lib/firestore";
 import type { LeaderQuote } from "@/lib/types";
 import { LEO_YEARS } from "@/lib/types";
-import { Plus, Trash2, Pencil, Check, X, Loader2, Play, Pause, GripVertical, Quote } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Loader2, Upload, Play, Pause, GripVertical, Quote } from "lucide-react";
 
 const EMPTY: Omit<LeaderQuote, "id"> = {
   name: "",
@@ -27,6 +27,11 @@ export default function LeaderQuotesManager() {
   const [showForm, setShowForm] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+
+  function handleUpload(e: React.ChangeEvent<HTMLInputElement>, type: "photo" | "audio") {
+    e.target.value = "";
+    setError(`File uploads are disabled on the free Firebase plan. Paste a public ${type === "photo" ? "image" : "audio"} URL instead.`);
+  }
 
   useEffect(() => {
     getLeaderQuotes().then(setItems).catch(console.error).finally(() => setLoading(false));
@@ -146,28 +151,24 @@ export default function LeaderQuotesManager() {
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#002147] resize-none" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Photo upload */}
+            {/* Public photo URL */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Photo (optional)</label>
               {form.photoUrl && <img src={form.photoUrl} alt="preview" className="w-16 h-16 rounded-xl object-cover mb-2 border border-gray-200" />}
-              <label className="flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 hover:border-[#D4AF37] rounded-xl px-3 py-2 text-xs text-gray-500 transition-colors">
-                {uploading === "photo" ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-                {uploading === "photo" ? "Uploading…" : "Upload photo"}
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleUpload(e, "photo")} disabled={uploading !== null} />
-              </label>
+              <input type="url" value={form.photoUrl} onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
+                placeholder="https://example.com/leader-photo.jpg"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#002147]" />
               {form.photoUrl && (
                 <button onClick={() => setForm((f) => ({ ...f, photoUrl: "" }))} className="mt-1 text-xs text-red-400 hover:text-red-600">Remove photo</button>
               )}
             </div>
-            {/* Audio upload */}
+            {/* Public audio URL */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Voice/Audio clip (optional)</label>
               {form.audioUrl && <p className="text-xs text-green-600 mb-2 flex items-center gap-1"><Check size={11} /> Audio uploaded</p>}
-              <label className="flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 hover:border-[#D4AF37] rounded-xl px-3 py-2 text-xs text-gray-500 transition-colors">
-                {uploading === "audio" ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-                {uploading === "audio" ? "Uploading…" : "Upload audio"}
-                <input type="file" accept="audio/*" className="hidden" onChange={(e) => handleUpload(e, "audio")} disabled={uploading !== null} />
-              </label>
+              <input type="url" value={form.audioUrl} onChange={(e) => setForm((f) => ({ ...f, audioUrl: e.target.value }))}
+                placeholder="https://example.com/leader-voice.mp3"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#002147]" />
               {form.audioUrl && (
                 <button onClick={() => setForm((f) => ({ ...f, audioUrl: "" }))} className="mt-1 text-xs text-red-400 hover:text-red-600">Remove audio</button>
               )}
