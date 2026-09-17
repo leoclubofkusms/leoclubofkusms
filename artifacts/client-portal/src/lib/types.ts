@@ -6,6 +6,15 @@ export interface MemberActivity {
   awardTitle: string;
 }
 
+export type MemberRoleSource = "manual" | "bod";
+
+export interface MemberRole {
+  leoYear: string;
+  role: string;
+  source?: MemberRoleSource;
+  bodId?: string;
+}
+
 export interface Member {
   memberId: string;
   name: string;
@@ -17,6 +26,7 @@ export interface Member {
   photoUrl: string;
   email?: string;
   activities: MemberActivity[];
+  roleHistory?: MemberRole[];
   isActive?: boolean;
   joinedLeoYear?: string;
   leftLeoYear?: string;
@@ -54,6 +64,8 @@ export interface BodMember {
   id: string;
   name: string;
   role: string;
+  memberId?: string;
+  leoYear?: string;
   priority: number;
   photoUrl: string;
   email: string;

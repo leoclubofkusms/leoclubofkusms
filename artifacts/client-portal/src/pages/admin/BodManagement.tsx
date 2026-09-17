@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { getBodMembers, setBodMember, deleteBodMember } from "@/lib/firestore";
-import type { BodMember } from "@/lib/types";
+import { getBodMembers, getMembers, setBodMember, deleteBodMember, upsertMemberRole, removeBodMemberRole } from "@/lib/firestore";
+import type { BodMember, Member } from "@/lib/types";
+import { LEO_YEARS } from "@/lib/types";
 import {
   Plus, Pencil, Trash2, X, Check, User, Upload, Link as LinkIcon,
   GripVertical, Loader2, Crown,
@@ -10,6 +11,8 @@ const EMPTY: BodMember = {
   id: "",
   name: "",
   role: "",
+  memberId: "",
+  leoYear: LEO_YEARS[0],
   priority: 10,
   photoUrl: "",
   email: "",
@@ -19,6 +22,7 @@ const EMPTY: BodMember = {
 
 export default function BodManagement() {
   const [members, setMembers] = useState<BodMember[]>([]);
+  const [clubMembers, setClubMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<BodMember | null>(null);
@@ -33,7 +37,11 @@ export default function BodManagement() {
 
   async function load() {
     setLoading(true);
-    try { setMembers(await getBodMembers()); }
+    try {
+      const [bod, allMembers] = await Promise.all([getBodMembers(), getMembers()]);
+      setMembers(bod);
+      setClubMembers(allMembers);
+    }
     catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
@@ -63,7 +71,25 @@ export default function BodManagement() {
     setError(""); setSubmitting(true);
     try {
       const id = editing?.id || `bod_${Date.now()}`;
-      await setBodMember({ ...form, id });
+      if (editing?.memberId) {
+        await removeBodMemberRole(editing.memberId, id);
+      }
+      const selected = clubMembers.find((member) => member.memberId === form.memberId);
+      const saved = {
+        ...form,
+        id,
+        name: selected?.name || form.name,
+        leoYear: form.leoYear || LEO_YEARS[0],
+      };
+      await setBodMember(saved);
+      if (saved.memberId) {
+        await upsertMemberRole(saved.memberId, {
+          leoYear: saved.leoYear,
+          role: saved.role,
+          source: "bod",
+          bodId: id,
+        });
+      }
       setSuccess(editing ? "Member updated!" : "Member added!");
       setShowForm(false); load();
       setTimeout(() => setSuccess(""), 3000);
@@ -73,7 +99,12 @@ export default function BodManagement() {
   }
 
   async function handleDelete(id: string) {
-    try { await deleteBodMember(id); load(); setDeleteConfirm(null); }
+    try {
+      const existing = members.find((member) => member.id === id);
+      await deleteBodMember(id);
+      if (existing?.memberId) await removeBodMemberRole(existing.memberId, id);
+      load(); setDeleteConfirm(null);
+    }
     catch (e) { console.error(e); }
   }
 
@@ -84,7 +115,7 @@ export default function BodManagement() {
       <div className="flex items-center justify-between mb-2">
         <div>
           <h3 className="text-lg font-bold text-[#002147]">Board of Directors</h3>
-          <p className="text-sm text-gray-500">Manage club leadership shown on the home page</p>
+        <p className="text-sm text-gray-500">Manage leadership, Leo Year roles, and member-linked BOD records</p>
         </div>
         <button
           onClick={openAdd}
@@ -96,8 +127,7 @@ export default function BodManagement() {
 
       <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl px-4 py-3 mb-5 text-sm text-[#002147]">
         <strong>Priority guide:</strong> Lower number = shown higher up.
-        President = <strong>1</strong> (shown large at top), Vice President = 2, Secretary = 3, PVST (Past President) = 4, etc.
-        Use the Role field to type any title: President, VP, PVST, Secretary, Treasurer, Joint Secretary, etc.
+        President = <strong>1</strong> (shown large at top). Link each BOD record to a member and Leo Year so the role appears on that member&apos;s profile.
       </div>
 
       {success && (
@@ -124,8 +154,38 @@ export default function BodManagement() {
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Role / Title *</label>
                 <input type="text" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  placeholder="President" required
+                  placeholder="President" list="bod-role-options" required
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]" />
+                <datalist id="bod-role-options">
+                  <option value="President" />
+                  <option value="Chartered Vice President" />
+                  <option value="BOD" />
+                  <option value="General Member" />
+                  <option value="Chartered Member" />
+                  <option value="Secretary" />
+                  <option value="Treasurer" />
+                </datalist>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Link to club member</label>
+                <select value={form.memberId ?? ""} onChange={(e) => {
+                  const memberId = e.target.value;
+                  const selected = clubMembers.find((member) => member.memberId === memberId);
+                  setForm({ ...form, memberId, name: selected?.name ?? form.name });
+                }}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white">
+                  <option value="">— Select a member —</option>
+                  {clubMembers.sort((a, b) => a.name.localeCompare(b.name)).map((member) => (
+                    <option key={member.memberId} value={member.memberId}>{member.name} · {member.memberId}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Leo Year *</label>
+                <select value={form.leoYear ?? LEO_YEARS[0]} onChange={(e) => setForm({ ...form, leoYear: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white">
+                  {LEO_YEARS.map((year) => <option key={year} value={year}>Leo Year {year}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Priority (1 = President)</label>

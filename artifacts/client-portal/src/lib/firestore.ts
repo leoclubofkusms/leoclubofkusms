@@ -14,7 +14,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Member, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings, Constitution, Announcement, LeaderQuote, PastLeader } from "./types";
+import type { Member, MemberRole, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings, Constitution, Announcement, LeaderQuote, PastLeader } from "./types";
 
 // ── Members ──────────────────────────────────────────────────────────────────
 
@@ -59,6 +59,30 @@ export async function updateMember(
 
 export async function deleteMember(memberId: string): Promise<void> {
   await deleteDoc(doc(db, "members", memberId));
+}
+
+export async function upsertMemberRole(memberId: string, role: MemberRole): Promise<void> {
+  const memberRef = doc(db, "members", memberId);
+  const snap = await getDoc(memberRef);
+  if (!snap.exists()) return;
+  const member = snap.data() as Member;
+  const roles = member.roleHistory ?? [];
+  const sameRole = (item: MemberRole) =>
+    item.leoYear === role.leoYear &&
+    (role.source === "bod" ? item.source === "bod" && item.bodId === role.bodId : item.source !== "bod");
+  await updateDoc(memberRef, {
+    roleHistory: [...roles.filter((item) => !sameRole(item)), role],
+  });
+}
+
+export async function removeBodMemberRole(memberId: string, bodId: string): Promise<void> {
+  const memberRef = doc(db, "members", memberId);
+  const snap = await getDoc(memberRef);
+  if (!snap.exists()) return;
+  const member = snap.data() as Member;
+  await updateDoc(memberRef, {
+    roleHistory: (member.roleHistory ?? []).filter((role) => !(role.source === "bod" && role.bodId === bodId)),
+  });
 }
 
 // ── Activities ────────────────────────────────────────────────────────────────

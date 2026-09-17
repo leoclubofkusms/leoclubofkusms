@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getMembers, getActivities, getAwards } from "@/lib/firestore";
-import type { Member, Activity, Award } from "@/lib/types";
+import { getMembers, getActivities, getAwards, getBodMembers } from "@/lib/firestore";
+import type { Member, Activity, Award, BodMember } from "@/lib/types";
 import { LEO_YEARS, MONTHS, activitySortKey } from "@/lib/types";
 import { Link } from "wouter";
 import {
@@ -33,7 +33,9 @@ interface Props { memberId: string; }
 export default function MemberProfilePage({ memberId }: Props) {
   const [member, setMember] = useState<Member | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [awards, setAwards] = useState<Award[]>([]);
+  const [bodRecords, setBodRecords] = useState<BodMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [downloadingCard, setDownloadingCard] = useState(false);
@@ -59,16 +61,26 @@ export default function MemberProfilePage({ memberId }: Props) {
   }
 
   useEffect(() => {
-    Promise.all([getMembers(), getActivities(), getAwards()])
-      .then(([members, allActivities, allAwards]) => {
+    Promise.allSettled([getMembers(), getActivities(), getAwards(), getBodMembers()])
+      .then(([membersResult, activitiesResult, awardsResult, bodResult]) => {
+        if (membersResult.status !== "fulfilled" || activitiesResult.status !== "fulfilled" || awardsResult.status !== "fulfilled") {
+          setNotFound(true);
+          return;
+        }
+        const members = membersResult.value;
+        const allActivities = activitiesResult.value;
+        const allAwards = awardsResult.value;
+        const allBodRecords = bodResult.status === "fulfilled" ? bodResult.value : [];
         const found = members.find((m) => m.memberId === memberId);
         if (!found) { setNotFound(true); return; }
         setMember(found);
+        setAllActivities(allActivities);
         const memberActivities = allActivities
           .filter((a) => a.participants.some((p) => p.memberId === memberId))
           .sort((a, b) => activitySortKey(a.year, a.month) - activitySortKey(b.year, b.month));
         setActivities(memberActivities);
         setAwards(allAwards.filter((a) => a.memberId === memberId));
+        setBodRecords(allBodRecords.filter((record) => record.memberId === memberId));
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -91,6 +103,38 @@ export default function MemberProfilePage({ memberId }: Props) {
   );
 
   const isActive = member.isActive !== false;
+  const roleByYear: Record<string, string> = {};
+  (member.roleHistory ?? []).forEach((role) => {
+    roleByYear[role.leoYear] = role.role;
+  });
+  bodRecords.forEach((record) => {
+    if (record.leoYear) roleByYear[record.leoYear] = record.role;
+  });
+  const joinedIndex = LEO_YEARS.indexOf(member.joinedLeoYear ?? "");
+  const leftIndex = member.leftLeoYear ? LEO_YEARS.indexOf(member.leftLeoYear) : -1;
+  const currentCalendarYear = new Date().getFullYear();
+  const currentLeoYear = new Date().getMonth() >= 6
+    ? `${currentCalendarYear}/${String(currentCalendarYear + 1).slice(-2)}`
+    : `${currentCalendarYear - 1}/${String(currentCalendarYear).slice(-2)}`;
+  const currentIndex = Math.max(0, LEO_YEARS.indexOf(currentLeoYear));
+  const roleYears = Object.keys(roleByYear).length > 0
+    ? [...new Set([
+      ...(joinedIndex >= 0 ? LEO_YEARS.slice(joinedIndex, (leftIndex >= 0 ? leftIndex : currentIndex) + 1) : []),
+      ...Object.keys(roleByYear),
+    ])].sort((a, b) => LEO_YEARS.indexOf(a) - LEO_YEARS.indexOf(b))
+    : (joinedIndex >= 0 ? LEO_YEARS.slice(joinedIndex, (leftIndex >= 0 ? leftIndex : currentIndex) + 1) : []);
+  roleYears.forEach((year) => {
+    if (!roleByYear[year]) roleByYear[year] = "General Member";
+  });
+  const presidentRoles = bodRecords.filter((record) => record.role.trim().toLowerCase() === "president" && record.leoYear);
+  const presidentialService = presidentRoles.map((record) => ({
+    ...record,
+    activities: allActivities.filter((activity) => activity.year === record.leoYear),
+  }));
+  const profileActivityCount = new Set([
+    ...activities.map((activity) => activity.id),
+    ...presidentialService.flatMap((service) => service.activities.map((activity) => activity.id)),
+  ]).size;
   // Group activities by year in chrono order
   const byYear: Record<string, Activity[]> = {};
   activities.forEach((a) => {
@@ -221,7 +265,7 @@ export default function MemberProfilePage({ memberId }: Props) {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Activities", value: activities.length, icon: Calendar },
+            { label: "Activities", value: profileActivityCount, icon: Calendar },
             { label: "Awards", value: awards.length, icon: AwardIcon },
             { label: "Status", value: isActive ? "Active" : "Past", icon: isActive ? CheckCircle : Clock },
           ].map(({ label, value, icon: Icon }) => (
@@ -289,6 +333,56 @@ export default function MemberProfilePage({ memberId }: Props) {
 
           {/* Right: awards + activities */}
           <div className="md:col-span-2 space-y-6">
+            {/* Leadership roles by Leo Year */}
+            {roleYears.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <h3 className="font-bold text-[#002147] mb-4 flex items-center gap-2">
+                  <Shield size={16} className="text-[#D4AF37]" /> Role by Leo Year
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {roleYears.map((year) => (
+                    <div key={year} className="flex items-center justify-between gap-3 rounded-xl bg-[#F8FAFC] border border-gray-100 px-3 py-2.5">
+                      <span className="text-xs font-semibold text-gray-500">Leo Year {year}</span>
+                      <span className="text-xs font-bold text-[#002147] text-right">{roleByYear[year]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* President's service record */}
+            {presidentialService.length > 0 && (
+              <div className="bg-[#002147] rounded-2xl shadow-sm p-5 text-white">
+                <h3 className="font-bold mb-1 flex items-center gap-2">
+                  <AwardIcon size={16} className="text-[#D4AF37]" /> President&apos;s Service Record
+                </h3>
+                <p className="text-xs text-white/60 mb-4">All club activities recorded during this member&apos;s presidential Leo Year(s).</p>
+                <div className="space-y-4">
+                  {presidentialService.map((service) => (
+                    <div key={`${service.id}-${service.leoYear}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-[#D4AF37]">Leo Year {service.leoYear}</span>
+                        <span className="text-xs text-white/50">{service.activities.length} event{service.activities.length === 1 ? "" : "s"}</span>
+                      </div>
+                      {service.activities.length === 0 ? (
+                        <p className="text-xs text-white/50">No activities recorded for this Leo Year yet.</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {service.activities.map((activity) => (
+                            <Link key={activity.id} href={`/activity/${activity.id}`}
+                              className="flex items-center justify-between gap-3 rounded-lg bg-white/10 hover:bg-white/15 px-3 py-2 transition-colors">
+                              <span className="text-sm truncate">{activity.title}</span>
+                              <span className="text-xs text-white/50 shrink-0">{activity.month}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Awards */}
             {awards.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">

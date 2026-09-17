@@ -7,7 +7,7 @@ import {
   removeManualAchievement,
   toggleMemberActive,
 } from "@/lib/firestore";
-import type { Member, MemberActivity } from "@/lib/types";
+import type { Member, MemberActivity, MemberRole } from "@/lib/types";
 import { LEO_YEARS, MONTHS, FACULTIES, BATCH_YEARS } from "@/lib/types";
 import {
   Plus,
@@ -42,6 +42,7 @@ const EMPTY_MEMBER: Member = {
   joinedLeoYear: LEO_YEARS[0],
   leftLeoYear: "",
   bio: "",
+  roleHistory: [],
 };
 
 const EMPTY_ACHIEVEMENT = {
@@ -397,7 +398,7 @@ export default function MemberManagement() {
 
   function openEdit(member: Member) {
     setEditing(member);
-    setForm({ ...member });
+    setForm({ ...member, roleHistory: member.roleHistory ?? [] });
     setError("");
     setShowForm(true);
   }
@@ -567,6 +568,63 @@ export default function MemberManagement() {
                   placeholder="e.g. President, Secretary, Member"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
                 />
+              </div>
+
+              <div className="sm:col-span-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">Role by Leo Year</label>
+                    <p className="text-xs text-gray-400 mt-0.5">Record General Member, BOD, Chartered Vice President, Chartered Member, or another role.</p>
+                  </div>
+                  <button type="button"
+                    onClick={() => setForm((current) => ({
+                      ...current,
+                      roleHistory: [...(current.roleHistory ?? []), { leoYear: LEO_YEARS[0], role: "General Member", source: "manual" as const } satisfies MemberRole],
+                    }))}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#002147] hover:text-[#D4AF37]">
+                    <PlusCircle size={13} /> Add year
+                  </button>
+                </div>
+                {(form.roleHistory ?? []).length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-200 px-3 py-3 text-xs text-gray-400">
+                    No yearly roles recorded. The public profile will show General Member for the member&apos;s service years until you add specific roles.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(form.roleHistory ?? []).map((role, index) => (
+                      <div key={`${role.leoYear}-${index}`} className="flex gap-2 items-center">
+                        <select value={role.leoYear}
+                          onChange={(e) => setForm((current) => ({
+                            ...current,
+                            roleHistory: (current.roleHistory ?? []).map((item, i) => i === index ? { ...item, leoYear: e.target.value } : item),
+                          }))}
+                          className="w-32 border border-gray-200 rounded-lg px-2.5 py-2 text-xs bg-white">
+                          {LEO_YEARS.map((year) => <option key={year} value={year}>{year}</option>)}
+                        </select>
+                        <input type="text" value={role.role}
+                          onChange={(e) => setForm((current) => ({
+                            ...current,
+                            roleHistory: (current.roleHistory ?? []).map((item, i) => i === index ? { ...item, role: e.target.value } : item),
+                          }))}
+                          list="member-role-options" placeholder="General Member"
+                          className="flex-1 border border-gray-200 rounded-lg px-2.5 py-2 text-xs" />
+                        <button type="button" onClick={() => setForm((current) => ({
+                          ...current,
+                          roleHistory: (current.roleHistory ?? []).filter((_, i) => i !== index),
+                        }))} className="p-2 text-gray-400 hover:text-red-500">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <datalist id="member-role-options">
+                  <option value="General Member" />
+                  <option value="BOD" />
+                  <option value="President" />
+                  <option value="Chartered Vice President" />
+                  <option value="Chartered Member" />
+                </datalist>
               </div>
 
               <div>

@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -21,6 +22,103 @@ import ActivityPage from "@/pages/ActivityPage";
 import StatsPage from "@/pages/StatsPage";
 
 const queryClient = new QueryClient();
+
+const SEO_DEFAULT = {
+  title: "Leo Club of KUSMS | Leadership Through Service",
+  description: "Official Leo Club of KUSMS portal for members, service activities, leadership, awards, events, and the club's community impact in Nepal.",
+};
+
+function setMeta(name: string, content: string) {
+  let element = document.querySelector(`meta[name="${name}"]`);
+  if (!element) {
+    element = document.createElement("meta");
+    element.setAttribute("name", name);
+    document.head.appendChild(element);
+  }
+  element.setAttribute("content", content);
+}
+
+function setProperty(property: string, content: string) {
+  let element = document.querySelector(`meta[property="${property}"]`);
+  if (!element) {
+    element = document.createElement("meta");
+    element.setAttribute("property", property);
+    document.head.appendChild(element);
+  }
+  element.setAttribute("content", content);
+}
+
+function SeoManager() {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    const path = location.split("?")[0].replace(/\/+$/, "") || "/";
+    const segments = path.split("/").filter(Boolean);
+    const isAdmin = path === "/admin" || path.startsWith("/admin/");
+    let title = SEO_DEFAULT.title;
+    let description = SEO_DEFAULT.description;
+
+    if (path === "/about") {
+      title = "About Leo Club of KUSMS | Service & Leadership";
+      description = "Learn about the Leo Club of Kathmandu University School of Medical Sciences, our mission, leaders, charter, and commitment to community service.";
+    } else if (path === "/members") {
+      title = "Leo Club of KUSMS Members | Active Member Directory";
+      description = "Explore the active member directory of Leo Club of KUSMS and view member roles, service activities, achievements, and verification profiles.";
+    } else if (path === "/past-members") {
+      title = "Past Members | Leo Club of KUSMS";
+      description = "View past members and the service history of the Leo Club of Kathmandu University School of Medical Sciences.";
+    } else if (path === "/events") {
+      title = "Leo Club of KUSMS Events | Service Calendar";
+      description = "See upcoming and completed service events, health initiatives, outreach programs, and club activities from Leo Club of KUSMS.";
+    } else if (path === "/awards") {
+      title = "Awards & Recognition | Leo Club of KUSMS";
+      description = "Recognize the service awards and achievements of members and the Leo Club of Kathmandu University School of Medical Sciences.";
+    } else if (path === "/constitution") {
+      title = "Leo Club Constitution | Leo Club of KUSMS";
+      description = "Read the constitution, governance, membership rules, and operating principles of Leo Club of KUSMS.";
+    } else if (path === "/wall-of-fame") {
+      title = "Wall of Fame | Leo Club of KUSMS";
+      description = "Meet the leaders and outstanding contributors who have shaped the Leo Club of KUSMS through service.";
+    } else if (path === "/stats") {
+      title = "Club Statistics | Leo Club of KUSMS";
+      description = "View activity, membership, service, and achievement statistics for Leo Club of KUSMS.";
+    } else if (segments[0] === "members" && segments[1]) {
+      title = "Member Profile | Leo Club of KUSMS";
+      description = "View this Leo Club of KUSMS member's service history, Leo Year roles, achievements, and verified activities.";
+    } else if (segments[0] === "activity" && segments[1]) {
+      title = "Service Activity | Leo Club of KUSMS";
+      description = "Explore a service activity, participating members, photos, and impact from Leo Club of KUSMS.";
+    } else if (segments[0] === "archive") {
+      title = "Activity Archive | Leo Club of KUSMS";
+      description = "Browse the monthly service activity archive of Leo Club of KUSMS.";
+    } else if (segments[0] === "verify") {
+      title = "Verify Leo Club Credentials | Leo Club of KUSMS";
+      description = "Verify a Leo Club of KUSMS member credential and review their official club profile.";
+    }
+
+    const canonical = `https://leoclubofkusms.org${path}`;
+    document.title = title;
+    setMeta("description", description);
+    setMeta("robots", isAdmin ? "noindex, nofollow" : "index, follow");
+    setProperty("og:title", title);
+    setProperty("og:description", description);
+    setProperty("og:url", canonical);
+    setProperty("og:type", "website");
+    setProperty("og:image", "https://leoclubofkusms.org/opengraph.jpg");
+    setMeta("twitter:title", title);
+    setMeta("twitter:description", description);
+    setMeta("twitter:image", "https://leoclubofkusms.org/opengraph.jpg");
+    let link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "canonical";
+      document.head.appendChild(link);
+    }
+    link.href = canonical;
+  }, [location]);
+
+  return null;
+}
 
 function AppLayout() {
   return (
@@ -92,6 +190,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <SeoManager />
           <AppLayout />
         </WouterRouter>
       </AuthProvider>

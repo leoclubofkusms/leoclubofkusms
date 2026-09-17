@@ -31,15 +31,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ✅ SERVE YOUR WEBSITE FILES
-const websitePath = path.join(__dirname, "../client-portal/dist");
+const websitePath = path.join(__dirname, "../../client-portal/dist");
 console.log("Serving website from:", websitePath);
 app.use(express.static(websitePath));
 
 // ✅ API ROUTES
 app.use("/api", router);
 
-// ✅ SIMPLE FALLBACK - NO WILDCARD
-app.get("/", (_req, res) => {
+// Return the SPA shell for direct links such as /about and /members.
+app.get("/{*splat}", (_req, res) => {
   res.sendFile(path.join(websitePath, "index.html"));
 });
 
