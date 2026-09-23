@@ -48,14 +48,24 @@ export default function BodManagement() {
 
   useEffect(() => { load(); }, []);
 
-  function openAdd() {
+  async function refreshClubMembers() {
+    try {
+      setClubMembers(await getMembers());
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function openAdd() {
+    await refreshClubMembers();
     setEditing(null);
     setForm({ ...EMPTY, priority: (members.length + 1) * 10 });
     setError(""); setUploadError("");
     setShowForm(true);
   }
 
-  function openEdit(m: BodMember) {
+  async function openEdit(m: BodMember) {
+    await refreshClubMembers();
     setEditing(m); setForm({ ...m });
     setError(""); setUploadError("");
     setShowForm(true);
@@ -175,7 +185,7 @@ export default function BodManagement() {
                 }}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white">
                   <option value="">— Select a member —</option>
-                  {clubMembers.sort((a, b) => a.name.localeCompare(b.name)).map((member) => (
+                  {[...clubMembers].sort((a, b) => a.name.localeCompare(b.name)).map((member) => (
                     <option key={member.memberId} value={member.memberId}>{member.name} · {member.memberId}</option>
                   ))}
                 </select>
@@ -300,7 +310,10 @@ export default function BodManagement() {
                   {m.priority === 1 && <span className="bg-[#D4AF37] text-[#002147] text-xs font-bold px-2 py-0.5 rounded-full">President</span>}
                 </div>
                 <div className="text-xs text-[#D4AF37] font-medium">{m.role}</div>
-                <div className="text-xs text-gray-400 mt-0.5">Priority: {m.priority} {m.email && `· ${m.email}`}</div>
+                <div className="text-xs text-gray-400 mt-0.5">
+                  Priority: {m.priority} {m.email && `· ${m.email}`}
+                  {m.memberId ? ` · Linked member: ${m.memberId}` : " · Not linked — edit to tag a member"}
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button onClick={() => openEdit(m)} className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors"><Pencil size={15} /></button>

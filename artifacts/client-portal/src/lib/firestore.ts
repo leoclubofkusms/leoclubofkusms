@@ -12,6 +12,7 @@ import {
   arrayUnion,
   writeBatch,
   setDoc,
+  type WriteBatch,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { Member, MemberRole, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings, Constitution, Announcement, LeaderQuote, PastLeader } from "./types";
@@ -48,6 +49,74 @@ export async function setMember(member: Member): Promise<void> {
   const batchWrite = writeBatch(db);
   batchWrite.set(doc(db, "members", member.memberId), member);
   await batchWrite.commit();
+}
+
+/**
+ * Change a member's public membership ID and keep every denormalized reference
+ * pointing at the member's new ID.
+ */
+export async function changeMemberId(currentId: string, member: Member): Promise<void> {
+  const nextId = member.memberId.trim();
+  if (!nextId) throw new Error("Member ID is required.");
+  if (currentId === nextId) {
+    await setMember({ ...member, memberId: nextId });
+    return;
+  }
+
+  const currentRef = doc(db, "members", currentId);
+  const nextRef = doc(db, "members", nextId);
+  const [currentSnap, nextSnap, activitiesSnap, awardsSnap, bodSnap] = await Promise.all([
+    getDoc(currentRef),
+    getDoc(nextRef),
+    getDocs(collection(db, "activities")),
+    getDocs(collection(db, "awards")),
+    getDocs(collection(db, "bod")),
+  ]);
+
+  if (!currentSnap.exists()) throw new Error("The original member record no longer exists.");
+  if (nextSnap.exists()) throw new Error(`Member ID "${nextId}" is already in use.`);
+
+  const batches: WriteBatch[] = [];
+  let batch = writeBatch(db);
+  let operationCount = 0;
+  const addOperation = (operation: (currentBatch: WriteBatch) => void) => {
+    if (operationCount >= 450) {
+      batches.push(batch);
+      batch = writeBatch(db);
+      operationCount = 0;
+    }
+    operation(batch);
+    operationCount += 1;
+  };
+
+  addOperation((currentBatch) => currentBatch.set(nextRef, { ...member, memberId: nextId }));
+  addOperation((currentBatch) => currentBatch.delete(currentRef));
+
+  activitiesSnap.docs.forEach((activityDoc) => {
+    const activity = activityDoc.data() as Activity;
+    const participants = activity.participants ?? [];
+    if (!participants.some((participant) => participant.memberId === currentId)) return;
+    addOperation((currentBatch) => currentBatch.update(activityDoc.ref, {
+      participants: participants.map((participant) =>
+        participant.memberId === currentId ? { ...participant, memberId: nextId } : participant
+      ),
+    }));
+  });
+
+  awardsSnap.docs.forEach((awardDoc) => {
+    const award = awardDoc.data() as Award;
+    if (award.memberId !== currentId) return;
+    addOperation((currentBatch) => currentBatch.update(awardDoc.ref, { memberId: nextId }));
+  });
+
+  bodSnap.docs.forEach((bodDoc) => {
+    const bod = bodDoc.data() as BodMember;
+    if (bod.memberId !== currentId) return;
+    addOperation((currentBatch) => currentBatch.update(bodDoc.ref, { memberId: nextId }));
+  });
+
+  if (operationCount > 0) batches.push(batch);
+  await Promise.all(batches.map((currentBatch) => currentBatch.commit()));
 }
 
 export async function updateMember(

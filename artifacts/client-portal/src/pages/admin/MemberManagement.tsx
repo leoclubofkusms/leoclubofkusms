@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   getMembers,
   setMember,
+  changeMemberId,
   deleteMember,
   addManualAchievement,
   removeManualAchievement,
@@ -406,10 +407,20 @@ export default function MemberManagement() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.memberId.trim()) { setError("Member ID is required."); return; }
+    const nextMemberId = form.memberId.trim();
+    const changingMemberId = Boolean(editing && editing.memberId !== nextMemberId);
+    if (changingMemberId && !window.confirm(
+      "Change this membership ID? Existing activities, awards, and leadership links will be moved to the new ID."
+    )) return;
     setError("");
     setSubmitting(true);
     try {
-      await setMember({ ...form, activities: editing?.activities ?? [] });
+      const memberData = { ...form, memberId: nextMemberId, activities: editing?.activities ?? [] };
+      if (editing && changingMemberId) {
+        await changeMemberId(editing.memberId, memberData);
+      } else {
+        await setMember(memberData);
+      }
       setSuccess(editing ? "Member updated!" : "Member added!");
       setShowForm(false);
       load();
@@ -505,11 +516,14 @@ export default function MemberManagement() {
                   value={form.memberId}
                   onChange={(e) => setForm({ ...form, memberId: e.target.value })}
                   placeholder="e.g. MBBS2101"
-                  disabled={!!editing}
                   required
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] disabled:bg-gray-100 disabled:text-gray-400"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
                 />
-                <p className="text-xs text-gray-400 mt-1">Format: Faculty + Batch + Number (e.g. MBBS2101 = MBBS batch 21, member 01)</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {editing
+                    ? "You can change this later. Existing activities, awards, and leadership links will follow the new ID."
+                    : "Format: Faculty + Batch + Number (e.g. MBBS2101 = MBBS batch 21, member 01)"}
+                </p>
               </div>
 
               <div>
