@@ -61,10 +61,15 @@ export default function ActivityList({
     finally { setToggling(null); }
   }
 
-  function startEdit(act: Activity) {
+  async function startEdit(act: Activity) {
     setEditId(act.id);
     setEditForm({ title: act.title, description: act.description, photoInput: act.photos.join("\n"), participants: [...act.participants] });
     setEditError("");
+    try {
+      setMembers(await getMembers());
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   async function handleEditSave(act: Activity) {

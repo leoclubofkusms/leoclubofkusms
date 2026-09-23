@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { getMembers, getActivities, getAwards, getBodMembers } from "@/lib/firestore";
 import type { Member, Activity, Award, BodMember } from "@/lib/types";
-import { LEO_YEARS, MONTHS, activitySortKey } from "@/lib/types";
+import { LEO_YEARS, activitySortKey } from "@/lib/types";
 import { Link } from "wouter";
 import {
   ArrowLeft, Calendar, Award as AwardIcon, CheckCircle,
-  Clock, Shield, Star, User, Download, Loader2,
+  Clock, Shield, Star, User, Download, Loader2, ArrowDownUp, ArrowUpRight,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import BrandMark from "@/components/BrandMark";
@@ -28,6 +28,15 @@ function yearsServed(member: Member): number {
   return Math.max(1, (lIdx === -1 ? LEO_YEARS.length - 1 : lIdx) - jIdx + 1);
 }
 
+type ActivityOrder = "latest" | "oldest";
+
+function compareActivities(a: Activity, b: Activity): number {
+  const dateDifference = activitySortKey(a.year, a.month) - activitySortKey(b.year, b.month);
+  if (dateDifference !== 0) return dateDifference;
+  const createdDifference = (a.createdAt ?? "").localeCompare(b.createdAt ?? "");
+  return createdDifference !== 0 ? createdDifference : a.id.localeCompare(b.id);
+}
+
 interface Props { memberId: string; }
 
 export default function MemberProfilePage({ memberId }: Props) {
@@ -39,6 +48,7 @@ export default function MemberProfilePage({ memberId }: Props) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [downloadingCard, setDownloadingCard] = useState(false);
+  const [activityOrder, setActivityOrder] = useState<ActivityOrder>("latest");
 
   async function downloadIDCard() {
     const el = document.getElementById("member-id-card-capture");
@@ -76,8 +86,7 @@ export default function MemberProfilePage({ memberId }: Props) {
         setMember(found);
         setAllActivities(allActivities);
         const memberActivities = allActivities
-          .filter((a) => a.participants.some((p) => p.memberId === memberId))
-          .sort((a, b) => activitySortKey(a.year, a.month) - activitySortKey(b.year, b.month));
+          .filter((a) => a.participants.some((p) => p.memberId === memberId));
         setActivities(memberActivities);
         setAwards(allAwards.filter((a) => a.memberId === memberId));
         setBodRecords(allBodRecords.filter((record) => record.memberId === memberId));
@@ -117,6 +126,9 @@ export default function MemberProfilePage({ memberId }: Props) {
     ? `${currentCalendarYear}/${String(currentCalendarYear + 1).slice(-2)}`
     : `${currentCalendarYear - 1}/${String(currentCalendarYear).slice(-2)}`;
   const currentIndex = Math.max(0, LEO_YEARS.indexOf(currentLeoYear));
+  const sortedActivities = [...activities].sort((a, b) =>
+    activityOrder === "latest" ? compareActivities(b, a) : compareActivities(a, b)
+  );
   const roleYears = Object.keys(roleByYear).length > 0
     ? [...new Set([
       ...(joinedIndex >= 0 ? LEO_YEARS.slice(joinedIndex, (leftIndex >= 0 ? leftIndex : currentIndex) + 1) : []),
@@ -129,7 +141,9 @@ export default function MemberProfilePage({ memberId }: Props) {
   const presidentRoles = bodRecords.filter((record) => record.role.trim().toLowerCase() === "president" && record.leoYear);
   const presidentialService = presidentRoles.map((record) => ({
     ...record,
-    activities: allActivities.filter((activity) => activity.year === record.leoYear),
+    activities: allActivities
+      .filter((activity) => activity.year === record.leoYear)
+      .sort((a, b) => activityOrder === "latest" ? compareActivities(b, a) : compareActivities(a, b)),
   }));
   const profileActivityCount = new Set([
     ...activities.map((activity) => activity.id),
@@ -137,9 +151,13 @@ export default function MemberProfilePage({ memberId }: Props) {
   ]).size;
   // Group activities by year in chrono order
   const byYear: Record<string, Activity[]> = {};
-  activities.forEach((a) => {
+  sortedActivities.forEach((a) => {
     if (!byYear[a.year]) byYear[a.year] = [];
     byYear[a.year].push(a);
+  });
+  const sortedYears = Object.keys(byYear).sort((a, b) => {
+    const difference = LEO_YEARS.indexOf(a) - LEO_YEARS.indexOf(b);
+    return activityOrder === "latest" ? -difference : difference;
   });
 
   return (
@@ -403,19 +421,34 @@ export default function MemberProfilePage({ memberId }: Props) {
               </div>
             )}
 
-            {/* Activity Timeline — sorted chronologically */}
+            {/* Activity Timeline */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h3 className="font-bold text-[#002147] mb-4 flex items-center gap-2">
-                <Calendar size={16} className="text-[#D4AF37]" /> Activity Timeline
-                <span className="ml-auto text-xs text-gray-400 font-normal">{activities.length} total</span>
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+                <h3 className="font-bold text-[#002147] flex items-center gap-2">
+                  <Calendar size={16} className="text-[#D4AF37]" /> Activity Timeline
+                </h3>
+                <div className="sm:ml-auto flex items-center gap-2">
+                  <span className="text-xs text-gray-400">{activities.length} total</span>
+                  <label className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-[#F8FAFC] px-2.5 py-1.5 text-xs font-medium text-gray-600">
+                    <ArrowDownUp size={13} className="text-[#D4AF37]" />
+                    <span className="sr-only">Activity order</span>
+                    <select
+                      value={activityOrder}
+                      onChange={(e) => setActivityOrder(e.target.value as ActivityOrder)}
+                      className="bg-transparent text-[#002147] font-semibold focus:outline-none cursor-pointer"
+                      aria-label="Activity order"
+                    >
+                      <option value="latest">Latest first</option>
+                      <option value="oldest">Oldest first</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
               {activities.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-4">No recorded activities yet.</p>
               ) : (
                 <div className="space-y-6">
-                  {Object.keys(byYear)
-                    .sort((a, b) => LEO_YEARS.indexOf(a) - LEO_YEARS.indexOf(b))
-                    .map((year) => (
+                  {sortedYears.map((year) => (
                       <div key={year}>
                         <div className="flex items-center gap-2 mb-3">
                           <span className="text-xs font-bold text-[#D4AF37] bg-[#002147] px-3 py-1 rounded-full">Leo Year {year}</span>
@@ -423,24 +456,26 @@ export default function MemberProfilePage({ memberId }: Props) {
                           <span className="text-xs text-gray-400">{byYear[year].length}</span>
                         </div>
                         <div className="space-y-2 ml-2 border-l-2 border-[#D4AF37]/20 pl-4">
-                          {byYear[year].sort((a, b) => MONTHS.indexOf(a.month) - MONTHS.indexOf(b.month)).map((a) => {
+                          {byYear[year].map((a) => {
                             const participation = a.participants.find((p) => p.memberId === memberId);
                             return (
-                              <div key={a.id} className="relative flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
+                              <Link key={a.id} href={`/activity/${a.id}`} className="relative flex items-start gap-3 rounded-xl border border-transparent py-3 px-2 -ml-2 hover:border-[#D4AF37]/25 hover:bg-[#F8FAFC] transition-colors group">
                                 <div className="absolute -left-[21px] top-3 w-3 h-3 rounded-full bg-[#D4AF37]/40 border-2 border-white" />
-                                <div className="w-7 h-7 rounded-lg bg-[#002147]/5 flex items-center justify-center shrink-0">
+                                <div className="w-8 h-8 rounded-lg bg-[#002147]/5 flex items-center justify-center shrink-0">
                                   <Calendar size={12} className="text-[#002147]" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-[#002147] text-sm">{a.title}</div>
-                                  <div className="text-xs text-gray-400">{a.month}</div>
+                                  <div className="font-semibold text-[#002147] text-sm group-hover:text-[#003575]">{a.title}</div>
+                                  <div className="text-xs text-gray-400">{a.month} · Leo Year {a.year}</div>
+                                  {a.description && <div className="text-xs text-gray-400 mt-1 line-clamp-1">{a.description}</div>}
                                 </div>
                                 {participation?.awardTitle && (
                                   <span className="text-xs bg-[#D4AF37]/10 text-[#002147] px-2 py-0.5 rounded-full font-medium shrink-0">
                                     {participation.awardTitle}
                                   </span>
                                 )}
-                              </div>
+                                <ArrowUpRight size={14} className="text-gray-300 group-hover:text-[#D4AF37] shrink-0 mt-1" />
+                              </Link>
                             );
                           })}
                         </div>
