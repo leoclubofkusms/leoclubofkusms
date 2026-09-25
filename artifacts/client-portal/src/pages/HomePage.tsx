@@ -441,16 +441,16 @@ function PresidentCard({ president, whatsappNumber, whatsappMessage }: { preside
     <div className="bg-gradient-to-br from-[#002147] to-[#003575] text-white rounded-3xl overflow-hidden shadow-2xl">
       <div className="p-8 md:p-10 flex flex-col md:flex-row items-center gap-8">
         {/* Photo */}
-        <div className="shrink-0">
+        <div className="shrink-0 w-full md:w-auto">
           {president.photoUrl ? (
             <img
               src={president.photoUrl}
               alt={president.name}
-              className="w-36 h-36 rounded-2xl object-cover border-4 border-[#D4AF37] shadow-lg"
+              className="w-full md:w-72 h-80 md:h-96 rounded-2xl object-cover border-4 border-[#D4AF37] shadow-2xl"
             />
           ) : (
-            <div className="w-36 h-36 rounded-2xl bg-[#D4AF37] flex items-center justify-center shadow-lg">
-              <span className="text-5xl font-bold text-[#002147]">{president.name.charAt(0)}</span>
+            <div className="w-full md:w-72 h-80 md:h-96 rounded-2xl bg-[#D4AF37] flex items-center justify-center shadow-2xl">
+              <span className="text-8xl font-bold text-[#002147]">{president.name.charAt(0)}</span>
             </div>
           )}
         </div>
@@ -576,9 +576,15 @@ export default function HomePage() {
               leadership, and making a meaningful impact in our community.
             </p>
             <div className="flex flex-wrap gap-4">
+              <a
+                href="#donate"
+                className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-6 py-3 rounded-xl font-bold hover:bg-[#c9a432] transition-colors shadow-lg"
+              >
+                <Heart size={18} /> Donate Now
+              </a>
               <Link
                 href="/about"
-                className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-6 py-3 rounded-xl font-semibold hover:bg-[#c9a432] transition-colors"
+                className="inline-flex items-center gap-2 border border-white/30 text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/10 transition-colors"
               >
                 About Us <ArrowRight size={18} />
               </Link>
@@ -688,10 +694,10 @@ export default function HomePage() {
                       <img
                         src={m.photoUrl}
                         alt={m.name}
-                        className="w-14 h-14 rounded-xl object-cover border-2 border-[#D4AF37]/30 mx-auto mb-3"
+                        className="w-32 h-32 md:w-40 md:h-40 rounded-2xl object-cover border-2 border-[#D4AF37]/30 mx-auto mb-3"
                       />
                     ) : (
-                      <div className="w-14 h-14 rounded-xl bg-[#002147] text-white flex items-center justify-center font-bold text-xl mx-auto mb-3">
+                      <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-[#002147] text-white flex items-center justify-center font-bold text-4xl mx-auto mb-3">
                         {m.name.charAt(0)}
                       </div>
                     )}
@@ -1024,8 +1030,9 @@ export default function HomePage() {
           <LeoAnalytics members={members} activities={activities} awards={awards} />
         )}
 
+        
         {/* ── Donate Now ───────────────────────────────────────────────────── */}
-        <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <section id="donate" className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="grid grid-cols-1 md:grid-cols-2">
               {/* Left */}
               <div className="p-8 md:p-10 flex flex-col justify-center">

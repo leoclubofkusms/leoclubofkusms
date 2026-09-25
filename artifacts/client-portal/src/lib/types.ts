@@ -73,9 +73,23 @@ export interface BodMember {
   bio: string;
 }
 
-export const LEO_YEARS = [
-  "2024/25", "2025/26", "2026/27", "2027/28", "2028/29", "2029/30", "2030/31",
-];
+// Auto-generates Leo Years from the club's founding (2024) through current year + 5
+export const LEO_YEARS: string[] = (() => {
+  const START_YEAR = 2024; // club was chartered in 2024
+  const today = new Date();
+  const currentCalendarYear = today.getFullYear();
+  const month = today.getMonth(); // 0 = Jan, 6 = July
+  // The Leo Year that's currently active
+  const currentLeoStart = month >= 6 ? currentCalendarYear : currentCalendarYear - 1;
+  const END_YEAR = currentLeoStart + 5; // always show 5 years ahead
+
+  const years: string[] = [];
+  for (let y = START_YEAR; y <= END_YEAR; y++) {
+    years.push(`${y}/${(y + 1).toString().slice(-2)}`);
+  }
+  return years;
+})();
+
 export const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -83,7 +97,7 @@ export const MONTHS = [
 export const ADMIN_EMAIL = "leoclubofkusms@gmail.com";
 
 export const FACULTIES = [
-  "MBBS", "BDS", "B.Sc. Nursing", "BPT", "BASLP", "Pharmacy", "Other",
+  "MBBS", "BDS", "B.Sc. Nursing", "BPT", "BMIT", "BNS", "Other",
 ];
 
 // Admission years available as batch options
@@ -97,6 +111,8 @@ export interface ClubSettings {
   presidentSloganPhotoUrl?: string;
   presidentWhatsApp?: string;
   presidentWhatsAppMessage?: string;
+  membershipChairWhatsApp?: string;
+  membershipChairWhatsAppMessage?: string;
   donationQrUrl?: string;
   donationBankName?: string;
   donationAccountName?: string;

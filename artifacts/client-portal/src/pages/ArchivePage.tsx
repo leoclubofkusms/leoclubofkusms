@@ -15,7 +15,7 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Normalize year back to "2026/27" format
+  // Normalize year back to "YYYY/YY" format
   const displayYear = year.replace("-", "/");
   const displayMonth = month.charAt(0).toUpperCase() + month.slice(1);
 

@@ -23,6 +23,10 @@ export default function ClubSettingsPanel() {
     presidentWhatsApp: "",
     presidentWhatsAppMessage: "",
   });
+  const [membershipChair, setMembershipChair] = useState({
+    membershipChairWhatsApp: "",
+    membershipChairWhatsAppMessage: "",
+  });
   const [donationForm, setDonationForm] = useState({
     donationQrUrl: "",
     donationBankName: "",
@@ -40,6 +44,10 @@ export default function ClubSettingsPanel() {
         setPresidentContact({
           presidentWhatsApp: s.presidentWhatsApp ?? "",
           presidentWhatsAppMessage: s.presidentWhatsAppMessage ?? "",
+        });
+        setMembershipChair({
+          membershipChairWhatsApp: s.membershipChairWhatsApp ?? "",
+          membershipChairWhatsAppMessage: s.membershipChairWhatsAppMessage ?? "",
         });
         setDonationForm({
           donationQrUrl: s.donationQrUrl ?? "",
@@ -116,6 +124,21 @@ export default function ClubSettingsPanel() {
     }
   }
 
+  async function handleSaveMembershipChair() {
+    setSaving(true);
+    setError("");
+    try {
+      await updateClubSettings(membershipChair);
+      setSettings((s) => ({ ...s, ...membershipChair }));
+      showSuccess("Membership Chair contact saved!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save membership chair contact.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  
   async function handleRemoveSloganPhoto() {
     try {
       await updateClubSettings({ presidentSloganPhotoUrl: "" });
@@ -249,6 +272,49 @@ export default function ClubSettingsPanel() {
         </div>
       </div>
 
+      {/* Membership Chair Contact */}
+      <div className="bg-[#F8FAFC] border border-gray-100 rounded-2xl p-6">
+        <h4 className="font-semibold text-[#002147] flex items-center gap-2 mb-1">
+          <span className="w-5 h-5 rounded-full bg-[#25D366] text-white text-[10px] flex items-center justify-center font-bold">WA</span>
+          Contact Membership Chairperson on WhatsApp
+        </h4>
+        <p className="text-sm text-gray-500 mb-5">
+          Add the membership chairperson's WhatsApp number. The public "Become a Leo" WhatsApp button will open this number with the message below.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Membership Chair WhatsApp Number</label>
+            <input
+              type="tel"
+              value={membershipChair.membershipChairWhatsApp}
+              onChange={(e) => setMembershipChair((p) => ({ ...p, membershipChairWhatsApp: e.target.value }))}
+              placeholder="+977 98XXXXXXXX"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#25D366]"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Include the country code, for example +977. Spaces and symbols are handled automatically.
+            </p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Default WhatsApp Message</label>
+            <textarea
+              value={membershipChair.membershipChairWhatsAppMessage}
+              onChange={(e) => setMembershipChair((p) => ({ ...p, membershipChairWhatsAppMessage: e.target.value }))}
+              rows={2}
+              placeholder="Hello! I'm interested in joining Leo Club of KUSMS."
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#25D366] resize-none"
+            />
+          </div>
+          <button
+            onClick={handleSaveMembershipChair}
+            disabled={saving}
+            className="bg-[#25D366] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#20b858] transition-colors disabled:opacity-60 flex items-center gap-2"
+          >
+            {saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <><Check size={14} /> Save Membership Chair Contact</>}
+          </button>
+        </div>
+      </div>
+      
       {/* Donation / Support Section */}
       <div className="bg-[#F8FAFC] border border-gray-100 rounded-2xl p-6">
         <h4 className="font-semibold text-[#002147] flex items-center gap-2 mb-1">
