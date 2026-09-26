@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getClubSettings } from "@/lib/firestore";
 import type { ClubSettings } from "@/lib/types";
 import { getCurrentLeoYear } from "@/lib/types";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, MoveDown, ShieldCheck, Sparkles } from "lucide-react";
 
 export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
   const [exiting, setExiting] = useState(false);
@@ -14,251 +14,237 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => setEntered(true), 100);
-    return () => clearTimeout(t);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const timer = window.setTimeout(() => setEntered(true), 80);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.clearTimeout(timer);
+    };
   }, []);
 
   const handleEnter = () => {
     if (exiting) return;
     setExiting(true);
-    setTimeout(() => onEnter(), 850);
+    window.setTimeout(onEnter, 700);
   };
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
         handleEnter();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // handleEnter intentionally uses the latest exit state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exiting]);
 
-  const presidentName = (settings as any).presidentSloganName || "Our President";
-  const presidentRole = (settings as any).presidentSloganRole || "President";
+  const presidentName = settings.presidentSloganName || "Leo Club Leadership";
+  const presidentRole = settings.presidentSloganRole || "Service · Leadership · Opportunity";
 
   return (
     <div
-      role="button"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Leo Club of KUSMS welcome screen"
       tabIndex={0}
-      aria-label="Enter site"
       onClick={handleEnter}
-      className={`fixed inset-0 z-[9999] cursor-pointer overflow-y-auto transition-all duration-[850ms] ease-out ${
-        exiting ? "opacity-0 scale-[1.08] blur-md" : "opacity-100 scale-100 blur-0"
-      }`}
-      style={{
-        background:
-          "radial-gradient(ellipse 80% 60% at 50% 15%, #1a3a6b 0%, #0d2247 35%, #06152e 70%, #020b18 100%)",
+      onKeyDown={(event) => {
+        if (event.key === "Escape") handleEnter();
       }}
+      className={`fixed inset-0 z-[9999] overflow-y-auto overscroll-contain bg-[#020b18] text-white transition-all duration-700 ease-out ${
+        exiting ? "pointer-events-none scale-[1.03] opacity-0 blur-sm" : "scale-100 opacity-100"
+      }`}
     >
       <style>{`
-        @keyframes leo-drift {
-          0%   { transform: translateY(0) translateX(0); opacity: 0.3; }
-          50%  { opacity: 0.7; }
-          100% { transform: translateY(-110vh) translateX(30px); opacity: 0; }
+        @keyframes leo-rise {
+          from { opacity: 0; transform: translateY(18px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes leo-logo-in {
-          0%   { opacity: 0; transform: scale(0.7) translateY(-40px); }
-          60%  { opacity: 1; transform: scale(1.06) translateY(4px); }
-          100% { opacity: 1; transform: scale(1) translateY(0); }
+        @keyframes leo-float {
+          0%, 100% { transform: translate3d(0, 0, 0); }
+          50% { transform: translate3d(0, -10px, 0); }
         }
-        @keyframes leo-fade-up {
-          0%   { opacity: 0; transform: translateY(24px); }
-          100% { opacity: 1; transform: translateY(0); }
+        @keyframes leo-spin {
+          to { transform: rotate(360deg); }
         }
-        @keyframes leo-glow {
-          0%, 100% { opacity: 0.4; transform: scale(1); }
-          50%      { opacity: 0.75; transform: scale(1.08); }
+        @keyframes leo-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.28), 0 18px 50px rgba(0,0,0,0.25); }
+          50% { box-shadow: 0 0 0 10px rgba(212,175,55,0), 0 22px 60px rgba(212,175,55,0.18); }
         }
-        @keyframes leo-ring-rotate {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
+        .leo-rise { animation: leo-rise 800ms cubic-bezier(.22,1,.36,1) both; }
+        .leo-float { animation: leo-float 5s ease-in-out infinite; }
+        .leo-pulse { animation: leo-pulse 2.8s ease-in-out infinite; }
+        .leo-delay-1 { animation-delay: 120ms; }
+        .leo-delay-2 { animation-delay: 220ms; }
+        .leo-delay-3 { animation-delay: 320ms; }
+        .leo-delay-4 { animation-delay: 440ms; }
+        @media (prefers-reduced-motion: reduce) {
+          .leo-rise, .leo-float, .leo-pulse { animation: none !important; }
         }
-        @keyframes leo-shimmer {
-          0%   { background-position: 200% center; }
-          100% { background-position: -200% center; }
-        }
-        @keyframes leo-cta-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.45), 0 0 30px 0 rgba(212,175,55,0.25); }
-          50%      { box-shadow: 0 0 0 12px rgba(212,175,55,0), 0 0 40px 6px rgba(212,175,55,0.35); }
-        }
-        @keyframes leo-logo-halo {
-          0%, 100% { opacity: 0.35; transform: scale(1); }
-          50%      { opacity: 0.65; transform: scale(1.15); }
-        }
-        .leo-logo-in { animation: leo-logo-in 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-        .leo-fade-up { animation: leo-fade-up 1s cubic-bezier(0.22, 1, 0.36, 1) both; }
-        .leo-shimmer-text {
-          background: linear-gradient(90deg, #D4AF37 0%, #f5e5a8 25%, #D4AF37 50%, #f5e5a8 75%, #D4AF37 100%);
-          background-size: 200% auto;
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-          animation: leo-shimmer 4s linear infinite;
-        }
-        .leo-cta-pulse { animation: leo-cta-pulse 2.6s ease-in-out infinite; }
       `}</style>
 
-      {/* Slow-drifting gold particles */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {Array.from({ length: 22 }).map((_, i) => {
-          const size = 1.5 + (i % 4);
-          const left = (i * 47) % 100;
-          const delay = (i % 8) * 1.2;
-          const duration = 14 + (i % 6) * 2;
-          return (
-            <div
-              key={i}
-              className="absolute rounded-full bg-[#D4AF37]"
-              style={{
-                width: `${size}px`,
-                height: `${size}px`,
-                left: `${left}%`,
-                bottom: "-10px",
-                opacity: 0.3,
-                animation: `leo-drift ${duration}s linear ${delay}s infinite`,
-              }}
-            />
-          );
-        })}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-32 -top-36 h-[28rem] w-[28rem] rounded-full bg-[#0d4d84]/30 blur-3xl" />
+        <div className="absolute -bottom-48 -right-40 h-[32rem] w-[32rem] rounded-full bg-[#a47d16]/20 blur-3xl" />
+        <div
+          className="absolute inset-0 opacity-[0.16]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px)",
+            backgroundSize: "44px 44px",
+            maskImage: "linear-gradient(to bottom, black, transparent 85%)",
+            WebkitMaskImage: "linear-gradient(to bottom, black, transparent 85%)",
+          }}
+        />
+        {Array.from({ length: 18 }).map((_, index) => (
+          <span
+            key={index}
+            className="absolute h-1 w-1 rounded-full bg-[#e8c766]/70"
+            style={{
+              left: `${(index * 37) % 100}%`,
+              top: `${12 + ((index * 29) % 78)}%`,
+              opacity: 0.2 + (index % 4) * 0.1,
+            }}
+          />
+        ))}
       </div>
 
-      {/* Top/bottom shimmer lines */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/70 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/70 to-transparent" />
-
-      {/* Content */}
-      <div className="relative min-h-full flex flex-col items-center justify-center px-6 py-14">
-        <div className="w-full max-w-lg flex flex-col items-center text-center">
-
-          {/* ── LOGO ── */}
-          <div className="relative mb-8 leo-logo-in">
-            {/* Halo glow */}
-            <div
-              className="absolute inset-0 rounded-full bg-[#D4AF37] blur-3xl"
-              style={{ animation: "leo-logo-halo 3.4s ease-in-out infinite" }}
-            />
-            <img
-              src="/logo.png"
-              alt="Leo Club of KUSMS"
-              className="relative w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-[0_8px_30px_rgba(212,175,55,0.35)]"
-            />
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-5 py-5 sm:px-8 sm:py-8 lg:px-12">
+        <div className="flex items-center justify-between border-b border-white/10 pb-4 sm:pb-5">
+          <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/60 sm:text-xs">
+            <span className="h-2 w-2 rounded-full bg-[#d4af37] shadow-[0_0_14px_rgba(212,175,55,.8)]" />
+            Official Club Portal
           </div>
-
-          {/* ── WELCOME ── */}
-          <div
-            className="leo-fade-up text-[10px] md:text-[11px] font-medium tracking-[0.45em] text-white/50 uppercase mb-5"
-            style={{ animationDelay: "0.4s" }}
-          >
-            Welcome to the Official Portal
+          <div className="text-[10px] font-medium tracking-[0.18em] text-white/40 sm:text-xs">
+            {getCurrentLeoYear()}
           </div>
+        </div>
 
-          {/* ── CLUB NAME ── */}
-          <h1
-            className="leo-fade-up leo-shimmer-text font-serif font-normal text-5xl md:text-6xl leading-[1.05] tracking-tight mb-1"
-            style={{ animationDelay: "0.55s" }}
-          >
-            Leo Club
-          </h1>
-          <h2
-            className="leo-fade-up font-serif font-normal text-2xl md:text-3xl text-white/90 tracking-wide mb-6"
-            style={{ animationDelay: "0.7s" }}
-          >
-            of KUSMS
-          </h2>
-
-          {/* ── TAGLINE ── */}
-          <div
-            className="leo-fade-up flex items-center gap-3 text-[10px] md:text-[11px] tracking-[0.35em] text-white/40 uppercase mb-10"
-            style={{ animationDelay: "0.85s" }}
-          >
-            <span className="w-6 h-px bg-[#D4AF37]/40" />
-            Leadership · Experience · Opportunity
-            <span className="w-6 h-px bg-[#D4AF37]/40" />
-          </div>
-
-          {/* ── SLOGAN ── */}
-          {settings.presidentSlogan && (
-            <div
-              className="leo-fade-up w-full mb-10"
-              style={{ animationDelay: "1s" }}
-            >
-              <div className="text-[10px] md:text-[11px] font-semibold tracking-[0.3em] text-[#D4AF37] uppercase mb-3">
-                President's Slogan · {getCurrentLeoYear()}
+        <div className="flex flex-1 items-center py-10 sm:py-14 lg:py-16">
+          <div className="grid w-full items-center gap-12 lg:grid-cols-[1.08fr_.92fr] lg:gap-20">
+            <div className="text-center lg:text-left">
+              <div className={`leo-rise inline-flex items-center gap-2 rounded-full border border-[#d4af37]/25 bg-[#d4af37]/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#f3d77e] sm:text-xs ${entered ? "" : "opacity-0"}`}>
+                <Sparkles size={13} />
+                Welcome to KUSMS
               </div>
-              <div className="relative">
-                <p className="font-serif italic text-2xl md:text-3xl text-white leading-snug px-3">
-                  "{settings.presidentSlogan}"
+
+              <div className={`leo-rise leo-delay-1 mt-8 flex justify-center lg:justify-start ${entered ? "" : "opacity-0"}`}>
+                <div className="relative">
+                  <div className="absolute -inset-5 rounded-full bg-[#d4af37]/15 blur-2xl" />
+                  <div className="relative flex h-24 w-24 items-center justify-center rounded-[2rem] border border-[#e8c766]/60 bg-white/[0.08] p-3 shadow-[0_18px_60px_rgba(0,0,0,.3)] sm:h-28 sm:w-28">
+                    <img src="/logo.png" alt="Leo Club of KUSMS" className="h-full w-full object-contain" />
+                  </div>
+                </div>
+              </div>
+
+              <div className={`leo-rise leo-delay-2 mt-8 ${entered ? "" : "opacity-0"}`}>
+                <p className="text-[11px] font-medium uppercase tracking-[0.34em] text-white/45 sm:text-xs">
+                  Leadership through service
                 </p>
-                <div className="w-16 h-px bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent mx-auto mt-4" />
+                <h1 className="mt-4 text-5xl font-semibold leading-[0.98] tracking-[-0.055em] text-white sm:text-7xl lg:text-[5.4rem]">
+                  Leo Club
+                  <span className="mt-2 block bg-gradient-to-r from-[#d4af37] via-[#f4df9a] to-[#b7861b] bg-clip-text text-transparent">
+                    of KUSMS
+                  </span>
+                </h1>
+              </div>
+
+              <p className={`leo-rise leo-delay-3 mx-auto mt-7 max-w-xl text-sm leading-7 text-white/55 sm:text-base lg:mx-0 ${entered ? "" : "opacity-0"}`}>
+                A digital home for the people, purpose, and community impact behind our club.
+              </p>
+
+              {settings.presidentSlogan && (
+                <div className={`leo-rise leo-delay-4 mx-auto mt-8 max-w-xl border-l-2 border-[#d4af37] pl-4 text-left lg:mx-0 ${entered ? "" : "opacity-0"}`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#d4af37]">
+                    President&apos;s Slogan · {getCurrentLeoYear()}
+                  </p>
+                  <p className="mt-2 text-lg font-medium leading-7 text-white sm:text-xl">
+                    “{settings.presidentSlogan}”
+                  </p>
+                </div>
+              )}
+
+              <div className={`leo-rise leo-delay-4 mt-9 flex flex-col items-center gap-4 sm:flex-row lg:justify-start ${entered ? "" : "opacity-0"}`}>
+                <button
+                  type="button"
+                  onClick={handleEnter}
+                  className="leo-pulse group inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-gradient-to-r from-[#d4af37] via-[#f1d77f] to-[#c49828] px-7 text-sm font-bold text-[#071a34] transition-transform hover:scale-[1.03] active:scale-95 sm:px-8"
+                >
+                  Enter website
+                  <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
+                </button>
+                <span className="inline-flex items-center gap-2 text-xs text-white/35">
+                  <MoveDown size={14} />
+                  Press Enter to continue
+                </span>
               </div>
             </div>
-          )}
 
-          {/* ── PRESIDENT PHOTO ── */}
-          {settings.presidentSloganPhotoUrl && (
-            <div
-              className="leo-fade-up flex flex-col items-center mb-10"
-              style={{ animationDelay: "1.15s" }}
-            >
-              <div className="relative mb-4">
-                {/* Rotating gold ring */}
-                <div
-                  className="absolute -inset-2 rounded-full"
-                  style={{
-                    background:
-                      "conic-gradient(from 0deg, transparent 0deg, #D4AF37 90deg, transparent 180deg, #D4AF37 270deg, transparent 360deg)",
-                    animation: "leo-ring-rotate 6s linear infinite",
-                    filter: "blur(3px)",
-                    maskImage:
-                      "radial-gradient(circle, transparent 68%, black 70%, black 100%)",
-                    WebkitMaskImage:
-                      "radial-gradient(circle, transparent 68%, black 70%, black 100%)",
-                  }}
-                />
-                {/* Outer glow */}
-                <div className="absolute -inset-3 rounded-full bg-[#D4AF37] blur-2xl opacity-40" />
-                {/* Photo */}
-                <img
-                  src={settings.presidentSloganPhotoUrl}
-                  alt="President"
-                  className="relative w-40 h-40 md:w-48 md:h-48 rounded-full object-cover border-[3px] border-[#D4AF37] shadow-[0_0_50px_rgba(212,175,55,0.4)]"
-                />
-              </div>
-              <div className="text-white font-semibold text-base md:text-lg tracking-wide">
-                {presidentName}
-              </div>
-              <div className="text-[#D4AF37] text-xs tracking-[0.25em] uppercase mt-1">
-                {presidentRole}
+            <div className={`leo-rise leo-delay-3 relative mx-auto w-full max-w-md lg:mx-0 lg:ml-auto ${entered ? "" : "opacity-0"}`}>
+              <div className="absolute -inset-6 rounded-[2.5rem] bg-[#d4af37]/10 blur-3xl" />
+              <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-white/[0.07] p-5 shadow-[0_30px_90px_rgba(0,0,0,.38)] backdrop-blur-xl sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.23em] text-[#d4af37]">Our chapter</p>
+                    <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Make an impact.</h2>
+                  </div>
+                  <ShieldCheck className="text-[#e8c766]" size={22} />
+                </div>
+
+                <div className="my-7 h-px bg-gradient-to-r from-[#d4af37]/70 via-white/15 to-transparent" />
+
+                {settings.presidentSloganPhotoUrl ? (
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={settings.presidentSloganPhotoUrl}
+                      alt={presidentName}
+                      className="h-16 w-16 shrink-0 rounded-2xl border border-[#d4af37]/70 object-cover"
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-semibold text-white">{presidentName}</p>
+                      <p className="mt-1 truncate text-xs uppercase tracking-[0.16em] text-white/45">{presidentRole}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <div className="leo-float flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#d4af37]/35 bg-[#d4af37]/10 text-[#f1d77f]">
+                      <Sparkles size={24} />
+                    </div>
+                    <div>
+                      <p className="text-base font-semibold text-white">{presidentName}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/45">{presidentRole}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-7 grid grid-cols-3 gap-2">
+                  {[
+                    ["01", "Serve"],
+                    ["02", "Lead"],
+                    ["03", "Grow"],
+                  ].map(([number, label]) => (
+                    <div key={number} className="rounded-2xl border border-white/10 bg-black/10 px-3 py-3">
+                      <p className="text-[10px] font-semibold text-[#d4af37]">{number}</p>
+                      <p className="mt-1 text-xs font-medium text-white/65">{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="mt-6 text-xs leading-5 text-white/35">
+                  Lions Clubs International · District 325L · Club #172194
+                </p>
               </div>
             </div>
-          )}
-
-          {/* ── CTA BUTTON ── */}
-          <button
-            onClick={handleEnter}
-            className="leo-fade-up leo-cta-pulse group inline-flex items-center gap-2 bg-gradient-to-r from-[#D4AF37] via-[#e8c766] to-[#D4AF37] text-[#002147] font-bold px-8 py-3.5 rounded-full text-sm md:text-base tracking-wide transition-all hover:scale-[1.03] active:scale-95"
-            style={{ animationDelay: "1.35s" }}
-          >
-            Enter Website
-            <ArrowRight
-              size={16}
-              className="transition-transform group-hover:translate-x-1"
-            />
-          </button>
-
-          {/* ── HINT ── */}
-          <div
-            className="leo-fade-up mt-5 text-[10px] md:text-xs text-white/40 tracking-wider"
-            style={{ animationDelay: "1.5s" }}
-          >
-            or press{" "}
-            <span className="inline-block border border-white/25 rounded px-1.5 py-0.5 text-white/70 font-mono text-[10px]">
-              Enter ↵
-            </span>
           </div>
+        </div>
+
+        <div className="flex items-center justify-center border-t border-white/10 pt-4 text-center text-[10px] tracking-[0.15em] text-white/30 sm:justify-between sm:text-xs">
+          <span>Leo Club of Kathmandu University School of Medical Sciences</span>
+          <span className="hidden sm:inline">Dhulikhel, Nepal</span>
         </div>
       </div>
     </div>

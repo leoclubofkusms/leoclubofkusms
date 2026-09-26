@@ -71,7 +71,7 @@ export default function AboutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen w-full overflow-x-hidden bg-[#F8FAFC]">
       <div className="bg-[#002147] text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
           <Link href="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-8 transition-colors">
@@ -126,13 +126,13 @@ export default function AboutPage() {
           ) : (
             <>
               {president && (
-                <div className="bg-gradient-to-r from-[#002147] to-[#003575] text-white rounded-3xl overflow-hidden shadow-xl mb-6">
-                  <div className="p-5 md:p-10 flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
+                  <div className="bg-gradient-to-r from-[#002147] to-[#003575] text-white rounded-3xl overflow-hidden shadow-xl mb-6">
+                  <div className="p-4 sm:p-6 md:p-10 flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
                     {president.photoUrl ? (
                       <img src={president.photoUrl} alt={president.name}
-                        className="w-32 sm:w-48 md:w-64 aspect-[3/4] rounded-2xl object-cover object-center border-4 border-[#D4AF37] shrink-0 shadow-2xl" />
+                        className="w-[min(100%,18rem)] sm:w-48 md:w-64 aspect-[3/4] rounded-2xl object-cover object-top border-2 md:border-4 border-[#D4AF37] shrink-0 shadow-2xl" />
                     ) : (
-                      <div className="w-32 sm:w-48 md:w-64 aspect-[3/4] rounded-2xl bg-[#D4AF37] flex items-center justify-center shrink-0 shadow-2xl">
+                      <div className="w-[min(100%,18rem)] sm:w-48 md:w-64 aspect-[3/4] rounded-2xl bg-[#D4AF37] flex items-center justify-center shrink-0 shadow-2xl">
                         <span className="text-6xl md:text-8xl font-bold text-[#002147]">{president.name.charAt(0)}</span>
                       </div>
                     )}
@@ -172,7 +172,7 @@ export default function AboutPage() {
                     <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
                       <div className="w-full aspect-[4/3] bg-gray-50 shrink-0">
                         {m.photoUrl ? (
-                          <img src={m.photoUrl} alt={m.name} className="w-full h-full object-cover object-center" />
+                            <img src={m.photoUrl} alt={m.name} className="w-full h-full object-cover object-top" />
                         ) : (
                           <div className="w-full h-full bg-[#002147] flex items-center justify-center">
                             <span className="text-5xl font-bold text-[#D4AF37]">{m.name.charAt(0)}</span>

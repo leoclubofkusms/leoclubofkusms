@@ -66,11 +66,11 @@ export default function PastLeadersManager() {
         name: form.name.trim(),
         role: form.role.trim(),
         leoYear: form.leoYear,
-        photoUrl: form.photoUrl.trim(),
-        note: form.note.trim(),
+        photoUrl: form.photoUrl?.trim() ?? "",
+        note: form.note?.trim() ?? "",
         order: form.order,
-        quote: form.quote.trim(),
-        audioUrl: form.audioUrl.trim(),
+        quote: form.quote?.trim() ?? "",
+        audioUrl: form.audioUrl?.trim() ?? "",
       };
 
       if (editingId) {
@@ -171,10 +171,10 @@ export default function PastLeadersManager() {
                 value={form.role}
                 onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
                 placeholder="e.g. Chartered President"
-                className                   ="w-full border border-gray-200 rounded className-xl px-3 py-2 text-sm focus={`:outline-none focus:borderp-[#002147]"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#002147]"
               />
-            </-div>
-          </div2>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -343,7 +343,7 @@ export default function PastLeadersManager() {
                 {item.audioUrl && (
                   <button
                     onClick={() => toggleAudio(item)}
- rounded-lg transition-colors ${
+                    className={`p-2 rounded-lg transition-colors ${
                       playingId === item.id
                         ? "bg-green-100 text-green-600"
                         : "text-gray-400 hover:bg-gray-100 hover:text-[#002147]"

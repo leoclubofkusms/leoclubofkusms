@@ -139,9 +139,9 @@ function AppLayout() {
 
       <Route>
         {() => (
-          <div className="flex flex-col min-h-screen">
+            <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[#F8FAFC]">
             <Navbar />
-            <main className="flex-1">
+            <main className="min-w-0 w-full flex-1 bg-[#F8FAFC]">
               <Switch>
                 <Route path="/" component={HomePage} />
                 <Route path="/about" component={AboutPage} />

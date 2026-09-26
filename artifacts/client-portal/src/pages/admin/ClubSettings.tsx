@@ -12,6 +12,7 @@ export default function ClubSettingsPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sloganSaving, setSloganSaving] = useState(false);
+  const [sloganPhotoSaving, setSloganPhotoSaving] = useState(false);
   const [donationSaving, setDonationSaving] = useState(false);
   const [uploading, setUploading] = useState<"cert" | "sloganPhoto" | "donationQr" | null>(null);
   const [success, setSuccess] = useState("");
@@ -74,6 +75,7 @@ export default function ClubSettingsPanel() {
   }, []);
 
   function showSuccess(msg: string) {
+    setError("");
     setSuccess(msg);
     setTimeout(() => setSuccess(""), 3000);
   }
@@ -183,12 +185,31 @@ export default function ClubSettingsPanel() {
   }
 
   async function handleRemoveSloganPhoto() {
+    setSloganPhotoSaving(true);
+    setError("");
     try {
       await updateClubSettings({ presidentSloganPhotoUrl: "" });
       setSettings((s) => ({ ...s, presidentSloganPhotoUrl: "" }));
       showSuccess("Photo removed.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed.");
+      setError(err instanceof Error ? err.message : "Failed to remove photo.");
+    } finally {
+      setSloganPhotoSaving(false);
+    }
+  }
+
+  async function handleSaveSloganPhoto() {
+    setSloganPhotoSaving(true);
+    setError("");
+    try {
+      const presidentSloganPhotoUrl = settings.presidentSloganPhotoUrl?.trim() ?? "";
+      await updateClubSettings({ presidentSloganPhotoUrl });
+      setSettings((s) => ({ ...s, presidentSloganPhotoUrl }));
+      showSuccess("Slogan photo URL saved.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save photo URL.");
+    } finally {
+      setSloganPhotoSaving(false);
     }
   }
 
@@ -287,13 +308,11 @@ export default function ClubSettingsPanel() {
               className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
             />
             <button
-              onClick={async () => {
-                await updateClubSettings({ presidentSloganPhotoUrl: settings.presidentSloganPhotoUrl ?? "" });
-                showSuccess("Slogan photo URL saved.");
-              }}
-              className="bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold"
+                onClick={handleSaveSloganPhoto}
+                disabled={sloganPhotoSaving}
+                className="bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60"
             >
-              Save URL
+                {sloganPhotoSaving ? "Saving…" : "Save URL"}
             </button>
           </div>
         </div>

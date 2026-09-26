@@ -12,13 +12,13 @@ const sizeClasses = {
 export default function BrandMark({ size = "md", className = "" }: BrandMarkProps) {
   return (
     <span
-      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#D4AF37] font-black text-[#002147] ${sizeClasses[size]} ${className}`}
+      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D4AF37]/70 bg-[#001a38] p-1 font-black text-[#D4AF37] shadow-[0_4px_18px_rgba(0,0,0,.2)] ${sizeClasses[size]} ${className}`}
       aria-label="Leo Club of KUSMS"
     >
       <img
         src="/logo.png"
         alt=""
-        className="absolute inset-0 h-full w-full object-cover"
+        className="h-full w-full rounded-lg object-contain"
         onError={(event) => {
           event.currentTarget.style.display = "none";
         }}

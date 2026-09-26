@@ -409,13 +409,13 @@ function FeaturedCarousel({ activities }: { activities: Activity[] }) {
 function PresidentCard({ president, whatsappNumber, whatsappMessage }: { president: BodMember; whatsappNumber?: string; whatsappMessage?: string }) {
   return (
     <div className="bg-gradient-to-br from-[#002147] to-[#003575] text-white rounded-3xl overflow-hidden shadow-2xl">
-      <div className="p-6 md:p-10 flex flex-col md:flex-row items-center md:items-start gap-8">
-        <div className="shrink-0 w-full md:w-auto">
+      <div className="p-4 sm:p-6 md:p-10 flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
+        <div className="flex w-full justify-center md:w-auto md:justify-start">
           {president.photoUrl ? (
             <img src={president.photoUrl} alt={president.name}
-              className="w-full md:w-72 h-80 md:h-96 rounded-2xl object-cover border-4 border-[#D4AF37] shadow-2xl" />
+              className="h-64 w-[min(100%,18rem)] rounded-2xl border-2 border-[#D4AF37] object-cover object-top shadow-2xl sm:h-80 sm:w-64 md:h-96 md:w-72 md:border-4" />
           ) : (
-            <div className="w-full md:w-72 h-80 md:h-96 rounded-2xl bg-[#D4AF37] flex items-center justify-center shadow-2xl">
+            <div className="flex h-64 w-[min(100%,18rem)] items-center justify-center rounded-2xl bg-[#D4AF37] shadow-2xl sm:h-80 sm:w-64 md:h-96 md:w-72">
               <span className="text-8xl font-bold text-[#002147]">{president.name.charAt(0)}</span>
             </div>
           )}
@@ -491,7 +491,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen w-full overflow-x-hidden bg-[#F8FAFC]">
       {/* ── Hero ── */}
       <div className="relative bg-[#002147] text-white overflow-hidden" style={{ minHeight: "520px" }}>
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#D4AF37]/10 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
@@ -545,15 +545,12 @@ export default function HomePage() {
       {/* ── President's Slogan Banner (top of content) ── */}
       {clubSettings.presidentSlogan && (
         <div className="bg-gradient-to-r from-[#002147] via-[#003575] to-[#002147] border-y-2 border-[#D4AF37]/30">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
-            <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+            <div className="flex flex-col md:flex-row items-center gap-6 md:gap-12">
               {clubSettings.presidentSloganPhotoUrl && (
-                <div className="relative shrink-0">
-                  <div className="absolute inset-0 rounded-full bg-[#D4AF37] blur-2xl opacity-50 scale-110" />
-                  <div className="absolute -inset-2 rounded-full border-2 border-[#D4AF37]/60" />
-                  <div className="absolute -inset-4 rounded-full border border-[#D4AF37]/25" />
+                <div className="relative flex h-32 w-32 shrink-0 items-center justify-center rounded-3xl border border-[#D4AF37]/70 bg-white/10 p-3 shadow-[0_16px_40px_rgba(0,0,0,.25)] sm:h-36 sm:w-36 md:h-44 md:w-44">
                   <img src={clubSettings.presidentSloganPhotoUrl} alt="President"
-                    className="relative w-40 h-40 md:w-56 md:h-56 lg:w-64 lg:h-64 rounded-full object-cover border-4 border-[#D4AF37] shadow-2xl" />
+                    className="h-full w-full rounded-2xl bg-white p-2 object-contain" />
                 </div>
               )}
               <div className="flex-1 text-center md:text-left">
@@ -575,7 +572,7 @@ export default function HomePage() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12 space-y-16">
 
         {/* ── Announcements ── */}
         {visibleAnnouncements.length > 0 && (
@@ -633,14 +630,14 @@ export default function HomePage() {
             )}
 
             {otherBod.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4">
                 {otherBod.map((m) => (
-                  <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center hover:shadow-md hover:-translate-y-0.5 transition-all">
+                  <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 text-center hover:shadow-md hover:-translate-y-0.5 transition-all sm:p-5">
                     {m.photoUrl ? (
                       <img src={m.photoUrl} alt={m.name}
-                        className="w-32 h-32 md:w-40 md:h-40 rounded-2xl object-cover border-2 border-[#D4AF37]/30 mx-auto mb-3" />
+                        className="mx-auto mb-3 aspect-[4/5] h-auto w-full max-w-[8rem] rounded-xl border-2 border-[#D4AF37]/30 object-cover object-top" />
                     ) : (
-                      <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-[#002147] text-white flex items-center justify-center font-bold text-4xl mx-auto mb-3">
+                      <div className="mx-auto mb-3 flex aspect-[4/5] h-auto w-full max-w-[8rem] items-center justify-center rounded-xl bg-[#002147] text-4xl font-bold text-white">
                         {m.name.charAt(0)}
                       </div>
                     )}
