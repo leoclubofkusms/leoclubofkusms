@@ -162,8 +162,8 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                   <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#d4af37]">
                     President&apos;s Slogan · {getCurrentLeoYear()}
                   </p>
-                  <p className="mt-2 text-lg font-medium leading-7 text-white sm:text-xl">
-                    “{settings.presidentSlogan}”
+                  <p className="mt-2 text-lg font-medium leading-7 tracking-[-0.01em] text-white sm:text-xl">
+                    {settings.presidentSlogan}
                   </p>
                 </div>
               )}

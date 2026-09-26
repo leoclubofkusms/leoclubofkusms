@@ -208,7 +208,7 @@ export function activitySortKey(year: string, month: string): number {
 }
 
 /**
- * Returns the current Leo Year as a string, e.g. "2025/26".
+ * Returns the current Leo Year as a string, such as "YYYY/YY".
  * The Leo Year runs July 1 – June 30. Auto-updates every July 1st.
  */
 export function getCurrentLeoYear(): string {
@@ -221,7 +221,7 @@ export function getCurrentLeoYear(): string {
 }
 
 /**
- * Returns the label like "Leo Year 2025/26" for display.
+ * Returns a display label in the form "Leo Year YYYY/YY".
  */
 export function getCurrentLeoYearLabel(): string {
   return `Leo Year ${getCurrentLeoYear()}`;

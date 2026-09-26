@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getClubSettings, updateClubSettings } from "@/lib/firestore";
 import type { ClubSettings } from "@/lib/types";
-import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK } from "@/lib/types";
+import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, getCurrentLeoYear, getCurrentLeoYearLabel } from "@/lib/types";
 import {
   Upload, Link as LinkIcon, Check, Loader2, X, ExternalLink,
   Facebook, Settings, Calendar, Award, Quote, ShieldCheck, Heart, Image,
@@ -247,7 +247,7 @@ export default function ClubSettingsPanel() {
       {/* President's Slogan */}
       <div className="bg-[#F8FAFC] border border-gray-100 rounded-2xl p-6">
         <h4 className="font-semibold text-[#002147] flex items-center gap-2 mb-1">
-          <Quote size={16} className="text-[#D4AF37]" /> President's Slogan (Current Year)
+          <Quote size={16} className="text-[#D4AF37]" /> President&apos;s Slogan · {getCurrentLeoYearLabel()}
         </h4>
         <p className="text-sm text-gray-500 mb-4">
           This slogan and optional photo are displayed on the splash screen and at the top of the home page.
@@ -264,7 +264,7 @@ export default function ClubSettingsPanel() {
             type="text"
             value={sloganInput}
             onChange={(e) => setSloganInput(e.target.value)}
-            placeholder='e.g. "Architect The Legacy"'
+             placeholder="e.g. Architect The Legacy"
             className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
           />
           <button
@@ -342,7 +342,7 @@ export default function ClubSettingsPanel() {
                 type="text"
                 value={presidentInfo.presidentSloganRole}
                 onChange={(e) => setPresidentInfo((p) => ({ ...p, presidentSloganRole: e.target.value }))}
-                placeholder="e.g. President 2025/26"
+                placeholder={`e.g. President ${getCurrentLeoYear()}`}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
               />
             </div>

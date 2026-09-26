@@ -554,17 +554,18 @@ export default function HomePage() {
                 </div>
               )}
               <div className="flex-1 text-center md:text-left">
-                <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
-                  <Quote size={32} className="text-[#D4AF37] opacity-80" />
-                  <div className="text-[#D4AF37] text-xs md:text-sm font-bold uppercase tracking-[0.25em]">
-                    President's Slogan · {getCurrentLeoYearLabel()}
+                <div className="mb-4 flex items-center justify-center gap-3 md:justify-start">
+                  <div className="h-px w-10 bg-gradient-to-r from-transparent to-[#D4AF37] md:w-16" />
+                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#D4AF37] md:text-xs">
+                    {getCurrentLeoYearLabel()} · President&apos;s Slogan
                   </div>
+                  <div className="h-px w-10 bg-gradient-to-l from-transparent to-[#D4AF37] md:hidden" />
                 </div>
-                <p className="text-white font-bold italic text-2xl md:text-4xl lg:text-5xl leading-tight md:leading-tight">
-                  "{clubSettings.presidentSlogan}"
-                </p>
-                <div className="mt-5 flex justify-center md:justify-start">
-                  <div className="w-24 h-1 bg-gradient-to-r from-[#D4AF37] to-transparent rounded-full" />
+                <div className="relative">
+                  <p className="max-w-4xl text-xl font-semibold leading-snug tracking-[-0.02em] text-white sm:text-2xl md:text-4xl lg:text-5xl">
+                    {clubSettings.presidentSlogan}
+                  </p>
+                  <div className="mt-5 h-1 w-20 rounded-full bg-gradient-to-r from-[#D4AF37] to-transparent md:w-28" />
                 </div>
               </div>
             </div>
