@@ -139,7 +139,7 @@ function AppLayout() {
 
       <Route>
         {() => (
-            <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[#F8FAFC]">
+          <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[#F8FAFC]">
             <Navbar />
             <main className="min-w-0 w-full flex-1 bg-[#F8FAFC]">
               <Switch>

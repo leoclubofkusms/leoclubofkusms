@@ -1,9 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { getActivities } from "@/lib/firestore";
 import type { Activity } from "@/lib/types";
 import { LEO_YEARS, MONTHS, getCurrentLeoYear } from "@/lib/types";
-import { Calendar, ArrowRight, FolderOpen, Loader2 } from "lucide-react";
+import {
+  ArrowRight,
+  Calendar,
+  CalendarDays,
+  ChevronRight,
+  Clock3,
+  FolderOpen,
+} from "lucide-react";
 
 export default function ArchiveIndexPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -18,38 +25,95 @@ export default function ArchiveIndexPage() {
   }, []);
 
   const yearsNewestFirst = [...LEO_YEARS].reverse();
-  const yearsWithData = yearsNewestFirst.filter((year) =>
-    activities.some((a) => a.year === year)
+  const yearsWithData = useMemo(
+    () => yearsNewestFirst.filter((year) => activities.some((a) => a.year === year)),
+    [activities, yearsNewestFirst]
+  );
+  const totalMonths = useMemo(
+    () =>
+      new Set(
+        activities.map((activity) => `${activity.year}-${activity.month}`)
+      ).size,
+    [activities]
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-      <div className="bg-[#002147] text-white py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/40 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-4">
-            <FolderOpen size={14} /> Activity Archive
+    <div className="min-h-screen bg-[#f4f6f5] text-[#002147]">
+      <header className="relative overflow-hidden bg-[#002147] text-white">
+        <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full border border-[#D4AF37]/20" />
+        <div className="absolute -right-10 -top-14 h-44 w-44 rounded-full border border-[#D4AF37]/15" />
+        <div className="absolute bottom-0 left-0 h-px w-full bg-[#D4AF37]/60" />
+        <div className="relative mx-auto max-w-6xl px-5 pb-12 pt-10 sm:px-8 sm:pb-16 sm:pt-14">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#D4AF37]">
+              <FolderOpen size={15} strokeWidth={1.8} />
+              <span>Club records</span>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white/65">
+              <Clock3 size={13} />
+              <span>{LEO_YEARS[0]?.split("/")[0] ?? "Club founding"} — present</span>
+            </div>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">Our Service History</h1>
-          <p className="text-white/70 max-w-2xl">
-            Browse every activity we've carried out, organized by Leo Year and month.
-            Click any month to see the full details.
-          </p>
+          <div className="mt-10 max-w-3xl">
+            <p className="mb-3 text-sm font-medium text-white/55">Leo Club of KUSMS</p>
+            <h1 className="max-w-2xl text-4xl font-semibold leading-[1.05] tracking-[-0.03em] sm:text-6xl">
+              Our service,
+              <span className="block text-[#D4AF37]">kept in full.</span>
+            </h1>
+            <p className="mt-6 max-w-xl text-sm leading-6 text-white/65 sm:text-base">
+              Browse the people, projects, and moments that have shaped our club,
+              arranged by Leo Year and month.
+            </p>
+          </div>
+          {!loading && activities.length > 0 && (
+            <div className="mt-10 flex flex-wrap gap-2 text-xs text-white/70">
+              <div className="flex items-center gap-2 border-l border-[#D4AF37] pl-3">
+                <span className="font-semibold text-white">{activities.length}</span>
+                {activities.length === 1 ? "recorded activity" : "recorded activities"}
+              </div>
+              <div className="flex items-center gap-2 border-l border-white/20 pl-3">
+                <span className="font-semibold text-white">{yearsWithData.length}</span>
+                {yearsWithData.length === 1 ? "Leo Year" : "Leo Years"}
+              </div>
+              <div className="flex items-center gap-2 border-l border-white/20 pl-3">
+                <span className="font-semibold text-white">{totalMonths}</span>
+                {totalMonths === 1 ? "month" : "months"} of stories
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="mx-auto max-w-6xl px-5 py-9 sm:px-8 sm:py-14">
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-400">
-            <Loader2 size={24} className="animate-spin mr-2" /> Loading archive…
+          <div className="space-y-10" aria-label="Loading archive">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="animate-pulse">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-2xl bg-[#dce3e5]" />
+                  <div>
+                    <div className="h-5 w-32 rounded bg-[#dce3e5]" />
+                    <div className="mt-2 h-3 w-44 rounded bg-[#e4e9ea]" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {[1, 2, 3, 4].map((card) => (
+                    <div key={card} className="h-28 rounded-2xl bg-[#e3e8e8]" />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         ) : yearsWithData.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center text-gray-400">
-            <FolderOpen size={40} className="mx-auto mb-3 opacity-30" />
-            <p>No activities have been archived yet.</p>
-            <p className="text-sm mt-1">Once activities are added, they'll appear here.</p>
+          <div className="rounded-[2rem] border border-dashed border-[#cbd5d7] bg-[#fffdf8] px-6 py-20 text-center text-[#617078] shadow-[0_16px_40px_rgba(0,33,71,0.04)]">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#002147] text-[#D4AF37]">
+              <FolderOpen size={27} strokeWidth={1.6} />
+            </div>
+            <p className="font-semibold text-[#002147]">No activities have been archived yet.</p>
+            <p className="mt-2 text-sm">Once activities are added, they’ll appear here.</p>
           </div>
         ) : (
-          <div className="space-y-10">
+          <div className="space-y-14">
             {yearsWithData.map((year) => {
               const monthsWithData = MONTHS.filter((month) =>
                 activities.some((a) => a.year === year && a.month === month)
@@ -57,30 +121,34 @@ export default function ArchiveIndexPage() {
               const yearTotal = activities.filter((a) => a.year === year).length;
 
               return (
-                <section key={year}>
-                  <div className="flex items-center justify-between mb-4">
+                <section key={year} aria-labelledby={`archive-year-${year}`}>
+                  <div className="mb-5 flex items-start justify-between gap-4 border-b border-[#d9e0df] pb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[#002147] text-[#D4AF37] flex items-center justify-center">
-                        <Calendar size={18} />
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#002147] text-[#D4AF37] shadow-[0_8px_16px_rgba(0,33,71,0.12)]">
+                        <Calendar size={18} strokeWidth={1.8} />
                       </div>
                       <div>
-                        <h2 className="text-xl font-bold text-[#002147]">
+                        <h2 id={`archive-year-${year}`} className="text-xl font-semibold tracking-[-0.02em] text-[#002147] sm:text-2xl">
                           Leo Year {year}
                           {year === currentYear && (
-                            <span className="ml-2 text-xs bg-[#D4AF37] text-[#002147] px-2 py-0.5 rounded-full font-semibold align-middle">
+                            <span className="ml-2 inline-flex translate-y-[-2px] items-center rounded-full bg-[#D4AF37] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#002147] align-middle">
                               Current
                             </span>
                           )}
                         </h2>
-                        <p className="text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-[#6b797d]">
                           {yearTotal} {yearTotal === 1 ? "activity" : "activities"} ·{" "}
                           {monthsWithData.length} {monthsWithData.length === 1 ? "month" : "months"}
                         </p>
                       </div>
                     </div>
+                    <div className="hidden items-center gap-1.5 pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#849094] sm:flex">
+                      <CalendarDays size={13} />
+                      Browse by month
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                     {monthsWithData.map((month) => {
                       const count = activities.filter(
                         (a) => a.year === year && a.month === month
@@ -90,31 +158,40 @@ export default function ArchiveIndexPage() {
                         <Link
                           key={month}
                           href={`/archive/${year.replace("/", "-")}/${month.toLowerCase()}`}
-                          className="group bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md hover:-translate-y-0.5 hover:border-[#D4AF37]/40 transition-all"
+                          aria-label={`Browse ${month} ${year}`}
+                          className="group relative overflow-hidden rounded-2xl border border-[#e0e5e3] bg-[#fffdf8] p-4 shadow-[0_6px_16px_rgba(0,33,71,0.045)] transition-all hover:-translate-y-0.5 hover:border-[#D4AF37]/70 hover:shadow-[0_12px_24px_rgba(0,33,71,0.1)] sm:p-5"
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wider">
+                          <div className="mb-4 flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b28f1f]">
                               {month.slice(0, 3)}
                             </span>
                             <ArrowRight
-                              size={14}
-                              className="text-gray-300 group-hover:text-[#D4AF37] group-hover:translate-x-0.5 transition-all"
+                              size={15}
+                              className="text-[#b5c0bf] transition-all group-hover:translate-x-0.5 group-hover:text-[#D4AF37]"
                             />
                           </div>
-                          <div className="font-bold text-[#002147] text-sm">{month}</div>
-                          <div className="text-xs text-gray-400 mt-1">
+                          <div className="text-sm font-semibold text-[#002147] sm:text-base">{month}</div>
+                          <div className="mt-1 text-xs text-[#748084]">
                             {count} {count === 1 ? "activity" : "activities"}
                           </div>
+                          <div className="absolute -bottom-5 -right-5 h-16 w-16 rounded-full border border-[#D4AF37]/15 transition-transform group-hover:scale-125" />
                         </Link>
                       );
                     })}
                   </div>
+                  <Link
+                    href={`/archive/${year.replace("/", "-")}/${monthsWithData[0].toLowerCase()}`}
+                    className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#597078] transition-colors hover:text-[#002147] sm:hidden"
+                  >
+                    Start with {monthsWithData[0]}
+                    <ChevronRight size={14} />
+                  </Link>
                 </section>
               );
             })}
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

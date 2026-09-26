@@ -40,7 +40,7 @@ export default function Footer() {
               <li><Link href="/" className="hover:text-[#D4AF37] transition-colors">Home</Link></li>
               <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">About Us</Link></li>
               <li><Link href="/members" className="hover:text-[#D4AF37] transition-colors">Members</Link></li>
-              <li><Link href="/archive/2026-27/january" className="hover:text-[#D4AF37] transition-colors">Activity Archive</Link></li>
+              <li><Link href="/archive" className="hover:text-[#D4AF37] transition-colors">Activity Archive</Link></li>
               <li><Link href="/admin/login" className="hover:text-[#D4AF37] transition-colors">Admin Portal</Link></li>
             </ul>
           </div>
