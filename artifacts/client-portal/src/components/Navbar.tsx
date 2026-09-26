@@ -29,8 +29,11 @@ export default function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
             <BrandMark />
-            <span className="font-bold text-lg tracking-wide group-hover:text-[#D4AF37] transition-colors">
+            <span className="hidden sm:inline font-bold text-lg tracking-wide group-hover:text-[#D4AF37] transition-colors whitespace-nowrap">
               Leo Club of KUSMS
+            </span>
+            <span className="sm:hidden font-bold text-base tracking-wide group-hover:text-[#D4AF37] transition-colors whitespace-nowrap">
+              Leo Club
             </span>
           </Link>
 

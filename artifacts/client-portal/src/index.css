@@ -254,9 +254,3 @@
   }
 }
 
-
-/* Anchor images to the top so faces are never cropped */
-.img-portrait {
-  object-fit: cover;
-  object-position: top center;
-}
