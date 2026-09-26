@@ -23,9 +23,19 @@ function yearsServed(member: Member): number {
   const left = member.leftLeoYear ?? "";
   if (!joined) return 0;
   const jIdx = LEO_YEARS.indexOf(joined);
-  const lIdx = left ? LEO_YEARS.indexOf(left) : LEO_YEARS.length - 1;
   if (jIdx === -1) return 1;
-  return Math.max(1, (lIdx === -1 ? LEO_YEARS.length - 1 : lIdx) - jIdx + 1);
+  if (left) {
+    const lIdx = LEO_YEARS.indexOf(left);
+    if (lIdx === -1) return 1;
+    return Math.max(1, lIdx - jIdx + 1);
+  }
+  // Still serving — count from joined to CURRENT Leo Year (not end of array)
+  const now = new Date();
+  const currentLeoStart = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  const currentLeoYear = `${currentLeoStart}/${String(currentLeoStart + 1).slice(-2)}`;
+  const cIdx = LEO_YEARS.indexOf(currentLeoYear);
+  if (cIdx === -1) return 1;
+  return Math.max(1, cIdx - jIdx + 1);
 }
 
 type ActivityOrder = "latest" | "oldest";
@@ -112,13 +122,21 @@ export default function MemberProfilePage({ memberId }: Props) {
   );
 
   const isActive = member.isActive !== false;
+
+  // ── Role by Leo Year ────────────────────────────────────────────────────────
+  // Priority: member.roleHistory (from Admin → Members) overrides BOD records.
+  // This prevents a generic BOD role like "President" from overwriting the
+  // member's specific role like "Chartered Vice President" for the same year.
   const roleByYear: Record<string, string> = {};
-  (member.roleHistory ?? []).forEach((role) => {
-    roleByYear[role.leoYear] = role.role;
-  });
+  // 1) BOD records fill first (lower priority)
   bodRecords.forEach((record) => {
     if (record.leoYear) roleByYear[record.leoYear] = record.role;
   });
+  // 2) roleHistory overrides (higher priority — what admin set for the member)
+  (member.roleHistory ?? []).forEach((role) => {
+    roleByYear[role.leoYear] = role.role;
+  });
+
   const joinedIndex = LEO_YEARS.indexOf(member.joinedLeoYear ?? "");
   const leftIndex = member.leftLeoYear ? LEO_YEARS.indexOf(member.leftLeoYear) : -1;
   const currentCalendarYear = new Date().getFullYear();
@@ -126,18 +144,22 @@ export default function MemberProfilePage({ memberId }: Props) {
     ? `${currentCalendarYear}/${String(currentCalendarYear + 1).slice(-2)}`
     : `${currentCalendarYear - 1}/${String(currentCalendarYear).slice(-2)}`;
   const currentIndex = Math.max(0, LEO_YEARS.indexOf(currentLeoYear));
+
   const sortedActivities = [...activities].sort((a, b) =>
     activityOrder === "latest" ? compareActivities(b, a) : compareActivities(a, b)
   );
+
   const roleYears = Object.keys(roleByYear).length > 0
     ? [...new Set([
       ...(joinedIndex >= 0 ? LEO_YEARS.slice(joinedIndex, (leftIndex >= 0 ? leftIndex : currentIndex) + 1) : []),
       ...Object.keys(roleByYear),
     ])].sort((a, b) => LEO_YEARS.indexOf(a) - LEO_YEARS.indexOf(b))
     : (joinedIndex >= 0 ? LEO_YEARS.slice(joinedIndex, (leftIndex >= 0 ? leftIndex : currentIndex) + 1) : []);
+
   roleYears.forEach((year) => {
     if (!roleByYear[year]) roleByYear[year] = "General Member";
   });
+
   const presidentRoles = bodRecords.filter((record) => record.role.trim().toLowerCase() === "president" && record.leoYear);
   const presidentialService = presidentRoles.map((record) => ({
     ...record,
@@ -145,10 +167,12 @@ export default function MemberProfilePage({ memberId }: Props) {
       .filter((activity) => activity.year === record.leoYear)
       .sort((a, b) => activityOrder === "latest" ? compareActivities(b, a) : compareActivities(a, b)),
   }));
+
   const profileActivityCount = new Set([
     ...activities.map((activity) => activity.id),
     ...presidentialService.flatMap((service) => service.activities.map((activity) => activity.id)),
   ]).size;
+
   // Group activities by year in chrono order
   const byYear: Record<string, Activity[]> = {};
   sortedActivities.forEach((a) => {
