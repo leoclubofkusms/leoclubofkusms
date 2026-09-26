@@ -4,26 +4,17 @@ type BrandMarkProps = {
 };
 
 const sizeClasses = {
-  sm: "w-8 h-8 text-xs",
-  md: "w-9 h-9 text-sm",
-  lg: "w-16 h-16 text-xl",
+  sm: "w-8 h-8",
+  md: "w-10 h-10",
+  lg: "w-16 h-16",
 } as const;
 
 export default function BrandMark({ size = "md", className = "" }: BrandMarkProps) {
   return (
-    <span
-      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D4AF37]/70 bg-[#001a38] p-1 font-black text-[#D4AF37] shadow-[0_4px_18px_rgba(0,0,0,.2)] ${sizeClasses[size]} ${className}`}
-      aria-label="Leo Club of KUSMS"
-    >
-      <img
-        src="/logo.png"
-        alt=""
-        className="h-full w-full rounded-lg object-contain"
-        onError={(event) => {
-          event.currentTarget.style.display = "none";
-        }}
-      />
-      <span aria-hidden="true">LEO</span>
-    </span>
+    <img
+      src="/logo.png"
+      alt="Leo Club of KUSMS"
+      className={`${sizeClasses[size]} shrink-0 object-contain rounded-full ${className}`}
+    />
   );
 }
