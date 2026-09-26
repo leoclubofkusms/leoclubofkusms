@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { getClubSettings, updateClubSettings } from "@/lib/firestore";
 import type { ClubSettings } from "@/lib/types";
@@ -23,6 +24,10 @@ export default function ClubSettingsPanel() {
     presidentWhatsApp: "",
     presidentWhatsAppMessage: "",
   });
+  const [presidentInfo, setPresidentInfo] = useState({
+    presidentSloganName: "",
+    presidentSloganRole: "",
+  });
   const [membershipChair, setMembershipChair] = useState({
     membershipChairWhatsApp: "",
     membershipChairWhatsAppMessage: "",
@@ -44,6 +49,10 @@ export default function ClubSettingsPanel() {
         setPresidentContact({
           presidentWhatsApp: s.presidentWhatsApp ?? "",
           presidentWhatsAppMessage: s.presidentWhatsAppMessage ?? "",
+        });
+        setPresidentInfo({
+          presidentSloganName: s.presidentSloganName ?? "",
+          presidentSloganRole: s.presidentSloganRole ?? "",
         });
         setMembershipChair({
           membershipChairWhatsApp: s.membershipChairWhatsApp ?? "",
@@ -128,9 +137,18 @@ export default function ClubSettingsPanel() {
     }
   }
 
-  async function handleSloganPhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    e.target.value = "";
-    setError("File uploads are disabled on the free Firebase plan. Save a public image URL instead.");
+  async function handleSavePresidentInfo() {
+    setSaving(true);
+    setError("");
+    try {
+      await updateClubSettings(presidentInfo);
+      setSettings((s) => ({ ...s, ...presidentInfo }));
+      showSuccess("President info saved!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save president info.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleSavePresidentContact() {
@@ -169,11 +187,6 @@ export default function ClubSettingsPanel() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed.");
     }
-  }
-
-  async function handleDonationQrUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    e.target.value = "";
-    setError("File uploads are disabled on the free Firebase plan. Paste a public QR image URL instead.");
   }
 
   async function handleSaveDonation() {
@@ -281,6 +294,45 @@ export default function ClubSettingsPanel() {
             </button>
           </div>
         </div>
+
+        {/* President name + role (for splash screen) */}
+        <div className="border-t border-gray-100 pt-5 mt-5">
+          <h5 className="text-sm font-semibold text-[#002147] flex items-center gap-2 mb-2">
+            <Image size={14} className="text-[#D4AF37]" /> President Info (for Splash Screen)
+          </h5>
+          <p className="text-xs text-gray-500 mb-3">
+            These appear below the President's photo on the splash screen.
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">President Name</label>
+              <input
+                type="text"
+                value={presidentInfo.presidentSloganName}
+                onChange={(e) => setPresidentInfo((p) => ({ ...p, presidentSloganName: e.target.value }))}
+                placeholder="e.g. Saurab Acharya"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">President Role</label>
+              <input
+                type="text"
+                value={presidentInfo.presidentSloganRole}
+                onChange={(e) => setPresidentInfo((p) => ({ ...p, presidentSloganRole: e.target.value }))}
+                placeholder="e.g. President 2025/26"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+              />
+            </div>
+            <button
+              onClick={handleSavePresidentInfo}
+              disabled={saving}
+              className="bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors disabled:opacity-60 flex items-center gap-2"
+            >
+              {saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <><Check size={14} /> Save President Info</>}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* President Contact */}
@@ -371,7 +423,7 @@ export default function ClubSettingsPanel() {
 
       {/* Donation / Support Section */}
       <div className="bg-[#F8FAFC] border border-gray-100 rounded-2xl p-6">
-        <h4 className="font-semibold text-[handle#002147] flex items-center gap-2 mb-1">
+        <h4 className="font-semibold text-[#002147] flex items-center gap-2 mb-1">
           <Heart size={16} className="text-[#D4AF37]" /> Donation / Support Section
         </h4>
         <p className="text-sm text-gray-500 mb-5">
@@ -445,7 +497,7 @@ export default function ClubSettingsPanel() {
         </div>
 
         <button
-          onClick={SaveDonation}
+          onClick={handleSaveDonation}
           disabled={donationSaving || uploading !== null}
           className="bg-[#002147] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors disabled:opacity-60 flex items-center gap-2"
         >

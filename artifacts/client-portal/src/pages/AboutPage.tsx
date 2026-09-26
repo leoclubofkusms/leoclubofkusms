@@ -23,8 +23,6 @@ export default function AboutPage() {
       getPastLeaders(),
       getClubSettings(),
     ]).then(([b, q, p, s]) => {
-      // Keep each public section independent: a missing/locked new collection
-      // must not hide existing BOD information.
       if (b.status === "fulfilled") setBod(b.value);
       if (q.status === "fulfilled") setQuotes(q.value);
       if (p.status === "fulfilled") setPastLeaders(p.value);
@@ -35,7 +33,6 @@ export default function AboutPage() {
   const president = bod[0] ?? null;
   const others = bod.slice(1);
 
-  // Sort past leaders by Leo Year
   const sortedPast = [...pastLeaders].sort((a, b) => {
     const ay = a.leoYear ?? ""; const by = b.leoYear ?? "";
     return ay.localeCompare(by) || (a.order - b.order);
@@ -141,9 +138,9 @@ export default function AboutPage() {
                   <div className="p-6 md:p-10 flex flex-col md:flex-row items-center md:items-start gap-8">
                     {president.photoUrl ? (
                       <img src={president.photoUrl} alt={president.name}
-                        className="w-full md:w-72 h-80 md:h-96 rounded-2xl object-cover border-4 border-[#D4AF37] shrink-0 shadow-2xl" />
+                        className="w-full md:w-72 aspect-[3/4] rounded-2xl object-cover object-top border-4 border-[#D4AF37] shrink-0 shadow-2xl" />
                     ) : (
-                      <div className="w-full md:w-72 h-80 md:h-96 rounded-2xl bg-[#D4AF37] flex items-center justify-center shrink-0 shadow-2xl">
+                      <div className="w-full md:w-72 aspect-[3/4] rounded-2xl bg-[#D4AF37] flex items-center justify-center shrink-0 shadow-2xl">
                         <span className="text-8xl font-bold text-[#002147]">{president.name.charAt(0)}</span>
                       </div>
                     )}
@@ -181,25 +178,24 @@ export default function AboutPage() {
                   </div>
                 </div>
               )}
+
               {others.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {others.map((m) => (
                     <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col sm:flex-row">
-                      {/* Photo — big, side by side */}
-                      <div className="sm:w-48 shrink-0">
+                      <div className="sm:w-48 shrink-0 bg-gray-50">
                         {m.photoUrl ? (
                           <img
                             src={m.photoUrl}
                             alt={m.name}
-                            className="w-full h-64 sm:h-full object-cover"
+                            className="w-full h-72 sm:h-full object-cover object-top"
                           />
                         ) : (
-                          <div className="w-full h-64 sm:h-full bg-[#002147] flex items-center justify-center">
+                          <div className="w-full h-72 sm:h-full bg-[#002147] flex items-center justify-center">
                             <span className="text-6xl font-bold text-[#D4AF37]">{m.name.charAt(0)}</span>
                           </div>
                         )}
                       </div>
-                      {/* Info */}
                       <div className="flex-1 p-5 flex flex-col justify-center">
                         <div className="font-bold text-[#002147] text-lg">{m.name}</div>
                         <div className="text-sm text-[#D4AF37] font-semibold mt-0.5">{m.role}</div>
@@ -238,13 +234,12 @@ export default function AboutPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {quotes.map((q) => (
                   <div key={q.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow relative overflow-hidden">
-                    {/* decorative quote mark */}
                     <Quote size={64} className="absolute -top-2 -right-2 text-[#D4AF37]/10 rotate-180" />
                     <div className="flex items-start gap-4">
                       {q.photoUrl ? (
-                        <img src={q.photoUrl} alt={q.name} className="w-14 h-14 rounded-xl object-cover border-2 border-[#D4AF37]/30 shrink-0" />
+                        <img src={q.photoUrl} alt={q.name} className="w-16 h-16 rounded-xl object-cover object-top border-2 border-[#D4AF37]/30 shrink-0" />
                       ) : (
-                        <div className="w-14 h-14 rounded-xl bg-[#002147] text-white flex items-center justify-center font-bold text-xl shrink-0">
+                        <div className="w-16 h-16 rounded-xl bg-[#002147] text-white flex items-center justify-center font-bold text-xl shrink-0">
                           {q.name.charAt(0)}
                         </div>
                       )}
@@ -285,24 +280,24 @@ export default function AboutPage() {
               <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="bg-white rounded-2xl border border-gray-100 h-14 animate-pulse" />)}</div>
             ) : (
               <div className="relative">
-                {/* Timeline line */}
                 <div className="absolute left-[2.35rem] top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#D4AF37] via-[#D4AF37]/40 to-transparent hidden sm:block" />
                 <div className="space-y-3">
                   {sortedPast.map((leader, idx) => (
                     <div key={leader.id} className="flex items-center gap-4 relative">
-                      {/* Timeline dot */}
                       <div className="hidden sm:flex w-[4.7rem] shrink-0 items-center justify-center">
                         <div className={`w-4 h-4 rounded-full border-2 z-10 ${idx === sortedPast.length - 1 ? "bg-[#D4AF37] border-[#D4AF37]" : "bg-white border-[#D4AF37]"}`} />
                       </div>
                       <div className="flex-1 bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col sm:flex-row">
-                        {leader.photoUrl ? (
-                          <img src={leader.photoUrl} alt={leader.name}
-                            className="w-full sm:w-40 h-56 sm:h-auto object-cover shrink-0" />
-                        ) : (
-                          <div className="w-full sm:w-40 h-56 sm:h-auto bg-[#D4AF37]/15 flex items-center justify-center shrink-0">
-                            <Crown size={40} className="text-[#D4AF37]" />
-                          </div>
-                        )}
+                        <div className="sm:w-48 shrink-0 bg-gray-50">
+                          {leader.photoUrl ? (
+                            <img src={leader.photoUrl} alt={leader.name}
+                              className="w-full h-72 sm:h-full object-cover object-top" />
+                          ) : (
+                            <div className="w-full h-72 sm:h-full bg-[#D4AF37]/15 flex items-center justify-center">
+                              <Crown size={40} className="text-[#D4AF37]" />
+                            </div>
+                          )}
+                        </div>
                         <div className="flex-1 p-5 flex flex-col justify-center">
                           <div className="font-bold text-[#002147] text-lg">{leader.name}</div>
                           <div className="flex items-center flex-wrap gap-2 mt-1">

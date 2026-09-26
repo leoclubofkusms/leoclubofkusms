@@ -109,6 +109,8 @@ export interface ClubSettings {
   charteredCertificateType?: "image" | "pdf";
   presidentSlogan?: string;
   presidentSloganPhotoUrl?: string;
+  presidentSloganName?: string;
+  presidentSloganRole?: string;
   presidentWhatsApp?: string;
   presidentWhatsAppMessage?: string;
   membershipChairWhatsApp?: string;

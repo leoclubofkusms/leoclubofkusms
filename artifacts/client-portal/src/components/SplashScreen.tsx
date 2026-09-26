@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getClubSettings } from "@/lib/firestore";
 import type { ClubSettings } from "@/lib/types";
 import { getCurrentLeoYear } from "@/lib/types";
+import { ArrowRight } from "lucide-react";
 
 export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
   const [exiting, setExiting] = useState(false);
@@ -13,14 +14,14 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => setEntered(true), 60);
+    const t = setTimeout(() => setEntered(true), 100);
     return () => clearTimeout(t);
   }, []);
 
   const handleEnter = () => {
     if (exiting) return;
     setExiting(true);
-    setTimeout(() => onEnter(), 800);
+    setTimeout(() => onEnter(), 850);
   };
 
   useEffect(() => {
@@ -35,232 +36,228 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exiting]);
 
+  const presidentName = (settings as any).presidentSloganName || "Our President";
+  const presidentRole = (settings as any).presidentSloganRole || "President";
+
   return (
     <div
       role="button"
       tabIndex={0}
       aria-label="Enter site"
       onClick={handleEnter}
-      className={`fixed inset-0 z-[9999] cursor-pointer overflow-y-auto transition-all duration-700 ${
-        exiting ? "opacity-0 scale-110 blur-sm" : "opacity-100 scale-100 blur-0"
+      className={`fixed inset-0 z-[9999] cursor-pointer overflow-y-auto transition-all duration-[850ms] ease-out ${
+        exiting ? "opacity-0 scale-[1.08] blur-md" : "opacity-100 scale-100 blur-0"
       }`}
       style={{
         background:
-          "radial-gradient(ellipse at top, #003575 0%, #002147 45%, #001228 100%)",
+          "radial-gradient(ellipse 80% 60% at 50% 15%, #1a3a6b 0%, #0d2247 35%, #06152e 70%, #020b18 100%)",
       }}
     >
-      {/* Keyframes */}
       <style>{`
+        @keyframes leo-drift {
+          0%   { transform: translateY(0) translateX(0); opacity: 0.3; }
+          50%  { opacity: 0.7; }
+          100% { transform: translateY(-110vh) translateX(30px); opacity: 0; }
+        }
+        @keyframes leo-logo-in {
+          0%   { opacity: 0; transform: scale(0.7) translateY(-40px); }
+          60%  { opacity: 1; transform: scale(1.06) translateY(4px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes leo-fade-up {
+          0%   { opacity: 0; transform: translateY(24px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes leo-glow {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50%      { opacity: 0.75; transform: scale(1.08); }
+        }
+        @keyframes leo-ring-rotate {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
         @keyframes leo-shimmer {
           0%   { background-position: 200% center; }
           100% { background-position: -200% center; }
         }
-        @keyframes leo-rotate-slow {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
+        @keyframes leo-cta-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.45), 0 0 30px 0 rgba(212,175,55,0.25); }
+          50%      { box-shadow: 0 0 0 12px rgba(212,175,55,0), 0 0 40px 6px rgba(212,175,55,0.35); }
         }
-        @keyframes leo-fade-up {
-          from { opacity: 0; transform: translateY(14px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes leo-logo-in {
-          from { opacity: 0; transform: scale(1.08); }
-          to   { opacity: 1; transform: scale(1); }
-        }
-        @keyframes leo-glow-pulse {
+        @keyframes leo-logo-halo {
           0%, 100% { opacity: 0.35; transform: scale(1); }
-          50%      { opacity: 0.6;  transform: scale(1.08); }
+          50%      { opacity: 0.65; transform: scale(1.15); }
         }
+        .leo-logo-in { animation: leo-logo-in 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+        .leo-fade-up { animation: leo-fade-up 1s cubic-bezier(0.22, 1, 0.36, 1) both; }
         .leo-shimmer-text {
-          animation: leo-shimmer 3.4s linear infinite;
+          background: linear-gradient(90deg, #D4AF37 0%, #f5e5a8 25%, #D4AF37 50%, #f5e5a8 75%, #D4AF37 100%);
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: leo-shimmer 4s linear infinite;
         }
-        .leo-logo-in { animation: leo-logo-in 1.1s ease-out both; }
-        .leo-fade-up { animation: leo-fade-up 0.9s ease-out both; }
-        .leo-glow-pulse { animation: leo-glow-pulse 3s ease-in-out infinite; }
+        .leo-cta-pulse { animation: leo-cta-pulse 2.6s ease-in-out infinite; }
       `}</style>
 
-      {/* Floating gold particles */}
+      {/* Slow-drifting gold particles */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {Array.from({ length: 30 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-[#D4AF37] animate-pulse"
-            style={{
-              width: `${2 + (i % 4)}px`,
-              height: `${2 + (i % 4)}px`,
-              top: `${(i * 37) % 100}%`,
-              left: `${(i * 53) % 100}%`,
-              opacity: 0.1 + (i % 6) * 0.09,
-              animationDuration: `${3 + (i % 4)}s`,
-              animationDelay: `${(i % 5) * 0.4}s`,
-            }}
-          />
-        ))}
+        {Array.from({ length: 22 }).map((_, i) => {
+          const size = 1.5 + (i % 4);
+          const left = (i * 47) % 100;
+          const delay = (i % 8) * 1.2;
+          const duration = 14 + (i % 6) * 2;
+          return (
+            <div
+              key={i}
+              className="absolute rounded-full bg-[#D4AF37]"
+              style={{
+                width: `${size}px`,
+                height: `${size}px`,
+                left: `${left}%`,
+                bottom: "-10px",
+                opacity: 0.3,
+                animation: `leo-drift ${duration}s linear ${delay}s infinite`,
+              }}
+            />
+          );
+        })}
       </div>
 
-      {/* Gold glow orbs */}
-      <div className="absolute top-0 right-0 w-[28rem] h-[28rem] bg-[#D4AF37]/10 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#D4AF37]/8 rounded-full translate-y-1/3 -translate-x-1/3 pointer-events-none" />
-
       {/* Top/bottom shimmer lines */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent animate-pulse" />
-      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent animate-pulse" />
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/70 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/70 to-transparent" />
 
-      {/* Content wrapper — centered & scrollable */}
-      <div className="relative min-h-full flex flex-col items-center justify-center py-12 px-6">
-        <div
-          className={`relative text-center max-w-2xl w-full transition-all duration-1000 ${
-            entered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-          }`}
-        >
+      {/* Content */}
+      <div className="relative min-h-full flex flex-col items-center justify-center px-6 py-14">
+        <div className="w-full max-w-lg flex flex-col items-center text-center">
+
           {/* ── LOGO ── */}
-          <div className="mb-12 relative inline-flex items-center justify-center leo-logo-in">
-            {/* Rotating gold sweep */}
+          <div className="relative mb-8 leo-logo-in">
+            {/* Halo glow */}
             <div
-              className="absolute rounded-full opacity-40"
-              style={{
-                width: "16rem",
-                height: "16rem",
-                background:
-                  "conic-gradient(from 0deg, transparent 0deg, #D4AF37 40deg, transparent 80deg, transparent 360deg)",
-                animation: "leo-rotate-slow 8s linear infinite",
-                filter: "blur(2px)",
-                maskImage:
-                  "radial-gradient(circle, transparent 60%, black 61%, black 100%)",
-                WebkitMaskImage:
-                  "radial-gradient(circle, transparent 60%, black 61%, black 100%)",
-              }}
+              className="absolute inset-0 rounded-full bg-[#D4AF37] blur-3xl"
+              style={{ animation: "leo-logo-halo 3.4s ease-in-out infinite" }}
             />
-            {/* Pulsing rings */}
-            <div
-              className="absolute rounded-full border border-[#D4AF37]/20 animate-ping"
-              style={{ width: "14rem", height: "14rem", animationDuration: "3s" }}
+            <img
+              src="/logo.png"
+              alt="Leo Club of KUSMS"
+              className="relative w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-[0_8px_30px_rgba(212,175,55,0.35)]"
             />
-            <div
-              className="absolute rounded-full border border-[#D4AF37]/30"
-              style={{ width: "13rem", height: "13rem" }}
-            />
-            <div
-              className="absolute rounded-full border border-[#D4AF37]/10"
-              style={{ width: "15rem", height: "15rem" }}
-            />
-            {/* Glow behind logo */}
-            <div
-              className="absolute rounded-full bg-[#D4AF37] blur-3xl opacity-40 leo-glow-pulse"
-              style={{ width: "10rem", height: "10rem" }}
-            />
-            {/* Logo */}
-            <div
-              className="rounded-full flex items-center justify-center relative z-10"
-              style={{
-                width: "11rem",
-                height: "11rem",
-                background:
-                  "radial-gradient(circle, rgba(212,175,55,0.35) 0%, rgba(212,175,55,0) 70%)",
-              }}
-            >
-              <img
-                src="/logo.png"
-                alt="Leo Club of KUSMS"
-                className="object-contain drop-shadow-2xl"
-                style={{ width: "10rem", height: "10rem" }}
-              />
-            </div>
           </div>
 
-          {/* ── WELCOME LINE ── */}
+          {/* ── WELCOME ── */}
           <div
-            className="text-[#D4AF37] text-[10px] md:text-xs font-bold tracking-[0.4em] mb-4 leo-fade-up"
-            style={{ animationDelay: "0.2s" }}
+            className="leo-fade-up text-[10px] md:text-[11px] font-medium tracking-[0.45em] text-white/50 uppercase mb-5"
+            style={{ animationDelay: "0.4s" }}
           >
-            WELCOME TO THE OFFICIAL PORTAL
+            Welcome to the Official Portal
           </div>
 
-          {/* ── TITLE ── */}
+          {/* ── CLUB NAME ── */}
           <h1
-            className="leo-shimmer-text leo-fade-up font-black text-4xl md:text-6xl leading-tight tracking-tight mb-1 bg-clip-text text-transparent"
-            style={{
-              animationDelay: "0.35s",
-              backgroundImage:
-                "linear-gradient(90deg, #ffffff 0%, #D4AF37 25%, #ffffff 50%, #D4AF37 75%, #ffffff 100%)",
-              backgroundSize: "200% auto",
-            }}
+            className="leo-fade-up leo-shimmer-text font-serif font-normal text-5xl md:text-6xl leading-[1.05] tracking-tight mb-1"
+            style={{ animationDelay: "0.55s" }}
           >
-            LEO CLUB
+            Leo Club
           </h1>
           <h2
-            className="leo-shimmer-text leo-fade-up font-black text-2xl md:text-4xl leading-tight tracking-tight mb-6 bg-clip-text text-transparent"
-            style={{
-              animationDelay: "0.5s",
-              backgroundImage:
-                "linear-gradient(90deg, #D4AF37 0%, #ffffff 25%, #D4AF37 50%, #ffffff 75%, #D4AF37 100%)",
-              backgroundSize: "200% auto",
-            }}
+            className="leo-fade-up font-serif font-normal text-2xl md:text-3xl text-white/90 tracking-wide mb-6"
+            style={{ animationDelay: "0.7s" }}
           >
-            OF KUSMS
+            of KUSMS
           </h2>
 
           {/* ── TAGLINE ── */}
           <div
-            className="text-white/60 text-[10px] md:text-xs tracking-[0.35em] uppercase mb-10 leo-fade-up"
-            style={{ animationDelay: "0.65s" }}
+            className="leo-fade-up flex items-center gap-3 text-[10px] md:text-[11px] tracking-[0.35em] text-white/40 uppercase mb-10"
+            style={{ animationDelay: "0.85s" }}
           >
+            <span className="w-6 h-px bg-[#D4AF37]/40" />
             Leadership · Experience · Opportunity
+            <span className="w-6 h-px bg-[#D4AF37]/40" />
           </div>
 
           {/* ── SLOGAN ── */}
           {settings.presidentSlogan && (
             <div
-              className="relative mb-10 leo-fade-up"
-              style={{ animationDelay: "0.8s" }}
+              className="leo-fade-up w-full mb-10"
+              style={{ animationDelay: "1s" }}
             >
-              <div className="text-[#D4AF37]/20 text-6xl md:text-8xl font-serif leading-none absolute -top-6 left-1/2 -translate-x-1/2 select-none">
-                &ldquo;
+              <div className="text-[10px] md:text-[11px] font-semibold tracking-[0.3em] text-[#D4AF37] uppercase mb-3">
+                President's Slogan · {getCurrentLeoYear()}
               </div>
-
-              <div className="relative pt-8 px-4">
-                <div className="text-[#D4AF37] text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase mb-5 flex items-center justify-center gap-3">
-                  <span className="w-8 h-px bg-[#D4AF37]/50" />
-                  President's Slogan · {getCurrentLeoYear()}
-                  <span className="w-8 h-px bg-[#D4AF37]/50" />
-                </div>
-
-                <p className="text-white italic font-bold text-xl md:text-3xl leading-snug mb-6 max-w-xl mx-auto drop-shadow-[0_0_18px_rgba(212,175,55,0.35)]">
-                  {settings.presidentSlogan}
+              <div className="relative">
+                <p className="font-serif italic text-2xl md:text-3xl text-white leading-snug px-3">
+                  "{settings.presidentSlogan}"
                 </p>
-
-                {settings.presidentSloganPhotoUrl && (
-                  <div className="relative inline-block">
-                    <div
-                      className="absolute inset-0 rounded-full bg-[#D4AF37] blur-xl opacity-50 animate-pulse"
-                      style={{ animationDuration: "2.5s" }}
-                    />
-                    <img
-                      src={settings.presidentSloganPhotoUrl}
-                      alt="President"
-                      className="relative rounded-full object-cover border-4 border-[#D4AF37] shadow-2xl"
-                      style={{ width: "9rem", height: "9rem" }}
-                    />
-                  </div>
-                )}
+                <div className="w-16 h-px bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent mx-auto mt-4" />
               </div>
             </div>
           )}
 
-          {!settings.presidentSlogan && (
-            <div className="w-24 h-px bg-[#D4AF37]/50 mx-auto mb-10" />
+          {/* ── PRESIDENT PHOTO ── */}
+          {settings.presidentSloganPhotoUrl && (
+            <div
+              className="leo-fade-up flex flex-col items-center mb-10"
+              style={{ animationDelay: "1.15s" }}
+            >
+              <div className="relative mb-4">
+                {/* Rotating gold ring */}
+                <div
+                  className="absolute -inset-2 rounded-full"
+                  style={{
+                    background:
+                      "conic-gradient(from 0deg, transparent 0deg, #D4AF37 90deg, transparent 180deg, #D4AF37 270deg, transparent 360deg)",
+                    animation: "leo-ring-rotate 6s linear infinite",
+                    filter: "blur(3px)",
+                    maskImage:
+                      "radial-gradient(circle, transparent 68%, black 70%, black 100%)",
+                    WebkitMaskImage:
+                      "radial-gradient(circle, transparent 68%, black 70%, black 100%)",
+                  }}
+                />
+                {/* Outer glow */}
+                <div className="absolute -inset-3 rounded-full bg-[#D4AF37] blur-2xl opacity-40" />
+                {/* Photo */}
+                <img
+                  src={settings.presidentSloganPhotoUrl}
+                  alt="President"
+                  className="relative w-40 h-40 md:w-48 md:h-48 rounded-full object-cover border-[3px] border-[#D4AF37] shadow-[0_0_50px_rgba(212,175,55,0.4)]"
+                />
+              </div>
+              <div className="text-white font-semibold text-base md:text-lg tracking-wide">
+                {presidentName}
+              </div>
+              <div className="text-[#D4AF37] text-xs tracking-[0.25em] uppercase mt-1">
+                {presidentRole}
+              </div>
+            </div>
           )}
 
-          {/* ── ENTER HINT ── */}
-          <div
-            className="text-white/70 text-xs md:text-sm animate-pulse leo-fade-up"
-            style={{ animationDelay: "1s" }}
+          {/* ── CTA BUTTON ── */}
+          <button
+            onClick={handleEnter}
+            className="leo-fade-up leo-cta-pulse group inline-flex items-center gap-2 bg-gradient-to-r from-[#D4AF37] via-[#e8c766] to-[#D4AF37] text-[#002147] font-bold px-8 py-3.5 rounded-full text-sm md:text-base tracking-wide transition-all hover:scale-[1.03] active:scale-95"
+            style={{ animationDelay: "1.35s" }}
           >
-            TAP OR PRESS{" "}
-            <span className="inline-block border border-[#D4AF37]/50 rounded px-2 py-0.5 text-[#D4AF37] mx-1 font-mono">
-              ENTER ↵
-            </span>{" "}
-            TO CONTINUE
+            Enter Website
+            <ArrowRight
+              size={16}
+              className="transition-transform group-hover:translate-x-1"
+            />
+          </button>
+
+          {/* ── HINT ── */}
+          <div
+            className="leo-fade-up mt-5 text-[10px] md:text-xs text-white/40 tracking-wider"
+            style={{ animationDelay: "1.5s" }}
+          >
+            or press{" "}
+            <span className="inline-block border border-white/25 rounded px-1.5 py-0.5 text-white/70 font-mono text-[10px]">
+              Enter ↵
+            </span>
           </div>
         </div>
       </div>
