@@ -30,8 +30,8 @@ function useCountUp(target: number, duration = 1800, start = false) {
 
 // ── Impact Stats Section ───────────────────────────────────────────────────────
 function ImpactStats({
-  memberCount, activityCount, participationCount,
-}: { memberCount: number; activityCount: number; participationCount: number }) {
+  memberCount, activityCount, awardCount,
+}: { memberCount: number; activityCount: number; awardCount: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -45,7 +45,7 @@ function ImpactStats({
 
   const m = useCountUp(memberCount, 1600, visible);
   const a = useCountUp(activityCount, 1800, visible);
-  const p = useCountUp(participationCount, 2000, visible);
+  const p = useCountUp(awardCount, 2000, visible);
 
   // Auto-computed years of service (since June 11, 2024)
   const yearsOfService = (() => {
@@ -65,7 +65,7 @@ function ImpactStats({
   const stats = [
     { label: "Active Members", value: m, icon: Users, suffix: "+" },
     { label: "Activities Completed", value: a, icon: Calendar, suffix: "" },
-    { label: "Service Participations", value: p, icon: Heart, suffix: "+" },
+    { label: "Awards Given", value: p, icon: Award, suffix: "" },
     { label: "Years of Service", value: y, icon: TrendingUp, suffix: "+" },
   ];
 
@@ -483,11 +483,25 @@ export default function HomePage() {
   const otherBod = bod.slice(1);
   const latest = activities.slice(0, 6);
 
+  // Auto-computed years of service (since June 11, 2024)
+  const yearsOfService = (() => {
+    const established = new Date("June 11, 2024");
+    const now = new Date();
+    let years = now.getFullYear() - established.getFullYear();
+    if (
+      now.getMonth() < established.getMonth() ||
+      (now.getMonth() === established.getMonth() && now.getDate() < established.getDate())
+    ) {
+      years -= 1;
+    }
+    return Math.max(1, years);
+  })();
+
   const stats = [
     { label: "Active Members", value: loading ? "—" : members.length, icon: Users },
     { label: "Activities Completed", value: loading ? "—" : activities.length, icon: Calendar },
-    { label: "Service Awards Given", value: loading ? "—" : activities.reduce((s, a) => s + a.participants.length, 0), icon: Award },
-    { label: "Years of Service", value: "3+", icon: Shield },
+    { label: "Awards Given", value: loading ? "—" : awards.length, icon: Award },
+    { label: "Years of Service", value: loading ? "—" : `${yearsOfService}+`, icon: Shield },
   ];
 
   return (
@@ -857,7 +871,7 @@ export default function HomePage() {
 
         {/* ── Impact Stats ── */}
         <ImpactStats memberCount={members.length} activityCount={activities.length}
-          participationCount={activities.reduce((s, a) => s + a.participants.length, 0)} />
+          awardCount={awards.length} />
 
         {/* ── Become a Leo ── */}
         <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
