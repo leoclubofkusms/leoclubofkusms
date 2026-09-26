@@ -17,25 +17,19 @@ export default function ArchiveIndexPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Sort years newest-first for display
   const yearsNewestFirst = [...LEO_YEARS].reverse();
-
-  // Only show years that have activities
   const yearsWithData = yearsNewestFirst.filter((year) =>
     activities.some((a) => a.year === year)
   );
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Hero */}
       <div className="bg-[#002147] text-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/40 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-4">
             <FolderOpen size={14} /> Activity Archive
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">
-            Our Service History
-          </h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">Our Service History</h1>
           <p className="text-white/70 max-w-2xl">
             Browse every activity we've carried out, organized by Leo Year and month.
             Click any month to see the full details.
@@ -43,7 +37,6 @@ export default function ArchiveIndexPage() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-400">
@@ -58,17 +51,13 @@ export default function ArchiveIndexPage() {
         ) : (
           <div className="space-y-10">
             {yearsWithData.map((year) => {
-              // Get months that have activities in this year
               const monthsWithData = MONTHS.filter((month) =>
                 activities.some((a) => a.year === year && a.month === month)
               );
-
-              // Total activity count for the year
               const yearTotal = activities.filter((a) => a.year === year).length;
 
               return (
                 <section key={year}>
-                  {/* Year header */}
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-[#002147] text-[#D4AF37] flex items-center justify-center">
@@ -91,7 +80,6 @@ export default function ArchiveIndexPage() {
                     </div>
                   </div>
 
-                  {/* Month grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {monthsWithData.map((month) => {
                       const count = activities.filter(

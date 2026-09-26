@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { LEO_YEARS, MONTHS } from "@/lib/types";
-import { Menu, X, ChevronDown, Search, Info, CalendarDays, Award, Clock, BookOpen, Trophy, BarChart3 } from "lucide-react";
+import { Menu, X, ChevronDown, Search, Info, CalendarDays, Award, Clock, BookOpen, Trophy, BarChart3, FolderOpen } from "lucide-react";
 import BrandMark from "@/components/BrandMark";
 
 export default function Navbar() {
@@ -88,6 +88,15 @@ export default function Navbar() {
               </button>
               {archiveOpen && (
                 <div className="absolute top-8 left-0 bg-white text-[#002147] rounded-lg shadow-xl border border-gray-100 w-48 py-2 z-50 max-h-80 overflow-y-auto">
+                  {/* Browse All Archive link */}
+                  <Link
+                    href="/archive"
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b border-gray-100 hover:bg-[#002147] hover:text-white transition-colors"
+                    onClick={() => setArchiveOpen(false)}
+                  >
+                    <FolderOpen size={13} /> Browse All Archive
+                  </Link>
+
                   {LEO_YEARS.map((y) => (
                     <div key={y} className="group/year">
                       <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
@@ -184,8 +193,17 @@ export default function Navbar() {
           <Link href="/stats" onClick={() => setOpen(false)} className="hover:text-[#D4AF37] font-medium flex items-center gap-1">
             <BarChart3 size={15} /> Stats
           </Link>
+
+          {/* Mobile archive section */}
           <div>
-            <div className="text-sm font-semibold text-white/60 mb-2">Archive</div>
+            <Link
+              href="/archive"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-3 py-2 rounded-lg text-sm font-semibold mb-3"
+            >
+              <FolderOpen size={14} /> Browse All Archive
+            </Link>
+            <div className="text-sm font-semibold text-white/60 mb-2">By Month</div>
             {LEO_YEARS.map((y) => (
               <div key={y} className="mb-2">
                 <div className="text-xs text-white/40 mb-1">{y}</div>
@@ -204,6 +222,7 @@ export default function Navbar() {
               </div>
             ))}
           </div>
+
           <form onSubmit={handleVerify} className="flex gap-2">
             <input
               type="text"

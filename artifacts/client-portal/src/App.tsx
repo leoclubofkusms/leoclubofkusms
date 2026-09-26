@@ -1,5 +1,6 @@
+import SplashScreen from "@/components/SplashScreen";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -9,6 +10,7 @@ import HomePage from "@/pages/HomePage";
 import AdminLoginPage from "@/pages/AdminLoginPage";
 import AdminDashboard from "@/pages/AdminDashboard";
 import ArchivePage from "@/pages/ArchivePage";
+import ArchiveIndexPage from "@/pages/ArchiveIndexPage";
 import VerifyPage from "@/pages/VerifyPage";
 import MembersPage from "@/pages/MembersPage";
 import AboutPage from "@/pages/AboutPage";
@@ -82,6 +84,9 @@ function SeoManager() {
     } else if (path === "/stats") {
       title = "Club Statistics | Leo Club of KUSMS";
       description = "View activity, membership, service, and achievement statistics for Leo Club of KUSMS.";
+    } else if (path === "/archive") {
+      title = "Activity Archive | Leo Club of KUSMS";
+      description = "Browse the monthly service activity archive of Leo Club of KUSMS.";
     } else if (segments[0] === "members" && segments[1]) {
       title = "Member Profile | Leo Club of KUSMS";
       description = "View this Leo Club of KUSMS member's service history, Leo Year roles, achievements, and verified activities.";
@@ -123,7 +128,6 @@ function SeoManager() {
 function AppLayout() {
   return (
     <Switch>
-      {/* Admin pages have their own layout (no shared Navbar/Footer) */}
       <Route path="/admin">
         {() => (
           <ProtectedRoute>
@@ -133,7 +137,6 @@ function AppLayout() {
       </Route>
       <Route path="/admin/login" component={AdminLoginPage} />
 
-      {/* All other pages share Navbar + Footer */}
       <Route>
         {() => (
           <div className="flex flex-col min-h-screen">
@@ -148,11 +151,12 @@ function AppLayout() {
                 <Route path="/wall-of-fame" component={WallOfFamePage} />
                 <Route path="/events" component={EventsPage} />
                 <Route path="/awards" component={AwardsPage} />
-                <Route path="/members/:memberId">
-                  {(params) => <MemberProfilePage memberId={params.memberId} />}
-                </Route>
+                <Route path="/archive" component={ArchiveIndexPage} />
                 <Route path="/archive/:year/:month">
                   {(params) => <ArchivePage year={params.year} month={params.month} />}
+                </Route>
+                <Route path="/members/:memberId">
+                  {(params) => <MemberProfilePage memberId={params.memberId} />}
                 </Route>
                 <Route path="/stats" component={StatsPage} />
                 <Route path="/activity/:id">
@@ -186,10 +190,15 @@ function AppLayout() {
 }
 
 function App() {
+  const [showSplash, setShowSplash] = useState(() => {
+    return sessionStorage.getItem("splashSeen") !== "1";
+  });
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          {showSplash && <SplashScreen onEnter={() => setShowSplash(false)} />}
           <SeoManager />
           <AppLayout />
         </WouterRouter>
