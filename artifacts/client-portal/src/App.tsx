@@ -190,9 +190,9 @@ function AppLayout() {
 }
 
 function App() {
-  const [showSplash, setShowSplash] = useState(() => {
-    return sessionStorage.getItem("splashSeen") !== "1";
-  });
+  // Always show splash on every page load
+  const [showSplash, setShowSplash] = useState(true);
+
 
   return (
     <QueryClientProvider client={queryClient}>

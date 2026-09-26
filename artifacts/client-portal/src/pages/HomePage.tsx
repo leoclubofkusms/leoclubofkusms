@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { getMembers, getActivities, getBodMembers, getFeaturedActivities, getClubSettings, getAwards, getAnnouncements } from "@/lib/firestore";
 import type { Member, Activity, BodMember, ClubSettings, Award as AwardType, Announcement } from "@/lib/types";
-import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ID, LEO_YEARS, MONTHS } from "@/lib/types";
+import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ID, LEO_YEARS, MONTHS, getCurrentLeoYear, getCurrentLeoYearLabel } from "@/lib/types";
 import {
   ArrowRight, Award, Users, Calendar, Shield, Mail, Phone,
   ChevronLeft, ChevronRight, Pin, Info, Facebook, ExternalLink,
@@ -46,7 +46,21 @@ function ImpactStats({
   const m = useCountUp(memberCount, 1600, visible);
   const a = useCountUp(activityCount, 1800, visible);
   const p = useCountUp(participationCount, 2000, visible);
-  const y = useCountUp(2, 1200, visible);
+
+  // Auto-computed years of service (since June 11, 2024)
+  const yearsOfService = (() => {
+    const established = new Date("June 11, 2024");
+    const now = new Date();
+    let years = now.getFullYear() - established.getFullYear();
+    if (
+      now.getMonth() < established.getMonth() ||
+      (now.getMonth() === established.getMonth() && now.getDate() < established.getDate())
+    ) {
+      years -= 1;
+    }
+    return Math.max(1, years);
+  })();
+  const y = useCountUp(yearsOfService, 1200, visible);
 
   const stats = [
     { label: "Active Members", value: m, icon: Users, suffix: "+" },
@@ -57,7 +71,6 @@ function ImpactStats({
 
   return (
     <section ref={ref} className="relative overflow-hidden rounded-3xl bg-[#002147] text-white py-12 px-6 shadow-xl">
-      {/* Background decoration */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#D4AF37]/5 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
       <div className="relative z-10">
@@ -86,11 +99,10 @@ function ImpactStats({
   );
 }
 
-// ── Leo Analytics (AI-powered insights) ───────────────────────────────────────
+// ── Leo Analytics ─────────────────────────────────────────────────────────────
 function LeoAnalytics({
   members, activities, awards,
 }: { members: Member[]; activities: Activity[]; awards: AwardType[] }) {
-  // Top contributor by activity count in the most recent Leo year with data
   const latestYearWithData = [...LEO_YEARS].reverse().find((y) =>
     activities.some((a) => a.year === y)
   ) ?? LEO_YEARS[0];
@@ -159,7 +171,6 @@ function LeoAnalytics({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Suggested Leo of the Month */}
         {suggestedLeoOfMonth && (
           <div className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-2xl p-6 text-white shadow-lg md:col-span-2">
             <div className="flex items-center gap-2 mb-4">
@@ -194,7 +205,7 @@ function LeoAnalytics({
               <div className="mt-5 pt-4 border-t border-white/10">
                 <div className="text-xs text-white/40 mb-3">Other top contributors this year</div>
                 <div className="flex gap-3 flex-wrap">
-                  {topThisYear.slice(1).map((m, i) => (
+                  {topThisYear.slice(1).map((m) => (
                     <Link key={m.memberId} href={`/members/${m.memberId}`}
                       className="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-xl px-3 py-2 transition-colors">
                       {m.photoUrl
@@ -211,7 +222,6 @@ function LeoAnalytics({
           </div>
         )}
 
-        {/* Top All-Time Contributors */}
         {topAllTime.length > 0 && (
           <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4">
@@ -243,7 +253,6 @@ function LeoAnalytics({
           </div>
         )}
 
-        {/* Club Stats Summary */}
         <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 size={16} className="text-[#002147]" />
@@ -305,7 +314,7 @@ function LeoAnalytics({
   );
 }
 
-// ── Animated Featured Activities Carousel ─────────────────────────────────────
+// ── Featured Activities Carousel ──────────────────────────────────────────────
 function FeaturedCarousel({ activities }: { activities: Activity[] }) {
   const [current, setCurrent] = useState(0);
   const [fading, setFading] = useState(false);
@@ -336,53 +345,32 @@ function FeaturedCarousel({ activities }: { activities: Activity[] }) {
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#002147] to-[#003575] text-white shadow-2xl">
-      {/* Background photo */}
       {act.photos[0] && (
         <div className="absolute inset-0">
-          <img
-            src={act.photos[0]}
-            alt={act.title}
-            className="w-full h-full object-cover opacity-20"
-          />
+          <img src={act.photos[0]} alt={act.title} className="w-full h-full object-cover opacity-20" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#002147]/95 via-[#002147]/80 to-transparent" />
         </div>
       )}
 
       <div className="relative px-8 py-10 md:px-12 md:py-14">
-        <div
-          className="transition-all duration-300"
-          style={{ opacity: fading ? 0 : 1, transform: fading ? "translateY(8px)" : "translateY(0)" }}
-        >
-          {/* Badge */}
+        <div className="transition-all duration-300" style={{ opacity: fading ? 0 : 1, transform: fading ? "translateY(8px)" : "translateY(0)" }}>
           <div className="inline-flex items-center gap-1.5 bg-[#D4AF37] text-[#002147] rounded-full px-3 py-1 text-xs font-bold mb-5">
             <Pin size={11} /> Featured Activity · {act.month} {act.year}
           </div>
-
-          {/* Content */}
-          <h3 className="text-2xl md:text-3xl font-bold mb-3 leading-tight max-w-xl">
-            {act.title}
-          </h3>
-          <p className="text-white/70 text-base leading-relaxed max-w-lg mb-6 line-clamp-3">
-            {act.description}
-          </p>
-
-          {/* Stats row */}
+          <h3 className="text-2xl md:text-3xl font-bold mb-3 leading-tight max-w-xl">{act.title}</h3>
+          <p className="text-white/70 text-base leading-relaxed max-w-lg mb-6 line-clamp-3">{act.description}</p>
           <div className="flex flex-wrap gap-4 mb-8">
             {act.participants.length > 0 && (
               <div className="flex items-center gap-2 text-sm text-white/60">
-                <Users size={15} className="text-[#D4AF37]" />
-                {act.participants.length} participants
+                <Users size={15} className="text-[#D4AF37]" /> {act.participants.length} participants
               </div>
             )}
             {act.photos.length > 0 && (
               <div className="flex items-center gap-2 text-sm text-white/60">
-                <Calendar size={15} className="text-[#D4AF37]" />
-                {act.photos.length} photos
+                <Calendar size={15} className="text-[#D4AF37]" /> {act.photos.length} photos
               </div>
             )}
           </div>
-
-          {/* Photo strip if multiple */}
           {act.photos.length > 1 && (
             <div className="flex gap-2 mb-8">
               {act.photos.slice(0, 4).map((p, i) => (
@@ -390,43 +378,25 @@ function FeaturedCarousel({ activities }: { activities: Activity[] }) {
               ))}
             </div>
           )}
-
-          <Link
-            href={`/archive/${act.year.replace("/", "-")}/${act.month.toLowerCase()}`}
-            className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#c9a432] transition-colors"
-          >
+          <Link href={`/archive/${act.year.replace("/", "-")}/${act.month.toLowerCase()}`}
+            className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#c9a432] transition-colors">
             View Full Activity <ArrowRight size={15} />
           </Link>
         </div>
       </div>
 
-      {/* Controls */}
       {activities.length > 1 && (
         <>
-          {/* Arrow buttons */}
-          <button
-            onClick={prev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-          >
+          <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
             <ChevronLeft size={18} />
           </button>
-          <button
-            onClick={next}
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-          >
+          <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
             <ChevronRight size={18} />
           </button>
-
-          {/* Dots */}
           <div className="absolute bottom-5 right-8 flex gap-2">
             {activities.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => goTo(i)}
-                className={`rounded-full transition-all duration-300 ${
-                  i === current ? "w-6 h-2 bg-[#D4AF37]" : "w-2 h-2 bg-white/30 hover:bg-white/60"
-                }`}
-              />
+              <button key={i} onClick={() => goTo(i)}
+                className={`rounded-full transition-all duration-300 ${i === current ? "w-6 h-2 bg-[#D4AF37]" : "w-2 h-2 bg-white/30 hover:bg-white/60"}`} />
             ))}
           </div>
         </>
@@ -439,59 +409,39 @@ function FeaturedCarousel({ activities }: { activities: Activity[] }) {
 function PresidentCard({ president, whatsappNumber, whatsappMessage }: { president: BodMember; whatsappNumber?: string; whatsappMessage?: string }) {
   return (
     <div className="bg-gradient-to-br from-[#002147] to-[#003575] text-white rounded-3xl overflow-hidden shadow-2xl">
-      <div className="p-8 md:p-10 flex flex-col md:flex-row items-center gap-8">
-        {/* Photo */}
+      <div className="p-6 md:p-10 flex flex-col md:flex-row items-center md:items-start gap-8">
         <div className="shrink-0 w-full md:w-auto">
           {president.photoUrl ? (
-            <img
-              src={president.photoUrl}
-              alt={president.name}
-              className="w-full md:w-72 h-80 md:h-96 rounded-2xl object-cover border-4 border-[#D4AF37] shadow-2xl"
-            />
+            <img src={president.photoUrl} alt={president.name}
+              className="w-full md:w-72 h-80 md:h-96 rounded-2xl object-cover border-4 border-[#D4AF37] shadow-2xl" />
           ) : (
             <div className="w-full md:w-72 h-80 md:h-96 rounded-2xl bg-[#D4AF37] flex items-center justify-center shadow-2xl">
               <span className="text-8xl font-bold text-[#002147]">{president.name.charAt(0)}</span>
             </div>
           )}
         </div>
-
-        {/* Info */}
         <div className="text-center md:text-left flex-1">
           <div className="inline-flex items-center gap-1.5 bg-[#D4AF37] text-[#002147] rounded-full px-3 py-1 text-xs font-bold mb-3">
             <Award size={12} /> {president.role}
           </div>
           <h3 className="text-3xl font-bold mb-1">{president.name}</h3>
-          {president.bio && (
-            <p className="text-white/70 text-base mb-4">{president.bio}</p>
-          )}
+          {president.bio && <p className="text-white/70 text-base mb-4">{president.bio}</p>}
           <div className="flex flex-wrap gap-3 justify-center md:justify-start">
             {president.email && (
-              <a
-                href={`mailto:${president.email}`}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-4 py-2 text-sm transition-colors"
-              >
-                <Mail size={14} className="text-[#D4AF37]" />
-                <span>{president.email}</span>
+              <a href={`mailto:${president.email}`} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-4 py-2 text-sm transition-colors">
+                <Mail size={14} className="text-[#D4AF37]" /> <span>{president.email}</span>
               </a>
             )}
             {president.phone && (
-              <a
-                href={`tel:${president.phone}`}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-4 py-2 text-sm transition-colors"
-              >
-                <Phone size={14} className="text-[#D4AF37]" />
-                <span>{president.phone}</span>
+              <a href={`tel:${president.phone}`} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-4 py-2 text-sm transition-colors">
+                <Phone size={14} className="text-[#D4AF37]" /> <span>{president.phone}</span>
               </a>
             )}
             {whatsappNumber && (
-              <a
-                href={`https://wa.me/${whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(whatsappMessage || "Hello President, I would like to connect with Leo Club of KUSMS.")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-[#25D366] hover:bg-[#20b858] rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
-              >
-                <MessageCircle size={14} />
-                <span>Contact President</span>
+              <a href={`https://wa.me/${whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(whatsappMessage || "Hello President, I would like to connect with Leo Club of KUSMS.")}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-[#25D366] hover:bg-[#20b858] rounded-xl px-4 py-2 text-sm font-semibold transition-colors">
+                <MessageCircle size={14} /> <span>Contact President</span>
               </a>
             )}
           </div>
@@ -523,21 +473,15 @@ export default function HomePage() {
       getAwards().catch(() => [] as AwardType[]),
       getAnnouncements().catch(() => [] as Announcement[]),
     ]).then(([m, a, f, b, s, aw, ann]) => {
-      setMembers(m);
-      setActivities(a);
-      setFeaturedActivities(f);
-      setBod(b);
-      setClubSettings(s);
-      setAwards(aw);
-      setAnnouncements(ann);
+      setMembers(m); setActivities(a); setFeaturedActivities(f); setBod(b);
+      setClubSettings(s); setAwards(aw); setAnnouncements(ann);
     }).finally(() => setLoading(false));
   }, []);
 
   const visibleAnnouncements = announcements.filter((a) => !dismissedAnnouncements.has(a.id));
-
   const president = bod[0] ?? null;
   const otherBod = bod.slice(1);
-  const latest = activities.slice(0, 6); // already sorted newest-first from Firestore
+  const latest = activities.slice(0, 6);
 
   const stats = [
     { label: "Active Members", value: loading ? "—" : members.length, icon: Users },
@@ -548,50 +492,29 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <div
-        className="relative bg-[#002147] text-white overflow-hidden"
-        style={{ minHeight: "520px" }}
-      >
-        {/* Decorative orbs */}
+      {/* ── Hero ── */}
+      <div className="relative bg-[#002147] text-white overflow-hidden" style={{ minHeight: "520px" }}>
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#D4AF37]/10 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full translate-y-1/3 -translate-x-1/3 pointer-events-none" />
-
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/40 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-6">
               <Award size={14} /> Lions Clubs International — District 325L · Club #{CLUB_ID}
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-2">
-              Leo Club of Kathmandu University
-            </h1>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#D4AF37] mb-4">
-              School of Medical Sciences (KUSMS)
-            </h2>
-            <p className="text-xl md:text-2xl text-white/80 font-light mb-2">
-              Leadership Through Service
-            </p>
+            <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-2">Leo Club of Kathmandu University</h1>
+            <h2 className="text-3xl md:text-4xl font-bold text-[#D4AF37] mb-4">School of Medical Sciences (KUSMS)</h2>
+            <p className="text-xl md:text-2xl text-white/80 font-light mb-2">Leadership Through Service</p>
             <p className="text-white/60 text-base mb-10 leading-relaxed max-w-xl">
-              A community of future medical professionals committed to service,
-              leadership, and making a meaningful impact in our community.
+              A community of future medical professionals committed to service, leadership, and making a meaningful impact in our community.
             </p>
             <div className="flex flex-wrap gap-4">
-              <a
-                href="#donate"
-                className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-6 py-3 rounded-xl font-bold hover:bg-[#c9a432] transition-colors shadow-lg"
-              >
+              <a href="#donate" className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-6 py-3 rounded-xl font-bold hover:bg-[#c9a432] transition-colors shadow-lg">
                 <Heart size={18} /> Donate Now
               </a>
-              <Link
-                href="/about"
-                className="inline-flex items-center gap-2 border border-white/30 text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/10 transition-colors"
-              >
+              <Link href="/about" className="inline-flex items-center gap-2 border border-white/30 text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/10 transition-colors">
                 About Us <ArrowRight size={18} />
               </Link>
-              <Link
-                href="/members"
-                className="inline-flex items-center gap-2 border border-white/30 text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/10 transition-colors"
-              >
+              <Link href="/members" className="inline-flex items-center gap-2 border border-white/30 text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/10 transition-colors">
                 <Users size={18} /> Our Members
               </Link>
             </div>
@@ -599,7 +522,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── Stats ────────────────────────────────────────────────────────────── */}
+      {/* ── Stats ── */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -619,9 +542,42 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* ── President's Slogan Banner (top of content) ── */}
+      {clubSettings.presidentSlogan && (
+        <div className="bg-gradient-to-r from-[#002147] via-[#003575] to-[#002147] border-y-2 border-[#D4AF37]/30">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+            <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
+              {clubSettings.presidentSloganPhotoUrl && (
+                <div className="relative shrink-0">
+                  <div className="absolute inset-0 rounded-full bg-[#D4AF37] blur-2xl opacity-50 scale-110" />
+                  <div className="absolute -inset-2 rounded-full border-2 border-[#D4AF37]/60" />
+                  <div className="absolute -inset-4 rounded-full border border-[#D4AF37]/25" />
+                  <img src={clubSettings.presidentSloganPhotoUrl} alt="President"
+                    className="relative w-40 h-40 md:w-56 md:h-56 lg:w-64 lg:h-64 rounded-full object-cover border-4 border-[#D4AF37] shadow-2xl" />
+                </div>
+              )}
+              <div className="flex-1 text-center md:text-left">
+                <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
+                  <Quote size={32} className="text-[#D4AF37] opacity-80" />
+                  <div className="text-[#D4AF37] text-xs md:text-sm font-bold uppercase tracking-[0.25em]">
+                    President's Slogan · {getCurrentLeoYearLabel()}
+                  </div>
+                </div>
+                <p className="text-white font-bold italic text-2xl md:text-4xl lg:text-5xl leading-tight md:leading-tight">
+                  "{clubSettings.presidentSlogan}"
+                </p>
+                <div className="mt-5 flex justify-center md:justify-start">
+                  <div className="w-24 h-1 bg-gradient-to-r from-[#D4AF37] to-transparent rounded-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
 
-        {/* ── Announcements Banner ──────────────────────────────────────────── */}
+        {/* ── Announcements ── */}
         {visibleAnnouncements.length > 0 && (
           <section>
             <div className="space-y-3">
@@ -644,11 +600,8 @@ export default function HomePage() {
                       </div>
                       {ann.body && <p className={`text-sm mt-0.5 ${typeColors.body}`}>{ann.body}</p>}
                     </div>
-                    <button
-                      onClick={() => setDismissedAnnouncements((prev) => new Set([...prev, ann.id]))}
-                      className={`shrink-0 p-1 rounded-lg hover:bg-black/10 transition-colors ${typeColors.icon}`}
-                      aria-label="Dismiss"
-                    >
+                    <button onClick={() => setDismissedAnnouncements((prev) => new Set([...prev, ann.id]))}
+                      className={`shrink-0 p-1 rounded-lg hover:bg-black/10 transition-colors ${typeColors.icon}`} aria-label="Dismiss">
                       <XIcon size={14} />
                     </button>
                   </div>
@@ -658,7 +611,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ── President & BOD ─────────────────────────────────────────────────── */}
+        {/* ── President & BOD ── */}
         {(president || bod.length > 0) && (
           <section>
             <div className="flex items-center justify-between mb-6">
@@ -671,31 +624,21 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* President */}
             {president && (
               <div className="mb-6">
-                 <PresidentCard
-                   president={president}
-                   whatsappNumber={clubSettings.presidentWhatsApp}
-                   whatsappMessage={clubSettings.presidentWhatsAppMessage}
-                 />
+                <PresidentCard president={president}
+                  whatsappNumber={clubSettings.presidentWhatsApp}
+                  whatsappMessage={clubSettings.presidentWhatsAppMessage} />
               </div>
             )}
 
-            {/* Other BOD */}
             {otherBod.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {otherBod.map((m) => (
-                  <div
-                    key={m.id}
-                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center hover:shadow-md hover:-translate-y-0.5 transition-all"
-                  >
+                  <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center hover:shadow-md hover:-translate-y-0.5 transition-all">
                     {m.photoUrl ? (
-                      <img
-                        src={m.photoUrl}
-                        alt={m.name}
-                        className="w-32 h-32 md:w-40 md:h-40 rounded-2xl object-cover border-2 border-[#D4AF37]/30 mx-auto mb-3"
-                      />
+                      <img src={m.photoUrl} alt={m.name}
+                        className="w-32 h-32 md:w-40 md:h-40 rounded-2xl object-cover border-2 border-[#D4AF37]/30 mx-auto mb-3" />
                     ) : (
                       <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-[#002147] text-white flex items-center justify-center font-bold text-4xl mx-auto mb-3">
                         {m.name.charAt(0)}
@@ -727,28 +670,10 @@ export default function HomePage() {
                 <p className="text-sm">BOD members will appear here once added from the admin dashboard.</p>
               </div>
             )}
-
-            {/* President's Slogan */}
-            {clubSettings.presidentSlogan && (
-              <div className="mt-6 bg-gradient-to-r from-[#002147] to-[#003575] rounded-2xl px-6 py-5 flex items-center gap-4">
-                {clubSettings.presidentSloganPhotoUrl && (
-                  <img
-                    src={clubSettings.presidentSloganPhotoUrl}
-                    alt="President's slogan"
-                    className="w-16 h-16 md:w-20 md:h-20 rounded-xl object-cover border-2 border-[#D4AF37]/50 shrink-0"
-                  />
-                )}
-                <Quote size={28} className="text-[#D4AF37] shrink-0 opacity-70" />
-                <div className="flex-1">
-                  <p className="text-white/60 text-xs uppercase tracking-widest mb-1">President's Slogan — Leo Year 2026/27</p>
-                  <p className="text-white font-bold text-xl md:text-2xl italic">{clubSettings.presidentSlogan}</p>
-                </div>
-              </div>
-            )}
           </section>
         )}
 
-        {/* ── Featured Activities Carousel ─────────────────────────────────────── */}
+        {/* ── Featured Activities ── */}
         {featuredActivities.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-6">
@@ -756,7 +681,7 @@ export default function HomePage() {
                 <h2 className="text-2xl font-bold text-[#002147]">Featured Activities</h2>
                 <p className="text-gray-500 text-sm mt-1">Highlights from our recent service work</p>
               </div>
-              <Link href={`/archive/2026-27/january`} className="text-sm text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1">
+              <Link href="/archive" className="text-sm text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1">
                 Full Archive <ArrowRight size={14} />
               </Link>
             </div>
@@ -764,18 +689,15 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ── Latest Activities Grid ───────────────────────────────────────────── */}
+        {/* ── Latest Activities ── */}
         <section>
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-[#002147]">Latest Activities</h2>
               <p className="text-gray-500 text-sm mt-1">Our most recent service work</p>
             </div>
-            <Link
-              href="/archive/2026-27/january"
-              className="text-sm text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1"
-            >
-              View Archive <ArrowRight size={14} />
+            <Link href="/archive" className="text-sm text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1">
+              View All <ArrowRight size={14} />
             </Link>
           </div>
 
@@ -797,17 +719,10 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {latest.map((act) => (
-                <Link
-                  key={act.id}
-                  href={`/archive/${act.year.replace("/", "-")}/${act.month.toLowerCase()}`}
-                  className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden block"
-                >
+                <Link key={act.id} href={`/archive/${act.year.replace("/", "-")}/${act.month.toLowerCase()}`}
+                  className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden block">
                   {act.photos[0] ? (
-                    <img
-                      src={act.photos[0]}
-                      alt={act.title}
-                      className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+                    <img src={act.photos[0]} alt={act.title} className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
                     <div className="w-full h-40 bg-gradient-to-br from-[#002147] to-[#003575] flex items-center justify-center">
                       <Calendar size={36} className="text-[#D4AF37]/60" />
@@ -820,9 +735,7 @@ export default function HomePage() {
                       </span>
                       {act.featured && <Pin size={11} className="text-[#D4AF37]" />}
                     </div>
-                    <h3 className="font-bold text-[#002147] group-hover:text-[#003575] transition-colors line-clamp-2">
-                      {act.title}
-                    </h3>
+                    <h3 className="font-bold text-[#002147] group-hover:text-[#003575] transition-colors line-clamp-2">{act.title}</h3>
                     <p className="text-sm text-gray-500 mt-1.5 line-clamp-2">{act.description}</p>
                     <div className="flex items-center gap-1 text-xs text-gray-400 mt-3">
                       <Users size={11} /> {act.participants.length} participants
@@ -834,7 +747,7 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* ── Awards & Recognition ────────────────────────────────────────── */}
+        {/* ── Awards ── */}
         {(awards.length > 0 || loading) && (
           <section>
             <div className="flex items-center justify-between mb-6">
@@ -882,7 +795,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ── Chartered Certificate ────────────────────────────────────────── */}
+        {/* ── Chartered Certificate ── */}
         <section>
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-[#002147]">Official Charter</h2>
@@ -890,7 +803,6 @@ export default function HomePage() {
           </div>
           <div className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-3xl overflow-hidden shadow-xl text-white">
             <div className="p-8 md:p-10 flex flex-col md:flex-row gap-8 items-center">
-              {/* Left: info */}
               <div className="flex-1 text-center md:text-left">
                 <div className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] rounded-full px-3 py-1 text-xs font-bold mb-4">
                   <Award size={12} /> Officially Chartered
@@ -902,12 +814,10 @@ export default function HomePage() {
                 </p>
                 <div className="flex flex-wrap gap-3 justify-center md:justify-start text-sm">
                   <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-                    <Calendar size={14} className="text-[#D4AF37]" />
-                    <span>Established {CLUB_ESTABLISHED}</span>
+                    <Calendar size={14} className="text-[#D4AF37]" /> <span>Established {CLUB_ESTABLISHED}</span>
                   </div>
                   <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-                    <Award size={14} className="text-[#D4AF37]" />
-                    <span>District 325L · Club #{CLUB_ID}</span>
+                    <Award size={14} className="text-[#D4AF37]" /> <span>District 325L · Club #{CLUB_ID}</span>
                   </div>
                 </div>
                 <div className="flex gap-3 mt-5 justify-center md:justify-start">
@@ -921,7 +831,6 @@ export default function HomePage() {
                   </a>
                 </div>
               </div>
-              {/* Right: certificate or placeholder */}
               <div className="shrink-0 flex flex-col items-center gap-3">
                 {clubSettings.charteredCertificateUrl ? (
                   <div className="bg-white rounded-2xl p-2 shadow-lg">
@@ -948,26 +857,20 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── Impact Stats ─────────────────────────────────────────────────── */}
-        <ImpactStats
-          memberCount={members.length}
-          activityCount={activities.length}
-          participationCount={activities.reduce((s, a) => s + a.participants.length, 0)}
-        />
+        {/* ── Impact Stats ── */}
+        <ImpactStats memberCount={members.length} activityCount={activities.length}
+          participationCount={activities.reduce((s, a) => s + a.participants.length, 0)} />
 
-        {/* ── Become a Leo / Join Us ───────────────────────────────────────── */}
+        {/* ── Become a Leo ── */}
         <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2">
-            {/* Left */}
             <div className="p-8 md:p-10">
               <div className="inline-flex items-center gap-2 bg-[#D4AF37]/10 text-[#002147] text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider mb-5">
                 <Heart size={12} className="text-[#D4AF37]" /> Become a Leo
               </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-[#002147] mb-3">
-                Join Our Community
-              </h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#002147] mb-3">Join Our Community</h2>
               <p className="text-gray-500 mb-6 leading-relaxed">
-                Are you a KUSMS student who wants to lead, serve, and grow? Leo Club of KUSMS welcomes passionate individuals who believe in making a difference through service.
+                Are you a KUSMS student or any student around us who wants to lead, serve, and grow? Leo Club of KUSMS welcomes passionate individuals who believe in making a difference through service.
               </p>
               <ul className="space-y-3 mb-8">
                 {[
@@ -990,19 +893,27 @@ export default function HomePage() {
                   className="flex items-center gap-2 bg-[#1877F2] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#1565c0] transition-colors">
                   <Facebook size={15} /> Message Us on Facebook
                 </a>
-                <a href={`https://wa.me/977?text=${encodeURIComponent("Hello! I'm interested in joining Leo Club of KUSMS.")}`}
+                <a
+                  href={
+                    clubSettings.membershipChairWhatsApp
+                      ? `https://wa.me/${clubSettings.membershipChairWhatsApp.replace(/\D/g, "")}?text=${encodeURIComponent(
+                          clubSettings.membershipChairWhatsAppMessage ||
+                            "Hello! I'm interested in joining Leo Club of KUSMS."
+                        )}`
+                      : CLUB_FACEBOOK
+                  }
                   target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2 bg-[#25D366] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#20b858] transition-colors">
                   <MessageCircle size={15} /> WhatsApp
                 </a>
               </div>
             </div>
-            {/* Right: Requirements card */}
             <div className="bg-[#002147] p-8 md:p-10 flex flex-col justify-center">
               <h3 className="text-white font-bold text-lg mb-6">Who Can Join?</h3>
               <div className="space-y-4">
                 {[
-                  { title: "KUSMS Student", desc: "Currently enrolled at Kathmandu University School of Medical Sciences" },
+                  { title: "KUSMS Student", desc: "Currently enrolled at Kathmandu University School of Medical Sciences can be General Members" },
+                  { title: "Any Student Around Us", desc: "Currently enrolled at any School can be Associate Members" },
                   { title: "Passionate About Service", desc: "Willing to commit time to community service and club activities" },
                   { title: "Age 12–30", desc: "Open to all Leo-eligible age groups as per Lions Club International" },
                 ].map(({ title, desc }) => (
@@ -1025,75 +936,72 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── Leo Analytics ──────────────────────────────────────────────────── */}
+        {/* ── Leo Analytics ── */}
         {!loading && members.length > 0 && activities.length > 0 && (
           <LeoAnalytics members={members} activities={activities} awards={awards} />
         )}
 
-        
-        {/* ── Donate Now ───────────────────────────────────────────────────── */}
+        {/* ── Donate Now ── */}
         <section id="donate" className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-2">
-              {/* Left */}
-              <div className="p-8 md:p-10 flex flex-col justify-center">
-                <div className="inline-flex items-center gap-2 bg-[#D4AF37]/10 text-[#002147] text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider mb-5 w-fit">
-                  <Heart size={12} className="text-[#D4AF37]" /> Support Us
-                </div>
-                <h2 className="text-2xl md:text-3xl font-bold text-[#002147] mb-3">Donate Now</h2>
-                <p className="text-gray-500 mb-6 leading-relaxed">
-                  Your contribution helps us carry out health camps, community outreach, and service activities. Every donation makes a difference.
-                </p>
-                {(clubSettings.donationBankName || clubSettings.donationAccountName || clubSettings.donationAccountNumber) && (
-                  <div className="bg-[#F8FAFC] border border-gray-200 rounded-2xl p-5 space-y-3">
-                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Bank Details</div>
-                    {clubSettings.donationBankName && (
-                      <div className="flex justify-between items-center gap-4">
-                        <span className="text-sm text-gray-500">Bank</span>
-                        <span className="text-sm font-semibold text-[#002147]">{clubSettings.donationBankName}</span>
-                      </div>
-                    )}
-                    {clubSettings.donationAccountName && (
-                      <div className="flex justify-between items-center gap-4">
-                        <span className="text-sm text-gray-500">Account Name</span>
-                        <span className="text-sm font-semibold text-[#002147]">{clubSettings.donationAccountName}</span>
-                      </div>
-                    )}
-                    {clubSettings.donationAccountNumber && (
-                      <div className="flex justify-between items-center gap-4 border-t border-gray-200 pt-3">
-                        <span className="text-sm text-gray-500">Account No.</span>
-                        <span className="text-base font-bold text-[#002147] font-mono tracking-wide">{clubSettings.donationAccountNumber}</span>
-                      </div>
-                    )}
-                    {clubSettings.donationNote && (
-                      <p className="text-xs text-gray-400 italic border-t border-gray-100 pt-3">{clubSettings.donationNote}</p>
-                    )}
-                  </div>
-                )}
+          <div className="grid grid-cols-1 md:grid-cols-2">
+            <div className="p-8 md:p-10 flex flex-col justify-center">
+              <div className="inline-flex items-center gap-2 bg-[#D4AF37]/10 text-[#002147] text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider mb-5 w-fit">
+                <Heart size={12} className="text-[#D4AF37]" /> Support Us
               </div>
-              {/* Right: QR code */}
-              <div className="bg-[#002147] p-8 md:p-10 flex flex-col items-center justify-center gap-5">
-                {clubSettings.donationQrUrl ? (
-                  <>
-                    <div className="bg-white rounded-2xl p-4 shadow-lg">
-                      <img src={clubSettings.donationQrUrl} alt="Donation QR Code"
-                        className="w-48 h-48 object-contain" />
+              <h2 className="text-2xl md:text-3xl font-bold text-[#002147] mb-3">Donate Now</h2>
+              <p className="text-gray-500 mb-6 leading-relaxed">
+                Your contribution helps us carry out health camps, community outreach, and service activities. Every donation makes a difference.
+              </p>
+              {(clubSettings.donationBankName || clubSettings.donationAccountName || clubSettings.donationAccountNumber) && (
+                <div className="bg-[#F8FAFC] border border-gray-200 rounded-2xl p-5 space-y-3">
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Bank Details</div>
+                  {clubSettings.donationBankName && (
+                    <div className="flex justify-between items-center gap-4">
+                      <span className="text-sm text-gray-500">Bank</span>
+                      <span className="text-sm font-semibold text-[#002147]">{clubSettings.donationBankName}</span>
                     </div>
-                    <p className="text-white/60 text-sm text-center">Scan the QR code to donate</p>
-                  </>
-                ) : (
-                  <div className="text-center text-white/40">
-                    <Heart size={48} className="mx-auto mb-3 opacity-40" />
-                    <p className="text-sm">QR code coming soon</p>
-                  </div>
-                )}
-                <a href={`mailto:leoclubofkusms@gmail.com?subject=Donation Inquiry`}
-                  className="flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#c9a432] transition-colors">
-                  <Mail size={15} /> Contact for Queries
-                </a>
-              </div>
+                  )}
+                  {clubSettings.donationAccountName && (
+                    <div className="flex justify-between items-center gap-4">
+                      <span className="text-sm text-gray-500">Account Name</span>
+                      <span className="text-sm font-semibold text-[#002147]">{clubSettings.donationAccountName}</span>
+                    </div>
+                  )}
+                  {clubSettings.donationAccountNumber && (
+                    <div className="flex justify-between items-center gap-4 border-t border-gray-200 pt-3">
+                      <span className="text-sm text-gray-500">Account No.</span>
+                      <span className="text-base font-bold text-[#002147] font-mono tracking-wide">{clubSettings.donationAccountNumber}</span>
+                    </div>
+                  )}
+                  {clubSettings.donationNote && (
+                    <p className="text-xs text-gray-400 italic border-t border-gray-100 pt-3">{clubSettings.donationNote}</p>
+                  )}
+                </div>
+              )}
             </div>
-          </section>
-        {/* ── CTA ─────────────────────────────────────────────────────────────── */}
+            <div className="bg-[#002147] p-8 md:p-10 flex flex-col items-center justify-center gap-5">
+              {clubSettings.donationQrUrl ? (
+                <>
+                  <div className="bg-white rounded-2xl p-4 shadow-lg">
+                    <img src={clubSettings.donationQrUrl} alt="Donation QR Code" className="w-48 h-48 object-contain" />
+                  </div>
+                  <p className="text-white/60 text-sm text-center">Scan the QR code to donate</p>
+                </>
+              ) : (
+                <div className="text-center text-white/40">
+                  <Heart size={48} className="mx-auto mb-3 opacity-40" />
+                  <p className="text-sm">QR code coming soon</p>
+                </div>
+              )}
+              <a href={`mailto:leoclubofkusms@gmail.com?subject=Donation Inquiry`}
+                className="flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#c9a432] transition-colors">
+                <Mail size={15} /> Contact for Queries
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* ── CTA ── */}
         <section className="bg-gradient-to-r from-[#002147] to-[#003575] text-white rounded-3xl p-10 text-center shadow-xl">
           <div className="w-14 h-14 rounded-2xl bg-[#D4AF37] flex items-center justify-center mx-auto mb-5">
             <Shield size={26} className="text-[#002147]" />

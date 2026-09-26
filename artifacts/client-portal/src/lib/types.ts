@@ -140,6 +140,8 @@ export interface PastLeader {
   photoUrl?: string;
   note?: string;
   order: number;
+  quote?: string;
+  audioUrl?: string;
 }
 
 export interface Award {
@@ -201,4 +203,24 @@ export const CLUB_TIKTOK = "https://www.tiktok.com/@leoclub.kusms";
 /** Sort key for chronological ordering of Leo year + month */
 export function activitySortKey(year: string, month: string): number {
   return LEO_YEARS.indexOf(year) * 12 + MONTHS.indexOf(month);
+}
+
+/**
+ * Returns the current Leo Year as a string, e.g. "2025/26".
+ * The Leo Year runs July 1 – June 30. Auto-updates every July 1st.
+ */
+export function getCurrentLeoYear(): string {
+  const now = new Date();
+  const calendarYear = now.getFullYear();
+  const month = now.getMonth();
+  const startYear = month >= 6 ? calendarYear : calendarYear - 1;
+  const endYear = (startYear + 1).toString().slice(-2);
+  return `${startYear}/${endYear}`;
+}
+
+/**
+ * Returns the label like "Leo Year 2025/26" for display.
+ */
+export function getCurrentLeoYearLabel(): string {
+  return `Leo Year ${getCurrentLeoYear()}`;
 }

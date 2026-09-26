@@ -13,6 +13,8 @@ export default function AboutPage() {
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [playingPastId, setPlayingPastId] = useState<string | null>(null);
+  const [pastAudio, setPastAudio] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     Promise.allSettled([
@@ -52,6 +54,22 @@ export default function AboutPage() {
       a.onended = () => { setPlayingId(null); setAudio(null); };
       setPlayingId(item.id);
       setAudio(a);
+    }
+  }
+
+  function togglePastLeaderAudio(item: PastLeader) {
+    if (!item.audioUrl) return;
+    if (playingPastId === item.id) {
+      pastAudio?.pause();
+      setPlayingPastId(null);
+      setPastAudio(null);
+    } else {
+      pastAudio?.pause();
+      const a = new Audio(item.audioUrl);
+      a.play();
+      a.onended = () => { setPlayingPastId(null); setPastAudio(null); };
+      setPlayingPastId(item.id);
+      setPastAudio(a);
     }
   }
 
@@ -120,13 +138,13 @@ export default function AboutPage() {
             <>
               {president && (
                 <div className="bg-gradient-to-r from-[#002147] to-[#003575] text-white rounded-3xl overflow-hidden shadow-xl mb-6">
-                  <div className="p-8 flex flex-col md:flex-row items-center gap-8">
+                  <div className="p-6 md:p-10 flex flex-col md:flex-row items-center md:items-start gap-8">
                     {president.photoUrl ? (
                       <img src={president.photoUrl} alt={president.name}
-                        className="w-32 h-32 rounded-2xl object-cover border-4 border-[#D4AF37] shrink-0" />
+                        className="w-full md:w-72 h-80 md:h-96 rounded-2xl object-cover border-4 border-[#D4AF37] shrink-0 shadow-2xl" />
                     ) : (
-                      <div className="w-32 h-32 rounded-2xl bg-[#D4AF37] flex items-center justify-center shrink-0">
-                        <span className="text-4xl font-bold text-[#002147]">{president.name.charAt(0)}</span>
+                      <div className="w-full md:w-72 h-80 md:h-96 rounded-2xl bg-[#D4AF37] flex items-center justify-center shrink-0 shadow-2xl">
+                        <span className="text-8xl font-bold text-[#002147]">{president.name.charAt(0)}</span>
                       </div>
                     )}
                     <div className="text-center md:text-left flex-1">
@@ -164,30 +182,40 @@ export default function AboutPage() {
                 </div>
               )}
               {others.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {others.map((m) => (
-                    <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow text-center">
-                      {m.photoUrl ? (
-                        <img src={m.photoUrl} alt={m.name} className="w-16 h-16 rounded-xl object-cover border-2 border-[#D4AF37]/30 mx-auto mb-3" />
-                      ) : (
-                        <div className="w-16 h-16 rounded-xl bg-[#002147] text-white flex items-center justify-center font-bold text-xl mx-auto mb-3">
-                          {m.name.charAt(0)}
+                    <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col sm:flex-row">
+                      {/* Photo — big, side by side */}
+                      <div className="sm:w-48 shrink-0">
+                        {m.photoUrl ? (
+                          <img
+                            src={m.photoUrl}
+                            alt={m.name}
+                            className="w-full h-64 sm:h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-64 sm:h-full bg-[#002147] flex items-center justify-center">
+                            <span className="text-6xl font-bold text-[#D4AF37]">{m.name.charAt(0)}</span>
+                          </div>
+                        )}
+                      </div>
+                      {/* Info */}
+                      <div className="flex-1 p-5 flex flex-col justify-center">
+                        <div className="font-bold text-[#002147] text-lg">{m.name}</div>
+                        <div className="text-sm text-[#D4AF37] font-semibold mt-0.5">{m.role}</div>
+                        {m.bio && <p className="text-sm text-gray-500 mt-3 leading-relaxed">{m.bio}</p>}
+                        <div className="flex gap-2 mt-4">
+                          {m.email && (
+                            <a href={`mailto:${m.email}`} className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors">
+                              <Mail size={15} />
+                            </a>
+                          )}
+                          {m.phone && (
+                            <a href={`tel:${m.phone}`} className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors">
+                              <Phone size={15} />
+                            </a>
+                          )}
                         </div>
-                      )}
-                      <div className="font-bold text-[#002147]">{m.name}</div>
-                      <div className="text-xs text-[#D4AF37] font-semibold mt-0.5 mb-2">{m.role}</div>
-                      {m.bio && <p className="text-xs text-gray-400 line-clamp-2 mb-3">{m.bio}</p>}
-                      <div className="flex justify-center gap-2">
-                        {m.email && (
-                          <a href={`mailto:${m.email}`} className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors">
-                            <Mail size={14} />
-                          </a>
-                        )}
-                        {m.phone && (
-                          <a href={`tel:${m.phone}`} className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors">
-                            <Phone size={14} />
-                          </a>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -266,21 +294,41 @@ export default function AboutPage() {
                       <div className="hidden sm:flex w-[4.7rem] shrink-0 items-center justify-center">
                         <div className={`w-4 h-4 rounded-full border-2 z-10 ${idx === sortedPast.length - 1 ? "bg-[#D4AF37] border-[#D4AF37]" : "bg-white border-[#D4AF37]"}`} />
                       </div>
-                      <div className="flex-1 bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-4 hover:shadow-sm transition-shadow">
+                      <div className="flex-1 bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col sm:flex-row">
                         {leader.photoUrl ? (
-                          <img src={leader.photoUrl} alt={leader.name} className="w-10 h-10 rounded-xl object-cover border border-gray-200 shrink-0" />
+                          <img src={leader.photoUrl} alt={leader.name}
+                            className="w-full sm:w-40 h-56 sm:h-auto object-cover shrink-0" />
                         ) : (
-                          <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 flex items-center justify-center shrink-0">
-                            <Crown size={16} className="text-[#D4AF37]" />
+                          <div className="w-full sm:w-40 h-56 sm:h-auto bg-[#D4AF37]/15 flex items-center justify-center shrink-0">
+                            <Crown size={40} className="text-[#D4AF37]" />
                           </div>
                         )}
-                        <div className="flex-1 min-w-0">
-                          <span className="font-bold text-[#002147]">{leader.name}</span>
-                          <div className="flex items-center flex-wrap gap-2 mt-0.5">
-                            <span className="text-xs text-[#D4AF37] font-medium">{leader.role}</span>
+                        <div className="flex-1 p-5 flex flex-col justify-center">
+                          <div className="font-bold text-[#002147] text-lg">{leader.name}</div>
+                          <div className="flex items-center flex-wrap gap-2 mt-1">
+                            <span className="text-sm text-[#D4AF37] font-semibold">{leader.role}</span>
                             <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{leader.leoYear}</span>
-                            {leader.note && <span className="text-xs text-gray-400 italic">{leader.note}</span>}
                           </div>
+                          {leader.note && <p className="text-sm text-gray-500 italic mt-3 leading-relaxed">{leader.note}</p>}
+                          {leader.quote && (
+                            <p className="text-gray-600 text-sm leading-relaxed italic mt-3">"{leader.quote}"</p>
+                          )}
+                          {leader.audioUrl && (
+                            <button
+                              onClick={() => togglePastLeaderAudio(leader)}
+                              className={`mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors w-fit ${
+                                playingPastId === leader.id
+                                  ? "bg-green-100 text-green-700 border border-green-200"
+                                  : "bg-[#002147]/8 text-[#002147] border border-[#002147]/10 hover:bg-[#002147]/15"
+                              }`}
+                            >
+                              {playingPastId === leader.id ? (
+                                <><Pause size={12} /> Stop audio</>
+                              ) : (
+                                <><Play size={12} /> Listen to voice</>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

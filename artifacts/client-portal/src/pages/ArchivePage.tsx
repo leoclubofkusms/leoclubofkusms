@@ -72,10 +72,10 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
       <div className="bg-[#002147] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <Link
-            href="/"
+            href="/archive"
             className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-6 transition-colors"
           >
-            <ArrowLeft size={16} /> Back to Home
+            <ArrowLeft size={16} /> Back to Archive
           </Link>
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
