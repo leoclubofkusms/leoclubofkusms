@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { getClubSettings, updateClubSettings } from "@/lib/firestore";
 import type { ClubSettings } from "@/lib/types";
@@ -43,30 +42,34 @@ export default function ClubSettingsPanel() {
   useEffect(() => {
     getClubSettings()
       .then((s) => {
-        setSettings(s);
-        setUrlInput(s.charteredCertificateUrl ?? "");
-        setSloganInput(s.presidentSlogan ?? "");
+        const safe = s ?? {};
+        setSettings(safe);
+        setUrlInput(safe.charteredCertificateUrl ?? "");
+        setSloganInput(safe.presidentSlogan ?? "");
         setPresidentContact({
-          presidentWhatsApp: s.presidentWhatsApp ?? "",
-          presidentWhatsAppMessage: s.presidentWhatsAppMessage ?? "",
+          presidentWhatsApp: safe.presidentWhatsApp ?? "",
+          presidentWhatsAppMessage: safe.presidentWhatsAppMessage ?? "",
         });
         setPresidentInfo({
-          presidentSloganName: s.presidentSloganName ?? "",
-          presidentSloganRole: s.presidentSloganRole ?? "",
+          presidentSloganName: safe.presidentSloganName ?? "",
+          presidentSloganRole: safe.presidentSloganRole ?? "",
         });
         setMembershipChair({
-          membershipChairWhatsApp: s.membershipChairWhatsApp ?? "",
-          membershipChairWhatsAppMessage: s.membershipChairWhatsAppMessage ?? "",
+          membershipChairWhatsApp: safe.membershipChairWhatsApp ?? "",
+          membershipChairWhatsAppMessage: safe.membershipChairWhatsAppMessage ?? "",
         });
         setDonationForm({
-          donationQrUrl: s.donationQrUrl ?? "",
-          donationBankName: s.donationBankName ?? "",
-          donationAccountName: s.donationAccountName ?? "",
-          donationAccountNumber: s.donationAccountNumber ?? "",
-          donationNote: s.donationNote ?? "",
+          donationQrUrl: safe.donationQrUrl ?? "",
+          donationBankName: safe.donationBankName ?? "",
+          donationAccountName: safe.donationAccountName ?? "",
+          donationAccountNumber: safe.donationAccountNumber ?? "",
+          donationNote: safe.donationNote ?? "",
         });
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error("Failed to load club settings:", err);
+        setError("Could not load settings. Please refresh.");
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -126,7 +129,7 @@ export default function ClubSettingsPanel() {
     try {
       await updateClubSettings({
         presidentSlogan: sloganInput.trim(),
-        presidentSloganPhotoUrl: settings.presidentSloganPhotoUrl,
+        presidentSloganPhotoUrl: settings.presidentSloganPhotoUrl ?? "",
       });
       setSettings((s) => ({ ...s, presidentSlogan: sloganInput.trim() }));
       showSuccess("Slogan saved!");

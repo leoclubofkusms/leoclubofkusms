@@ -133,34 +133,35 @@ export default function AboutPage() {
             </div>
           ) : (
             <>
+              {/* President — side by side on desktop, stacked on mobile */}
               {president && (
                 <div className="bg-gradient-to-r from-[#002147] to-[#003575] text-white rounded-3xl overflow-hidden shadow-xl mb-6">
-                  <div className="p-6 md:p-10 flex flex-col md:flex-row items-center md:items-start gap-8">
+                  <div className="p-5 md:p-10 flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
                     {president.photoUrl ? (
                       <img src={president.photoUrl} alt={president.name}
-                        className="w-full md:w-72 aspect-[3/4] rounded-2xl object-cover object-top border-4 border-[#D4AF37] shrink-0 shadow-2xl" />
+                        className="w-40 sm:w-56 md:w-64 aspect-[3/4] rounded-2xl object-cover object-top border-4 border-[#D4AF37] shrink-0 shadow-2xl" />
                     ) : (
-                      <div className="w-full md:w-72 aspect-[3/4] rounded-2xl bg-[#D4AF37] flex items-center justify-center shrink-0 shadow-2xl">
-                        <span className="text-8xl font-bold text-[#002147]">{president.name.charAt(0)}</span>
+                      <div className="w-40 sm:w-56 md:w-64 aspect-[3/4] rounded-2xl bg-[#D4AF37] flex items-center justify-center shrink-0 shadow-2xl">
+                        <span className="text-7xl md:text-8xl font-bold text-[#002147]">{president.name.charAt(0)}</span>
                       </div>
                     )}
-                    <div className="text-center md:text-left flex-1">
+                    <div className="text-center md:text-left flex-1 min-w-0">
                       <div className="inline-flex items-center gap-1.5 bg-[#D4AF37] text-[#002147] rounded-full px-3 py-1 text-xs font-bold mb-3">
                         <Award size={12} /> {president.role}
                       </div>
-                      <h3 className="text-3xl font-bold mb-1">{president.name}</h3>
-                      {president.bio && <p className="text-white/70 mb-4">{president.bio}</p>}
-                      <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+                      <h3 className="text-2xl md:text-3xl font-bold mb-1">{president.name}</h3>
+                      {president.bio && <p className="text-white/70 text-sm md:text-base mb-4">{president.bio}</p>}
+                      <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                         {president.email && (
                           <a href={`mailto:${president.email}`}
-                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-4 py-2 text-sm transition-colors">
-                            <Mail size={14} className="text-[#D4AF37]" /> {president.email}
+                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-3 py-2 text-xs md:text-sm transition-colors">
+                            <Mail size={13} className="text-[#D4AF37]" /> {president.email}
                           </a>
                         )}
                         {president.phone && (
                           <a href={`tel:${president.phone}`}
-                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-4 py-2 text-sm transition-colors">
-                            <Phone size={14} className="text-[#D4AF37]" /> {president.phone}
+                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-3 py-2 text-xs md:text-sm transition-colors">
+                            <Phone size={13} className="text-[#D4AF37]" /> {president.phone}
                           </a>
                         )}
                         {clubSettings.presidentWhatsApp && (
@@ -168,7 +169,7 @@ export default function AboutPage() {
                             href={`https://wa.me/${clubSettings.presidentWhatsApp.replace(/\D/g, "")}?text=${encodeURIComponent(clubSettings.presidentWhatsAppMessage || "Hello President, I would like to connect with Leo Club of KUSMS.")}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 bg-[#25D366] hover:bg-[#20b858] text-white rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+                            className="flex items-center gap-2 bg-[#25D366] hover:bg-[#20b858] text-white rounded-xl px-3 py-2 text-xs md:text-sm font-semibold transition-colors"
                           >
                             WhatsApp President
                           </a>
@@ -179,24 +180,25 @@ export default function AboutPage() {
                 </div>
               )}
 
+              {/* Other BOD members */}
               {others.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   {others.map((m) => (
-                    <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col sm:flex-row">
-                      <div className="sm:w-48 shrink-0 bg-gray-50">
+                    <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                      <div className="w-full h-60 bg-gray-50 shrink-0">
                         {m.photoUrl ? (
                           <img
                             src={m.photoUrl}
                             alt={m.name}
-                            className="w-full h-72 sm:h-full object-cover object-top"
+                            className="w-full h-full object-cover object-top"
                           />
                         ) : (
-                          <div className="w-full h-72 sm:h-full bg-[#002147] flex items-center justify-center">
+                          <div className="w-full h-full bg-[#002147] flex items-center justify-center">
                             <span className="text-6xl font-bold text-[#D4AF37]">{m.name.charAt(0)}</span>
                           </div>
                         )}
                       </div>
-                      <div className="flex-1 p-5 flex flex-col justify-center">
+                      <div className="p-5">
                         <div className="font-bold text-[#002147] text-lg">{m.name}</div>
                         <div className="text-sm text-[#D4AF37] font-semibold mt-0.5">{m.role}</div>
                         {m.bio && <p className="text-sm text-gray-500 mt-3 leading-relaxed">{m.bio}</p>}
@@ -233,13 +235,13 @@ export default function AboutPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {quotes.map((q) => (
-                  <div key={q.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow relative overflow-hidden">
-                    <Quote size={64} className="absolute -top-2 -right-2 text-[#D4AF37]/10 rotate-180" />
+                  <div key={q.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6 hover:shadow-md transition-shadow relative overflow-hidden">
+                    <Quote size={64} className="absolute -top-2 -right-2 text-[#D4AF37]/10 rotate-180 pointer-events-none" />
                     <div className="flex items-start gap-4">
                       {q.photoUrl ? (
-                        <img src={q.photoUrl} alt={q.name} className="w-16 h-16 rounded-xl object-cover object-top border-2 border-[#D4AF37]/30 shrink-0" />
+                        <img src={q.photoUrl} alt={q.name} className="w-14 h-14 md:w-16 md:h-16 rounded-xl object-cover object-top border-2 border-[#D4AF37]/30 shrink-0" />
                       ) : (
-                        <div className="w-16 h-16 rounded-xl bg-[#002147] text-white flex items-center justify-center font-bold text-xl shrink-0">
+                        <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-[#002147] text-white flex items-center justify-center font-bold text-xl shrink-0">
                           {q.name.charAt(0)}
                         </div>
                       )}
@@ -280,25 +282,27 @@ export default function AboutPage() {
               <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="bg-white rounded-2xl border border-gray-100 h-14 animate-pulse" />)}</div>
             ) : (
               <div className="relative">
+                {/* Timeline line — hidden on mobile to avoid layout squeeze */}
                 <div className="absolute left-[2.35rem] top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#D4AF37] via-[#D4AF37]/40 to-transparent hidden sm:block" />
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {sortedPast.map((leader, idx) => (
-                    <div key={leader.id} className="flex items-center gap-4 relative">
+                    <div key={leader.id} className="flex items-stretch gap-4 relative">
+                      {/* Timeline dot */}
                       <div className="hidden sm:flex w-[4.7rem] shrink-0 items-center justify-center">
                         <div className={`w-4 h-4 rounded-full border-2 z-10 ${idx === sortedPast.length - 1 ? "bg-[#D4AF37] border-[#D4AF37]" : "bg-white border-[#D4AF37]"}`} />
                       </div>
-                      <div className="flex-1 bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col sm:flex-row">
-                        <div className="sm:w-48 shrink-0 bg-gray-50">
+                      <div className="flex-1 bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                        <div className="w-full h-56 bg-gray-50 shrink-0">
                           {leader.photoUrl ? (
                             <img src={leader.photoUrl} alt={leader.name}
-                              className="w-full h-72 sm:h-full object-cover object-top" />
+                              className="w-full h-full object-cover object-top" />
                           ) : (
-                            <div className="w-full h-72 sm:h-full bg-[#D4AF37]/15 flex items-center justify-center">
+                            <div className="w-full h-full bg-[#D4AF37]/15 flex items-center justify-center">
                               <Crown size={40} className="text-[#D4AF37]" />
                             </div>
                           )}
                         </div>
-                        <div className="flex-1 p-5 flex flex-col justify-center">
+                        <div className="p-5">
                           <div className="font-bold text-[#002147] text-lg">{leader.name}</div>
                           <div className="flex items-center flex-wrap gap-2 mt-1">
                             <span className="text-sm text-[#D4AF37] font-semibold">{leader.role}</span>
@@ -311,7 +315,7 @@ export default function AboutPage() {
                           {leader.audioUrl && (
                             <button
                               onClick={() => togglePastLeaderAudio(leader)}
-                              className={`mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors w-fit ${
+                              className={`mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
                                 playingPastId === leader.id
                                   ? "bg-green-100 text-green-700 border border-green-200"
                                   : "bg-[#002147]/8 text-[#002147] border border-[#002147]/10 hover:bg-[#002147]/15"
