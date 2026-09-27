@@ -24,10 +24,12 @@ export default function ActivitiesManager() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ── View state ──
   const [selectedYear, setSelectedYear] = useState<string>(getCurrentLeoYear());
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
 
+  // ── Row actions state ──
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
@@ -59,6 +61,7 @@ export default function ActivitiesManager() {
     load();
   }, []);
 
+  // ── Derived data ──
   const activitiesInYear = activities.filter((a) => a.year === selectedYear);
   const countForMonth = (month: string) =>
     activitiesInYear.filter((a) => a.month === month).length;
@@ -69,6 +72,7 @@ export default function ActivitiesManager() {
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
     : [];
 
+  // ── Row actions ──
   async function handleDelete(act: Activity) {
     try {
       await deleteActivity(act.id, act.participants);
@@ -180,9 +184,9 @@ export default function ActivitiesManager() {
     ? `${window.location.origin}${import.meta.env.BASE_URL}activity/${qrActivity.id}`
     : "";
 
-  // ─────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
   // ADD ACTIVITY VIEW
-  // ─────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
   if (showAddForm && selectedMonth) {
     return (
       <div className="space-y-5">
@@ -214,12 +218,13 @@ export default function ActivitiesManager() {
     );
   }
 
-  // ─────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
   // MONTH DETAIL VIEW
-  // ─────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
   if (selectedMonth) {
     return (
       <div className="space-y-5">
+        {/* QR modal */}
         {qrActivity && (
           <div
             className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
@@ -267,6 +272,7 @@ export default function ActivitiesManager() {
           </div>
         )}
 
+        {/* Header */}
         <button
           onClick={() => {
             setSelectedMonth(null);
@@ -295,6 +301,7 @@ export default function ActivitiesManager() {
           </button>
         </div>
 
+        {/* Activity list */}
         {activitiesInSelectedMonth.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
             <FolderOpen size={40} className="mx-auto mb-3 text-gray-300" />
@@ -318,6 +325,7 @@ export default function ActivitiesManager() {
                 }`}
               >
                 {editId === act.id ? (
+                  /* ── Inline edit ── */
                   <div className="space-y-3">
                     <div>
                       <label className="text-xs text-gray-500 font-medium mb-1 block">Title</label>
@@ -459,6 +467,7 @@ export default function ActivitiesManager() {
                     </div>
                   </div>
                 ) : (
+                  /* ── Normal row ── */
                   <div className="flex items-start gap-4">
                     {act.photos[0] ? (
                       <img
@@ -564,9 +573,9 @@ export default function ActivitiesManager() {
     );
   }
 
-  // ─────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
   // YEAR → MONTH GRID VIEW
-  // ─────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -586,6 +595,7 @@ export default function ActivitiesManager() {
         </div>
       ) : (
         <>
+          {/* Year selector */}
           <div className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-4 flex-wrap">
             <label className="text-sm font-medium text-gray-600">Leo Year:</label>
             <select
@@ -607,6 +617,7 @@ export default function ActivitiesManager() {
             </span>
           </div>
 
+          {/* Month grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {MONTHS.map((month, idx) => {
               const count = countForMonth(month);

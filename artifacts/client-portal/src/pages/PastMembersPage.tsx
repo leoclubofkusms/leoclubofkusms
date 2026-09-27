@@ -21,9 +21,19 @@ function yearsServed(member: Member): number {
   const left = member.leftLeoYear ?? "";
   if (!joined) return 1;
   const jIdx = LEO_YEARS.indexOf(joined);
-  const lIdx = left ? LEO_YEARS.indexOf(left) : LEO_YEARS.length - 1;
   if (jIdx === -1) return 1;
-  return Math.max(1, (lIdx === -1 ? LEO_YEARS.length - 1 : lIdx) - jIdx + 1);
+  if (left) {
+    const lIdx = LEO_YEARS.indexOf(left);
+    if (lIdx === -1) return 1;
+    return Math.max(1, lIdx - jIdx + 1);
+  }
+  // Still serving — count from joined to CURRENT Leo Year
+  const now = new Date();
+  const currentLeoStart = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  const currentLeoYear = `${currentLeoStart}/${String(currentLeoStart + 1).slice(-2)}`;
+  const cIdx = LEO_YEARS.indexOf(currentLeoYear);
+  if (cIdx === -1) return 1;
+  return Math.max(1, cIdx - jIdx + 1);
 }
 
 export default function PastMembersPage() {
@@ -64,7 +74,14 @@ export default function PastMembersPage() {
   });
   const sortedGroups = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
-  const totalActivities = members.reduce((s, m) => s + (m.activities?.length ?? 0), 0);
+  // Count UNIQUE activity IDs across all past members (not per-member sums)
+  const uniqueActivityIds = new Set<string>();
+  members.forEach((m) => {
+    (m.activities ?? []).forEach((a) => {
+      if (a.activityId) uniqueActivityIds.add(a.activityId);
+    });
+  });
+  const totalActivities = uniqueActivityIds.size;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
