@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { getActivitiesByMonth, getMembers } from "@/lib/firestore";
 import type { Activity, Member } from "@/lib/types";
-import { MONTHS, LEO_YEARS } from "@/lib/types";
+import {
+  LEO_YEARS,
+  getMonthsInLeoOrder,
+  leoMonthToCalendarYear,
+} from "@/lib/types";
 import {
   ArrowLeft,
   ArrowRight,
@@ -31,6 +35,9 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
   const normalizedMonth = month.toLowerCase();
   const displayMonth = normalizedMonth.charAt(0).toUpperCase() + normalizedMonth.slice(1);
 
+  // Actual calendar year for this month in this Leo Year
+  const displayCalendarYear = leoMonthToCalendarYear(displayYear, displayMonth);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -54,26 +61,31 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
     load();
   }, [displayYear, displayMonth, reloadToken]);
 
-  // Build prev/next navigation
-  const monthIdx = MONTHS.findIndex((m) => m.toLowerCase() === normalizedMonth);
+  // Leo Year order (July → June)
+  const monthsInLeoOrder = getMonthsInLeoOrder();
+
+  // Build prev/next navigation using Leo Year order
+  const monthIdx = monthsInLeoOrder.findIndex((m) => m.toLowerCase() === normalizedMonth);
   const yearIdx = LEO_YEARS.findIndex((y) => y.replace("/", "-") === year);
 
   function prevLink() {
     if (monthIdx > 0) {
-      return `/archive/${year}/${MONTHS[monthIdx - 1].toLowerCase()}`;
+      return `/archive/${year}/${monthsInLeoOrder[monthIdx - 1].toLowerCase()}`;
     } else if (yearIdx > 0) {
+      // Go to previous Leo Year's last month (June)
       const prevYear = LEO_YEARS[yearIdx - 1].replace("/", "-");
-      return `/archive/${prevYear}/${MONTHS[11].toLowerCase()}`;
+      return `/archive/${prevYear}/${monthsInLeoOrder[monthsInLeoOrder.length - 1].toLowerCase()}`;
     }
     return null;
   }
 
   function nextLink() {
-    if (monthIdx < MONTHS.length - 1) {
-      return `/archive/${year}/${MONTHS[monthIdx + 1].toLowerCase()}`;
+    if (monthIdx < monthsInLeoOrder.length - 1) {
+      return `/archive/${year}/${monthsInLeoOrder[monthIdx + 1].toLowerCase()}`;
     } else if (yearIdx < LEO_YEARS.length - 1) {
+      // Go to next Leo Year's first month (July)
       const nextYear = LEO_YEARS[yearIdx + 1].replace("/", "-");
-      return `/archive/${nextYear}/${MONTHS[0].toLowerCase()}`;
+      return `/archive/${nextYear}/${monthsInLeoOrder[0].toLowerCase()}`;
     }
     return null;
   }
@@ -115,9 +127,9 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
             <div className="max-w-2xl">
               <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
                 <Calendar size={14} />
-                <span>Leo Year {displayYear}</span>
+                <span>{displayMonth} {displayCalendarYear} · Leo Year {displayYear}</span>
               </div>
-              <h1 className="text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">{displayMonth}</h1>
+              <h1 className="text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">{displayMonth} {displayCalendarYear}</h1>
               <p className="mt-4 text-sm text-white/60 sm:text-base">
                 A month in the club’s record ·{" "}
                 <span className="text-white/85">
@@ -177,8 +189,9 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
               </Link>
             ))}
           </div>
+          {/* Months in Leo Year order: July → June */}
           <div className="flex gap-1 overflow-x-auto py-2.5 scrollbar-hide">
-            {MONTHS.map((m) => {
+            {monthsInLeoOrder.map((m) => {
               const isActive = m.toLowerCase() === normalizedMonth;
               return (
                 <Link
@@ -218,7 +231,7 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
             </div>
             <h2 className="text-lg font-semibold text-[#002147]">This record could not be opened</h2>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#697477]">
-              There was a problem loading the activities for {displayMonth} {displayYear}.
+              There was a problem loading the activities for {displayMonth} {displayCalendarYear}.
               Please try again.
             </p>
             <button
@@ -237,7 +250,7 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
             </div>
             <h3 className="text-xl font-semibold tracking-[-0.02em] text-[#002147]">No activities this month</h3>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#758184]">
-              No activities were recorded for {displayMonth} {displayYear}.
+              No activities were recorded for {displayMonth} {displayCalendarYear}.
             </p>
             <Link
               href="/archive"
@@ -263,7 +276,7 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                     <div className="min-w-0 flex-1">
                       <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7b898a]">
                         <span className="inline-flex items-center gap-1.5 text-[#a07f1c]">
-                          <Calendar size={12} /> {displayMonth}
+                          <Calendar size={12} /> {displayMonth} {displayCalendarYear}
                         </span>
                         <span className="h-1 w-1 rounded-full bg-[#cbd3d0]" />
                         <span>Leo Year {displayYear}</span>
@@ -354,9 +367,9 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                               <div className="truncate text-sm font-semibold text-[#002147] transition-colors group-hover:text-[#8d7014]">
                                 {getMemberName(p.memberId)}
                               </div>
-                            {p.awardTitle && (
+                              {p.awardTitle && (
                                 <div className="mt-0.5 truncate text-xs text-[#7e8a8b]">{p.awardTitle}</div>
-                            )}
+                              )}
                             </div>
                           </div>
                           <ChevronRight size={15} className="shrink-0 text-[#b6c0be] transition-colors group-hover:text-[#D4AF37]" />

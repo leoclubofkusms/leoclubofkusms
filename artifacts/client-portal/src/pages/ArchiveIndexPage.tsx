@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { getActivities } from "@/lib/firestore";
 import type { Activity } from "@/lib/types";
-import { LEO_YEARS, MONTHS, getCurrentLeoYear } from "@/lib/types";
+import {
+  LEO_YEARS,
+  getCurrentLeoYear,
+  getMonthsInLeoOrder,
+  leoMonthToCalendarYear,
+} from "@/lib/types";
 import {
   ArrowRight,
   Calendar,
@@ -115,7 +120,8 @@ export default function ArchiveIndexPage() {
         ) : (
           <div className="space-y-14">
             {yearsWithData.map((year) => {
-              const monthsWithData = MONTHS.filter((month) =>
+              // Months in Leo Year order (July → June)
+              const monthsWithData = getMonthsInLeoOrder().filter((month) =>
                 activities.some((a) => a.year === year && a.month === month)
               );
               const yearTotal = activities.filter((a) => a.year === year).length;
@@ -153,24 +159,27 @@ export default function ArchiveIndexPage() {
                       const count = activities.filter(
                         (a) => a.year === year && a.month === month
                       ).length;
+                      const calendarYear = leoMonthToCalendarYear(year, month);
 
                       return (
                         <Link
                           key={month}
                           href={`/archive/${year.replace("/", "-")}/${month.toLowerCase()}`}
-                          aria-label={`Browse ${month} ${year}`}
+                          aria-label={`Browse ${month} ${calendarYear}`}
                           className="group relative overflow-hidden rounded-2xl border border-[#e0e5e3] bg-[#fffdf8] p-4 shadow-[0_6px_16px_rgba(0,33,71,0.045)] transition-all hover:-translate-y-0.5 hover:border-[#D4AF37]/70 hover:shadow-[0_12px_24px_rgba(0,33,71,0.1)] sm:p-5"
                         >
                           <div className="mb-4 flex items-center justify-between">
                             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b28f1f]">
-                              {month.slice(0, 3)}
+                              {month.slice(0, 3)} {calendarYear}
                             </span>
                             <ArrowRight
                               size={15}
                               className="text-[#b5c0bf] transition-all group-hover:translate-x-0.5 group-hover:text-[#D4AF37]"
                             />
                           </div>
-                          <div className="text-sm font-semibold text-[#002147] sm:text-base">{month}</div>
+                          <div className="text-sm font-semibold text-[#002147] sm:text-base">
+                            {month} {calendarYear}
+                          </div>
                           <div className="mt-1 text-xs text-[#748084]">
                             {count} {count === 1 ? "activity" : "activities"}
                           </div>

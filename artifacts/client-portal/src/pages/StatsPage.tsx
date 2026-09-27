@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getMembers, getActivities } from "@/lib/firestore";
 import type { Member, Activity } from "@/lib/types";
-import { FACULTIES, LEO_YEARS, MONTHS } from "@/lib/types";
+import { FACULTIES, LEO_YEARS, MONTHS, getMonthsInLeoOrder } from "@/lib/types";
 import { Users, Calendar, Award, BarChart3, TrendingUp, Star } from "lucide-react";
 
 function Bar({ pct, color = "#002147" }: { pct: number; color?: string }) {
@@ -60,20 +60,25 @@ export default function StatsPage() {
     .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
     .map(([label, count]) => ({ label, count }));
 
-  // ── Activities per Leo year ─────────────────────────────────────────────────
+  // ── Activities per Leo year ────────────────────────────────────────────────
   const actsByYear: Record<string, number> = {};
   activities.forEach((a) => { actsByYear[a.year] = (actsByYear[a.year] ?? 0) + 1; });
   const maxActYear = Math.max(1, ...Object.values(actsByYear));
   const actYearRows = LEO_YEARS.map((y) => ({ label: y, count: actsByYear[y] ?? 0 }))
     .filter((r) => r.count > 0);
 
-  // ── Busiest months ─────────────────────────────────────────────────────────
+  // ── Busiest months (tie-break using Leo Year order: July → June) ───────────
   const actsByMonth: Record<string, number> = {};
   activities.forEach((a) => { actsByMonth[a.month] = (actsByMonth[a.month] ?? 0) + 1; });
   const maxActMonth = Math.max(1, ...Object.values(actsByMonth));
-  const monthRows = MONTHS.map((m) => ({ label: m, count: actsByMonth[m] ?? 0 }))
+  const leoMonthOrder = getMonthsInLeoOrder();
+  const monthRows = leoMonthOrder
+    .map((m) => ({ label: m, count: actsByMonth[m] ?? 0 }))
     .filter((r) => r.count > 0)
-    .sort((a, b) => b.count - a.count)
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return leoMonthOrder.indexOf(a.label) - leoMonthOrder.indexOf(b.label);
+    })
     .slice(0, 6);
 
   // ── Top contributors ───────────────────────────────────────────────────────

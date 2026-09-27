@@ -3,10 +3,11 @@ import {
   getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement, getMembers,
 } from "@/lib/firestore";
 import type { Announcement, Member } from "@/lib/types";
-import { ADMIN_EMAIL } from "@/lib/types";
+import { ADMIN_EMAIL, isAnnouncementExpired } from "@/lib/types";
 import {
   Plus, Pencil, Trash2, Pin, PinOff, Check, X, Loader2,
-  Megaphone, Info, Zap, CalendarDays, Mail, Users,
+  Megaphone, Info, Zap, CalendarDays, Mail, Users, Image as ImageIcon,
+  Link as LinkIcon, Clock, Copy,
 } from "lucide-react";
 
 const TYPE_META = {
@@ -21,6 +22,10 @@ const EMPTY: Omit<Announcement, "id"> = {
   createdAt: new Date().toISOString(),
   pinned: false,
   type: "info",
+  imageUrl: "",
+  linkLabel: "",
+  linkUrl: "",
+  expiresAt: "",
 };
 
 export default function AnnouncementsManager() {
@@ -32,8 +37,8 @@ export default function AnnouncementsManager() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<Announcement, "id">>(EMPTY);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [notifying, setNotifying] = useState<string | null>(null);
-  const [notifyResult, setNotifyResult] = useState<{ id: string; count: number } | null>(null);
+  const [copying, setCopying] = useState<string | null>(null);
+  const [copyResult, setCopyResult] = useState<{ id: string; count: number } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -53,20 +58,51 @@ export default function AnnouncementsManager() {
 
   function startEdit(a: Announcement) {
     setEditId(a.id);
-    setForm({ title: a.title, body: a.body, createdAt: a.createdAt, pinned: a.pinned, type: a.type });
+    setForm({
+      title: a.title,
+      body: a.body,
+      createdAt: a.createdAt,
+      pinned: a.pinned,
+      type: a.type,
+      imageUrl: a.imageUrl ?? "",
+      linkLabel: a.linkLabel ?? "",
+      linkUrl: a.linkUrl ?? "",
+      expiresAt: a.expiresAt ?? "",
+    });
     setShowForm(true);
     setError("");
   }
 
   async function handleSave() {
     if (!form.title.trim()) { setError("Title is required."); return; }
+    if (form.linkUrl && !form.linkLabel) {
+      setError("Please add a button label for the link (e.g. 'Register Now').");
+      return;
+    }
+    if (form.linkLabel && !form.linkUrl) {
+      setError("Please add the URL for the link button.");
+      return;
+    }
     setSaving(true); setError("");
     try {
+      // Strip empty strings so we don't store them (keeps DB clean)
+      const clean: Omit<Announcement, "id"> = {
+        title: form.title.trim(),
+        body: form.body.trim(),
+        createdAt: form.createdAt,
+        pinned: form.pinned,
+        type: form.type,
+      };
+      if (form.imageUrl?.trim()) clean.imageUrl = form.imageUrl.trim();
+      if (form.linkLabel?.trim()) clean.linkLabel = form.linkLabel.trim();
+      if (form.linkUrl?.trim()) clean.linkUrl = form.linkUrl.trim();
+      if (form.expiresAt?.trim()) clean.expiresAt = form.expiresAt.trim();
+
       if (editId) {
-        await updateAnnouncement(editId, form);
-        setItems((prev) => prev.map((a) => a.id === editId ? { ...a, ...form } : a));
+        await updateAnnouncement(editId, clean);
+        setItems((prev) => prev.map((a) => a.id === editId ? { ...a, ...clean } : a));
       } else {
-        await addAnnouncement(form);
+        await addAnnouncement(clean);
         await load();
       }
       setShowForm(false);
@@ -92,36 +128,54 @@ export default function AnnouncementsManager() {
     } catch (e) { setError(e instanceof Error ? e.message : "Update failed."); }
   }
 
-  async function handleNotifyEmail(a: Announcement) {
-    setNotifying(a.id);
-    setNotifyResult(null);
+  async function handleCopyEmails(a: Announcement) {
+    setCopying(a.id);
+    setCopyResult(null);
     try {
       const members: Member[] = await getMembers();
       const emails = members
         .filter((m) => m.isActive !== false && m.email && m.email.trim())
         .map((m) => m.email!.trim());
 
-      const subject = encodeURIComponent(`[Leo Club of KUSMS] ${a.title}`);
-      const body = encodeURIComponent(
-        `Dear Leo Club Members,\n\n${a.title}\n\n${a.body ? a.body + "\n\n" : ""}` +
-        `This announcement was posted on ${new Date(a.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}.\n\n` +
-        `Best regards,\nLeo Club of KUSMS`
-      );
-
       if (emails.length === 0) {
-        // No member emails stored — open blank compose to admin
-        window.open(`mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`, "_blank");
-        setNotifyResult({ id: a.id, count: 0 });
+        setError("No member emails stored yet. Add emails in the Members tab first.");
+        setCopying(null);
+        return;
+      }
+
+      const joined = emails.join(", ");
+      // Try modern clipboard API first
+      let copied = false;
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(joined);
+          copied = true;
+        }
+      } catch { /* fall through */ }
+
+      // Fallback for older iOS / non-secure contexts
+      if (!copied) {
+        const ta = document.createElement("textarea");
+        ta.value = joined;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try { document.execCommand("copy"); copied = true; } catch { copied = false; }
+        document.body.removeChild(ta);
+      }
+
+      if (copied) {
+        setCopyResult({ id: a.id, count: emails.length });
+        setTimeout(() => setCopyResult(null), 4000);
       } else {
-        // BCC all members, To = club email
-        const bcc = encodeURIComponent(emails.join(","));
-        window.open(`mailto:${ADMIN_EMAIL}?bcc=${bcc}&subject=${subject}&body=${body}`, "_blank");
-        setNotifyResult({ id: a.id, count: emails.length });
+        setError(`Couldn't auto-copy. Emails (${emails.length}): ${joined.slice(0, 200)}…`);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load members.");
     } finally {
-      setNotifying(null);
+      setCopying(null);
     }
   }
 
@@ -154,6 +208,7 @@ export default function AnnouncementsManager() {
         <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4">
           <h4 className="font-semibold text-[#002147]">{editId ? "Edit Announcement" : "New Announcement"}</h4>
 
+          {/* Type */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {(Object.keys(TYPE_META) as (keyof typeof TYPE_META)[]).map((t) => {
               const meta = TYPE_META[t];
@@ -171,6 +226,7 @@ export default function AnnouncementsManager() {
             })}
           </div>
 
+          {/* Title */}
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">Title *</label>
             <input
@@ -178,10 +234,11 @@ export default function AnnouncementsManager() {
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               placeholder="Announcement headline…"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
             />
           </div>
 
+          {/* Body */}
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">Body</label>
             <textarea
@@ -189,10 +246,84 @@ export default function AnnouncementsManager() {
               onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
               rows={3}
               placeholder="More details (optional)…"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] resize-none"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] resize-none bg-white"
             />
           </div>
 
+          {/* Image URL */}
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1.5">
+              <ImageIcon size={12} /> Image URL <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="url"
+              value={form.imageUrl ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
+              placeholder="https://…"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
+            />
+            {form.imageUrl && (
+              <div className="mt-2 flex items-center gap-3">
+                <img
+                  src={form.imageUrl}
+                  alt="preview"
+                  className="w-16 h-16 rounded-xl object-cover border border-gray-200 bg-white"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+                <span className="text-xs text-gray-400">Preview</span>
+              </div>
+            )}
+          </div>
+
+          {/* Link button */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1.5">
+                <LinkIcon size={12} /> Button Label <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={form.linkLabel ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, linkLabel: e.target.value }))}
+                placeholder="e.g. Register Now"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Button URL</label>
+              <input
+                type="url"
+                value={form.linkUrl ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, linkUrl: e.target.value }))}
+                placeholder="https://…"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
+              />
+            </div>
+          </div>
+
+          {/* Expiry */}
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1.5">
+              <Clock size={12} /> Expiry Date <span className="text-gray-400 font-normal">(optional — auto-hides after)</span>
+            </label>
+            <input
+              type="date"
+              value={form.expiresAt ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
+            />
+            {form.expiresAt && (
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, expiresAt: "" }))}
+                className="text-xs text-gray-400 hover:text-red-500 mt-1"
+              >
+                Clear expiry
+              </button>
+            )}
+          </div>
+
+          {/* Pinned */}
           <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
             <input
               type="checkbox"
@@ -239,13 +370,22 @@ export default function AnnouncementsManager() {
           {sorted.map((a) => {
             const meta = TYPE_META[a.type];
             const Icon = meta.icon;
-            const justNotified = notifyResult?.id === a.id;
+            const justCopied = copyResult?.id === a.id;
+            const expired = isAnnouncementExpired(a);
             return (
               <div
                 key={a.id}
-                className={`bg-white border rounded-2xl p-4 ${a.pinned ? "border-[#D4AF37]/40 shadow-sm" : "border-gray-100"}`}
+                className={`bg-white border rounded-2xl p-4 ${expired ? "opacity-60 border-gray-100 bg-gray-50" : a.pinned ? "border-[#D4AF37]/40 shadow-sm" : "border-gray-100"}`}
               >
                 <div className="flex items-start gap-3">
+                  {a.imageUrl && (
+                    <img
+                      src={a.imageUrl}
+                      alt=""
+                      className="w-14 h-14 rounded-xl object-cover border border-gray-100 shrink-0"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  )}
                   <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold shrink-0 ${meta.color}`}>
                     <Icon size={11} /> {meta.label}
                   </div>
@@ -257,32 +397,46 @@ export default function AnnouncementsManager() {
                           <Pin size={8} /> Pinned
                         </span>
                       )}
+                      {expired && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+                          <Clock size={8} /> Expired
+                        </span>
+                      )}
                     </div>
                     {a.body && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{a.body}</p>}
-                    <p className="text-xs text-gray-400 mt-1.5">
-                      {new Date(a.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
-                    </p>
-                    {justNotified && (
+                    <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-gray-400">
+                      <span>
+                        {new Date(a.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                      </span>
+                      {a.expiresAt && (
+                        <span className="flex items-center gap-1">
+                          <Clock size={10} /> Expires {new Date(a.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </span>
+                      )}
+                      {a.linkLabel && (
+                        <span className="flex items-center gap-1 text-[#002147]">
+                          <LinkIcon size={10} /> {a.linkLabel}
+                        </span>
+                      )}
+                    </div>
+                    {justCopied && (
                       <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                        <Check size={10} />
-                        {notifyResult!.count > 0
-                          ? `Email compose opened with ${notifyResult!.count} member(s) BCC'd`
-                          : "Email compose opened — no member emails stored yet. Add emails in the Members tab."}
+                        <Check size={10} /> Copied {copyResult!.count} email{copyResult!.count === 1 ? "" : "s"} to clipboard — paste into your email app
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {/* Email notification */}
+                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                    {/* Copy emails */}
                     <button
-                      onClick={() => handleNotifyEmail(a)}
-                      disabled={notifying === a.id}
-                      title="Notify members by email"
+                      onClick={() => handleCopyEmails(a)}
+                      disabled={copying === a.id}
+                      title="Copy all member emails"
                       className="flex items-center gap-1 px-2 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:text-[#002147] hover:border-[#002147] hover:bg-blue-50 transition-colors disabled:opacity-50"
                     >
-                      {notifying === a.id
+                      {copying === a.id
                         ? <Loader2 size={12} className="animate-spin" />
-                        : <Mail size={12} />}
-                      <span className="hidden sm:inline">Notify</span>
+                        : <Copy size={12} />}
+                      <span className="hidden sm:inline">Copy Emails</span>
                     </button>
                     <button
                       onClick={() => handleTogglePin(a)}
@@ -328,7 +482,7 @@ export default function AnnouncementsManager() {
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3">
         <Users size={16} className="text-blue-400 shrink-0 mt-0.5" />
         <div className="text-xs text-blue-600">
-          <span className="font-semibold">Email notifications:</span> Click "Notify" on any announcement to open a pre-filled email to all members. Add member email addresses in the <span className="font-semibold">Members</span> tab to include them automatically.
+          <span className="font-semibold">Copy Emails:</span> Click "Copy Emails" on any announcement to copy all active member email addresses to your clipboard. Then paste them into Gmail/Outlook's BCC field and paste the announcement text. Make sure member email addresses are filled in on the <span className="font-semibold">Members</span> tab.
         </div>
       </div>
     </div>

@@ -15,7 +15,24 @@ import {
   type WriteBatch,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Member, MemberRole, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings, Constitution, Announcement, LeaderQuote, PastLeader } from "./types";
+import type { Member, MemberRole, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings, Constitution, Announcement, LeaderQuote, PastLeader, EventApplication, ServiceImpact } from "./types";
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((v) => stripUndefined(v)) as unknown as T;
+  }
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+}
 
 // ── Members ──────────────────────────────────────────────────────────────────
 
@@ -33,13 +50,13 @@ export async function getMember(memberId: string): Promise<Member | null> {
 export async function addMember(member: Member): Promise<void> {
   await updateDoc(doc(db, "members", member.memberId), {}).catch(async () => {
     const batchWrite = writeBatch(db);
-    batchWrite.set(doc(db, "members", member.memberId), member);
+    batchWrite.set(doc(db, "members", member.memberId), stripUndefined(member));
     await batchWrite.commit();
   });
-  await updateDoc(doc(db, "members", member.memberId), { ...member }).catch(
+  await updateDoc(doc(db, "members", member.memberId), stripUndefined({ ...member })).catch(
     async () => {
       const batchWrite = writeBatch(db);
-      batchWrite.set(doc(db, "members", member.memberId), { ...member });
+      batchWrite.set(doc(db, "members", member.memberId), stripUndefined({ ...member }));
       await batchWrite.commit();
     }
   );
@@ -47,14 +64,10 @@ export async function addMember(member: Member): Promise<void> {
 
 export async function setMember(member: Member): Promise<void> {
   const batchWrite = writeBatch(db);
-  batchWrite.set(doc(db, "members", member.memberId), member);
+  batchWrite.set(doc(db, "members", member.memberId), stripUndefined(member));
   await batchWrite.commit();
 }
 
-/**
- * Change a member's public membership ID and keep every denormalized reference
- * pointing at the member's new ID.
- */
 export async function changeMemberId(currentId: string, member: Member): Promise<void> {
   const nextId = member.memberId.trim();
   if (!nextId) throw new Error("Member ID is required.");
@@ -89,7 +102,9 @@ export async function changeMemberId(currentId: string, member: Member): Promise
     operationCount += 1;
   };
 
-  addOperation((currentBatch) => currentBatch.set(nextRef, { ...member, memberId: nextId }));
+  addOperation((currentBatch) =>
+    currentBatch.set(nextRef, stripUndefined({ ...member, memberId: nextId }))
+  );
   addOperation((currentBatch) => currentBatch.delete(currentRef));
 
   activitiesSnap.docs.forEach((activityDoc) => {
@@ -123,7 +138,7 @@ export async function updateMember(
   memberId: string,
   data: Partial<Member>
 ): Promise<void> {
-  await updateDoc(doc(db, "members", memberId), data as Record<string, unknown>);
+  await updateDoc(doc(db, "members", memberId), stripUndefined(data) as Record<string, unknown>);
 }
 
 export async function deleteMember(memberId: string): Promise<void> {
@@ -159,7 +174,6 @@ export async function removeBodMemberRole(memberId: string, bodId: string): Prom
 export async function getActivities(): Promise<Activity[]> {
   const snap = await getDocs(collection(db, "activities"));
   const items = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
-  // Sort newest first using createdAt if available, else by year+month (oldest = lower index, reverse for newest first)
   return items.sort((a, b) => {
     if (a.createdAt && b.createdAt) return b.createdAt.localeCompare(a.createdAt);
     const ya = a.year.localeCompare(b.year);
@@ -177,10 +191,7 @@ export async function getFeaturedActivities(): Promise<Activity[]> {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
 }
 
-export async function toggleActivityFeatured(
-  id: string,
-  featured: boolean
-): Promise<void> {
+export async function toggleActivityFeatured(id: string, featured: boolean): Promise<void> {
   await updateDoc(doc(db, "activities", id), { featured });
 }
 
@@ -189,7 +200,6 @@ export async function updateActivityMeta(
   data: { title: string; description: string; photos: string[] }
 ): Promise<void> {
   await updateDoc(doc(db, "activities", id), data as Record<string, unknown>);
-  // Sync title to denormalized member activity records
   const membersSnap = await getDocs(collection(db, "members"));
   const batch = writeBatch(db);
   let hasUpdates = false;
@@ -223,10 +233,7 @@ export async function getActivity(id: string): Promise<Activity | null> {
   return snap.exists() ? ({ id: snap.id, ...snap.data() } as Activity) : null;
 }
 
-export async function getActivitiesByMonth(
-  year: string,
-  month: string
-): Promise<Activity[]> {
+export async function getActivitiesByMonth(year: string, month: string): Promise<Activity[]> {
   const q = query(
     collection(db, "activities"),
     where("year", "==", year),
@@ -234,32 +241,31 @@ export async function getActivitiesByMonth(
   );
   const snap = await getDocs(q);
   const items = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
-  // Newest first within the month
   return items.sort((a, b) =>
     a.createdAt && b.createdAt ? b.createdAt.localeCompare(a.createdAt) : 0
   );
 }
 
 export async function createActivity(data: ActivityFormData): Promise<string> {
-  const ref = await addDoc(collection(db, "activities"), {
+  const ref = await addDoc(collection(db, "activities"), stripUndefined({
     ...data,
     id: "",
     featured: false,
     createdAt: new Date().toISOString(),
-  });
+  }));
   await updateDoc(ref, { id: ref.id });
 
   const batch = writeBatch(db);
   for (const p of data.participants) {
     const memberRef = doc(db, "members", p.memberId);
     batch.update(memberRef, {
-      activities: arrayUnion({
+      activities: arrayUnion(stripUndefined({
         activityId: ref.id,
         year: data.year,
         month: data.month,
         title: data.title,
         awardTitle: p.awardTitle,
-      }),
+      })),
     });
   }
   await batch.commit();
@@ -273,7 +279,7 @@ export async function updateActivity(
   oldParticipants: { memberId: string; awardTitle: string }[],
   activityData: ActivityFormData
 ): Promise<void> {
-  await updateDoc(doc(db, "activities", id), data as Record<string, unknown>);
+  await updateDoc(doc(db, "activities", id), stripUndefined(data) as Record<string, unknown>);
 
   const removeBatch = writeBatch(db);
   for (const p of oldParticipants) {
@@ -292,23 +298,20 @@ export async function updateActivity(
     for (const p of data.participants) {
       const memberRef = doc(db, "members", p.memberId);
       addBatch.update(memberRef, {
-        activities: arrayUnion({
+        activities: arrayUnion(stripUndefined({
           activityId: id,
           year: activityData.year,
           month: activityData.month,
           title: activityData.title,
           awardTitle: p.awardTitle,
-        }),
+        })),
       });
     }
     await addBatch.commit();
   }
 }
 
-export async function deleteActivity(
-  id: string,
-  participants: { memberId: string }[]
-): Promise<void> {
+export async function deleteActivity(id: string, participants: { memberId: string }[]): Promise<void> {
   await deleteDoc(doc(db, "activities", id));
 
   const batch = writeBatch(db);
@@ -338,7 +341,7 @@ export async function addManualAchievement(
   memberId: string,
   data: ManualAchievementInput
 ): Promise<void> {
-  const ref = await addDoc(collection(db, "activities"), {
+  const ref = await addDoc(collection(db, "activities"), stripUndefined({
     year: data.year,
     month: data.month,
     title: data.title,
@@ -348,24 +351,21 @@ export async function addManualAchievement(
     manual: true,
     featured: false,
     id: "",
-  });
+  }));
   await updateDoc(ref, { id: ref.id });
 
   await updateDoc(doc(db, "members", memberId), {
-    activities: arrayUnion({
+    activities: arrayUnion(stripUndefined({
       activityId: ref.id,
       year: data.year,
       month: data.month,
       title: data.title,
       awardTitle: data.awardTitle,
-    }),
+    })),
   });
 }
 
-export async function removeManualAchievement(
-  memberId: string,
-  activityId: string
-): Promise<void> {
+export async function removeManualAchievement(memberId: string, activityId: string): Promise<void> {
   const memberSnap = await getDoc(doc(db, "members", memberId));
   if (!memberSnap.exists()) return;
   const member = memberSnap.data() as Member;
@@ -391,7 +391,7 @@ export async function getBodMembers(): Promise<BodMember[]> {
 }
 
 export async function setBodMember(member: BodMember): Promise<void> {
-  await setDoc(doc(db, "bod", member.id), member);
+  await setDoc(doc(db, "bod", member.id), stripUndefined(member));
 }
 
 export async function deleteBodMember(id: string): Promise<void> {
@@ -406,12 +406,12 @@ export async function getAwards(): Promise<Award[]> {
 }
 
 export async function addAward(data: Omit<Award, "id">): Promise<void> {
-  const ref = await addDoc(collection(db, "awards"), data);
+  const ref = await addDoc(collection(db, "awards"), stripUndefined(data));
   await updateDoc(ref, { id: ref.id });
 }
 
 export async function updateAward(id: string, data: Partial<Award>): Promise<void> {
-  await updateDoc(doc(db, "awards", id), data);
+  await updateDoc(doc(db, "awards", id), stripUndefined(data) as Record<string, unknown>);
 }
 
 export async function deleteAward(id: string): Promise<void> {
@@ -427,12 +427,12 @@ export async function getClubEvents(): Promise<ClubEvent[]> {
 }
 
 export async function addClubEvent(data: Omit<ClubEvent, "id">): Promise<void> {
-  const ref = await addDoc(collection(db, "events"), data);
+  const ref = await addDoc(collection(db, "events"), stripUndefined(data));
   await updateDoc(ref, { id: ref.id });
 }
 
 export async function updateClubEvent(id: string, data: Partial<ClubEvent>): Promise<void> {
-  await updateDoc(doc(db, "events", id), data);
+  await updateDoc(doc(db, "events", id), stripUndefined(data) as Record<string, unknown>);
 }
 
 export async function deleteClubEvent(id: string): Promise<void> {
@@ -447,7 +447,7 @@ export async function getClubSettings(): Promise<ClubSettings> {
 }
 
 export async function updateClubSettings(data: Partial<ClubSettings>): Promise<void> {
-  await setDoc(doc(db, "settings", "clubSettings"), data, { merge: true });
+  await setDoc(doc(db, "settings", "clubSettings"), stripUndefined(data), { merge: true });
 }
 
 // ── Constitution ──────────────────────────────────────────────────────────────
@@ -458,7 +458,7 @@ export async function getConstitution(): Promise<Constitution> {
 }
 
 export async function updateConstitution(data: Constitution): Promise<void> {
-  await setDoc(doc(db, "settings", "constitution"), data, { merge: true });
+  await setDoc(doc(db, "settings", "constitution"), stripUndefined(data), { merge: true });
 }
 
 // ── Announcements ──────────────────────────────────────────────────────────────
@@ -473,12 +473,12 @@ export async function getAnnouncements(): Promise<Announcement[]> {
 }
 
 export async function addAnnouncement(data: Omit<Announcement, "id">): Promise<void> {
-  const ref = await addDoc(collection(db, "announcements"), data);
+  const ref = await addDoc(collection(db, "announcements"), stripUndefined(data));
   await updateDoc(ref, { id: ref.id });
 }
 
 export async function updateAnnouncement(id: string, data: Partial<Announcement>): Promise<void> {
-  await updateDoc(doc(db, "announcements", id), data as Record<string, unknown>);
+  await updateDoc(doc(db, "announcements", id), stripUndefined(data) as Record<string, unknown>);
 }
 
 export async function deleteAnnouncement(id: string): Promise<void> {
@@ -494,13 +494,13 @@ export async function getLeaderQuotes(): Promise<LeaderQuote[]> {
 }
 
 export async function addLeaderQuote(data: Omit<LeaderQuote, "id">): Promise<string> {
-  const ref = await addDoc(collection(db, "leaderQuotes"), data);
+  const ref = await addDoc(collection(db, "leaderQuotes"), stripUndefined(data));
   await updateDoc(ref, { id: ref.id });
   return ref.id;
 }
 
 export async function updateLeaderQuote(id: string, data: Partial<LeaderQuote>): Promise<void> {
-  await updateDoc(doc(db, "leaderQuotes", id), data as Record<string, unknown>);
+  await updateDoc(doc(db, "leaderQuotes", id), stripUndefined(data) as Record<string, unknown>);
 }
 
 export async function deleteLeaderQuote(id: string): Promise<void> {
@@ -516,15 +516,100 @@ export async function getPastLeaders(): Promise<PastLeader[]> {
 }
 
 export async function addPastLeader(data: Omit<PastLeader, "id">): Promise<string> {
-  const ref = await addDoc(collection(db, "pastLeaders"), data);
+  const ref = await addDoc(collection(db, "pastLeaders"), stripUndefined(data));
   await updateDoc(ref, { id: ref.id });
   return ref.id;
 }
 
 export async function updatePastLeader(id: string, data: Partial<PastLeader>): Promise<void> {
-  await updateDoc(doc(db, "pastLeaders", id), data as Record<string, unknown>);
+  await updateDoc(doc(db, "pastLeaders", id), stripUndefined(data) as Record<string, unknown>);
 }
 
 export async function deletePastLeader(id: string): Promise<void> {
   await deleteDoc(doc(db, "pastLeaders", id));
+}
+
+// ── Event Applications ────────────────────────────────────────────────────────
+
+export async function submitEventApplication(data: Omit<EventApplication, "id">): Promise<string> {
+  const q = query(
+    collection(db, "eventApplications"),
+    where("eventId", "==", data.eventId),
+    where("phone", "==", data.phone)
+  );
+  const existing = await getDocs(q);
+  if (!existing.empty) {
+    throw new Error("This phone number has already been used to apply for this event.");
+  }
+
+  const clean = stripUndefined(data);
+  const ref = await addDoc(collection(db, "eventApplications"), clean);
+  await updateDoc(ref, { id: ref.id });
+  return ref.id;
+}
+
+export async function getApplicationsByEvent(eventId: string): Promise<EventApplication[]> {
+  const q = query(
+    collection(db, "eventApplications"),
+    where("eventId", "==", eventId)
+  );
+  const snap = await getDocs(q);
+  const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EventApplication));
+  return list.sort((a, b) => (b.submittedAt ?? "").localeCompare(a.submittedAt ?? ""));
+}
+
+export async function getAllEventApplications(): Promise<EventApplication[]> {
+  const snap = await getDocs(collection(db, "eventApplications"));
+  const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as EventApplication));
+  return list.sort((a, b) => (b.submittedAt ?? "").localeCompare(a.submittedAt ?? ""));
+}
+
+export async function deleteEventApplication(id: string): Promise<void> {
+  await deleteDoc(doc(db, "eventApplications", id));
+}
+
+// ── Service Impact ────────────────────────────────────────────────────────────
+// One Firestore document per Leo Year, stored in the "serviceImpact" collection.
+// The document ID is the Leo Year string (e.g. "2026/27").
+
+export async function getServiceImpact(leoYear: string): Promise<ServiceImpact | null> {
+  const snap = await getDoc(doc(db, "serviceImpact", leoYear));
+  return snap.exists() ? (snap.data() as ServiceImpact) : null;
+}
+
+export async function getAllServiceImpacts(): Promise<ServiceImpact[]> {
+  const snap = await getDocs(collection(db, "serviceImpact"));
+  const items = snap.docs.map((d) => ({ leoYear: d.id, ...d.data() } as ServiceImpact));
+  return items.sort((a, b) => b.leoYear.localeCompare(a.leoYear));
+}
+
+export async function updateServiceImpact(data: ServiceImpact): Promise<void> {
+  const clean = stripUndefined({
+    ...data,
+    updatedAt: new Date().toISOString(),
+  });
+  await setDoc(doc(db, "serviceImpact", data.leoYear), clean);
+}
+
+export async function deleteServiceImpact(leoYear: string): Promise<void> {
+  await deleteDoc(doc(db, "serviceImpact", leoYear));
+}
+
+/**
+ * Auto-calculates the volunteer count for a Leo Year by counting unique
+ * memberId values across all activities in that year.
+ */
+export function computeVolunteersFromActivities(
+  activities: Activity[],
+  leoYear: string
+): number {
+  const ids = new Set<string>();
+  activities
+    .filter((a) => a.year === leoYear)
+    .forEach((a) => {
+      (a.participants ?? []).forEach((p) => {
+        if (p.memberId) ids.add(p.memberId);
+      });
+    });
+  return ids.size;
 }

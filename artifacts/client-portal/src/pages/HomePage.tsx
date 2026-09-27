@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "wouter";
-import { getMembers, getActivities, getBodMembers, getFeaturedActivities, getClubSettings, getAwards, getAnnouncements } from "@/lib/firestore";
-import type { Member, Activity, BodMember, ClubSettings, Award as AwardType, Announcement } from "@/lib/types";
-import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ID, LEO_YEARS, MONTHS, getCurrentLeoYear, getCurrentLeoYearLabel } from "@/lib/types";
+import { getMembers, getActivities, getBodMembers, getFeaturedActivities, getClubSettings, getAwards, getAnnouncements, getClubEvents, getServiceImpact, computeVolunteersFromActivities } from "@/lib/firestore";
+import type { Member, Activity, BodMember, ClubSettings, Award as AwardType, Announcement, ClubEvent, ServiceImpact } from "@/lib/types";
+import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ID, LEO_YEARS, MONTHS, getCurrentLeoYear, getCurrentLeoYearLabel, isAnnouncementExpired, formatImpactNumber, formatCurrency } from "@/lib/types";
 import {
   ArrowRight, Award, Users, Calendar, Shield, Mail, Phone,
   ChevronLeft, ChevronRight, Pin, Info, Facebook, ExternalLink,
   Star, Building, Quote, Heart, TrendingUp, MessageCircle,
-  Zap, Trophy, Flame, BarChart3, Megaphone, X as XIcon,
+  Zap, Trophy, Flame, BarChart3, Megaphone, X as XIcon, Clock, Link as LinkIcon, DollarSign,
 } from "lucide-react";
 
 // ── Animated counter hook ──────────────────────────────────────────────────────
@@ -28,10 +28,10 @@ function useCountUp(target: number, duration = 1800, start = false) {
   return count;
 }
 
-// ── Impact Stats Section ───────────────────────────────────────────────────────
+// ── Impact Stats Section (existing) ───────────────────────────────────────────
 function ImpactStats({
-  memberCount, activityCount, participationCount,
-}: { memberCount: number; activityCount: number; participationCount: number }) {
+  memberCount, activityCount, awardCount,
+}: { memberCount: number; activityCount: number; awardCount: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -45,9 +45,8 @@ function ImpactStats({
 
   const m = useCountUp(memberCount, 1600, visible);
   const a = useCountUp(activityCount, 1800, visible);
-  const p = useCountUp(participationCount, 2000, visible);
+  const p = useCountUp(awardCount, 2000, visible);
 
-  // Auto-computed years of service (since June 11, 2024)
   const yearsOfService = (() => {
     const established = new Date("June 11, 2024");
     const now = new Date();
@@ -65,7 +64,7 @@ function ImpactStats({
   const stats = [
     { label: "Active Members", value: m, icon: Users, suffix: "+" },
     { label: "Activities Completed", value: a, icon: Calendar, suffix: "" },
-    { label: "Service Participations", value: p, icon: Heart, suffix: "+" },
+    { label: "Awards Given", value: p, icon: Award, suffix: "" },
     { label: "Years of Service", value: y, icon: TrendingUp, suffix: "+" },
   ];
 
@@ -99,10 +98,120 @@ function ImpactStats({
   );
 }
 
+// ── Service Impact Section (Lions Portal style) ───────────────────────────────
+function ServiceImpactSection({
+  impact, activities, leoYear,
+}: { impact: ServiceImpact | null; activities: Activity[]; leoYear: string }) {
+  const [currency, setCurrency] = useState<"NPR" | "USD">("NPR");
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setVisible(true); obs.disconnect(); }
+    }, { threshold: 0.3 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+
+  const volunteers = computeVolunteersFromActivities(activities, leoYear);
+  const peopleServed = impact?.peopleServed ?? 0;
+  const volunteerHours = impact?.volunteerHours ?? 0;
+  const fundsDonated = currency === "USD"
+    ? (impact?.fundsDonatedUsd ?? 0)
+    : (impact?.fundsDonatedNpr ?? 0);
+  const fundsRaised = currency === "USD"
+    ? (impact?.fundsRaisedUsd ?? 0)
+    : (impact?.fundsRaisedNpr ?? 0);
+
+  const hasData = impact !== null;
+
+  const peopleCount = useCountUp(peopleServed, 1600, visible);
+  const volunteerCount = useCountUp(volunteers, 1600, visible);
+  const hoursCount = useCountUp(volunteerHours, 1600, visible);
+
+  const animatedStats = [
+    { label: "People Served", value: formatImpactNumber(peopleCount), icon: Heart },
+    { label: "Volunteers", value: formatImpactNumber(volunteerCount), icon: Users },
+    { label: "Volunteer Hours", value: formatImpactNumber(hoursCount), icon: Clock },
+    { label: "Funds Donated", value: formatCurrency(fundsDonated, currency), icon: DollarSign },
+    { label: "Funds Raised", value: formatCurrency(fundsRaised, currency), icon: TrendingUp },
+  ];
+
+  return (
+    <section ref={ref} className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#002147] to-[#003575] text-white py-12 px-6 shadow-xl border-2 border-[#D4AF37]/20">
+      <div className="absolute top-0 right-0 w-72 h-72 bg-[#D4AF37]/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-56 h-56 bg-[#D4AF37]/5 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+
+      <div className="relative z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div className="text-center sm:text-left">
+            <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-3">
+              <Heart size={13} /> Our Service Impact
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold">
+              Leo Year {leoYear}
+            </h2>
+            <p className="text-white/60 text-sm mt-2">
+              Measured in lives touched, hours served, and generosity given.
+            </p>
+          </div>
+          <div className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-xl p-1 self-center sm:self-auto">
+            {(["NPR", "USD"] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => setCurrency(c)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  currency === c
+                    ? "bg-[#D4AF37] text-[#002147]"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+          {animatedStats.map(({ label, value, icon: Icon }) => (
+            <div key={label} className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 sm:p-5 text-center transition-all">
+              <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/20 flex items-center justify-center mx-auto mb-3">
+                <Icon size={16} className="text-[#D4AF37]" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold text-white mb-1 tabular-nums leading-tight">
+                {value}
+              </div>
+              <div className="text-white/50 text-[11px] sm:text-xs leading-tight">{label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 text-xs text-white/50">
+          {hasData ? (
+            <span>Last updated {new Date(impact!.updatedAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
+          ) : (
+            <span className="italic">Impact data for this Leo Year will appear once added by admin.</span>
+          )}
+          <Link href="/stats" className="text-[#D4AF37] font-semibold hover:underline flex items-center gap-1">
+            View full impact report <ArrowRight size={12} />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── Leo Analytics ─────────────────────────────────────────────────────────────
 function LeoAnalytics({
-  members, activities, awards,
-}: { members: Member[]; activities: Activity[]; awards: AwardType[] }) {
+  members, activities, awards, serviceImpact, currentLeoYear,
+}: {
+  members: Member[];
+  activities: Activity[];
+  awards: AwardType[];
+  serviceImpact: ServiceImpact | null;
+  currentLeoYear: string;
+}) {
   const latestYearWithData = [...LEO_YEARS].reverse().find((y) =>
     activities.some((a) => a.year === y)
   ) ?? LEO_YEARS[0];
@@ -298,13 +407,15 @@ function LeoAnalytics({
             <div className="flex items-center justify-between p-3 bg-[#002147] rounded-xl">
               <div>
                 <div className="text-xs text-white/50 font-medium uppercase tracking-wide">Total Service Hours</div>
-                <div className="font-bold text-white mt-0.5">Estimated Impact</div>
+                <div className="font-bold text-white mt-0.5">Leo Year {currentLeoYear}</div>
               </div>
               <div className="text-right">
                 <div className="text-xl font-bold text-[#D4AF37]">
-                  {Object.values(participationCounts).reduce((s, v) => s + v * 4, 0)}+
+                  {serviceImpact ? formatImpactNumber(serviceImpact.volunteerHours) : "—"}
                 </div>
-                <div className="text-xs text-white/50">hours served</div>
+                <div className="text-xs text-white/50">
+                  {serviceImpact ? "hours served" : "not entered yet"}
+                </div>
               </div>
             </div>
           </div>
@@ -405,6 +516,120 @@ function FeaturedCarousel({ activities }: { activities: Activity[] }) {
   );
 }
 
+// ── Featured Events Carousel ──────────────────────────────────────────────────
+function FeaturedEventsCarousel({ events }: { events: ClubEvent[] }) {
+  const [current, setCurrent] = useState(0);
+  const [fading, setFading] = useState(false);
+
+  const goTo = useCallback(
+    (idx: number) => {
+      if (idx === current) return;
+      setFading(true);
+      setTimeout(() => {
+        setCurrent(idx);
+        setFading(false);
+      }, 300);
+    },
+    [current]
+  );
+
+  const prev = () => goTo((current - 1 + events.length) % events.length);
+  const next = useCallback(() => goTo((current + 1) % events.length), [current, goTo, events.length]);
+
+  useEffect(() => {
+    if (events.length <= 1) return;
+    const timer = setInterval(() => next(), 5000);
+    return () => clearInterval(timer);
+  }, [next, events.length]);
+
+  useEffect(() => {
+    if (current >= events.length) setCurrent(0);
+  }, [events.length, current]);
+
+  if (!events.length) return null;
+  const ev = events[current];
+
+  const dateStr = ev.endDate && ev.endDate !== ev.date
+    ? `${new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${new Date(ev.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
+    : new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+
+  const today = new Date().toISOString().split("T")[0];
+  const canApply =
+    ev.applicationsEnabled &&
+    ev.status !== "cancelled" &&
+    (!ev.applicationDeadline || ev.applicationDeadline >= today);
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#002147] to-[#003575] text-white shadow-2xl border-2 border-[#D4AF37]/20">
+      {ev.photoUrl && (
+        <div className="absolute inset-0">
+          <img src={ev.photoUrl} alt={ev.title} className="w-full h-full object-cover opacity-20" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#002147]/95 via-[#002147]/85 to-transparent" />
+        </div>
+      )}
+
+      <div className="relative px-8 py-10 md:px-12 md:py-14">
+        <div className="transition-all duration-300" style={{ opacity: fading ? 0 : 1, transform: fading ? "translateY(8px)" : "translateY(0)" }}>
+          <div className="inline-flex items-center gap-1.5 bg-[#D4AF37] text-[#002147] rounded-full px-3 py-1 text-xs font-bold mb-5">
+            <Pin size={11} /> Featured Event · {dateStr}
+          </div>
+          <h3 className="text-2xl md:text-3xl font-bold mb-3 leading-tight max-w-xl">{ev.title}</h3>
+          {ev.description && (
+            <p className="text-white/70 text-base leading-relaxed max-w-lg mb-6 line-clamp-3">
+              {ev.description}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-4 mb-8">
+            {ev.location && (
+              <div className="flex items-center gap-2 text-sm text-white/60">
+                <span>📍</span> {ev.location}
+              </div>
+            )}
+            {ev.eventType && (
+              <div className="flex items-center gap-2 text-sm text-white/60">
+                <span>🏷️</span> {ev.eventType}
+              </div>
+            )}
+            {ev.applicationsEnabled && (
+              <div className="flex items-center gap-2 text-sm text-green-300">
+                <Users size={15} /> {ev.applicationType || "Applications open"}
+              </div>
+            )}
+          </div>
+
+          {ev.applicationPrompt && (
+            <p className="text-white/70 italic text-sm mb-6 max-w-lg">
+              {ev.applicationPrompt}
+            </p>
+          )}
+
+          <Link href="/events"
+            className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#c9a432] transition-colors">
+            {canApply ? `Apply as ${ev.applicationType || "Applicant"}` : "View Event Details"} <ArrowRight size={15} />
+          </Link>
+        </div>
+      </div>
+
+      {events.length > 1 && (
+        <>
+          <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+            <ChevronLeft size={18} />
+          </button>
+          <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+            <ChevronRight size={18} />
+          </button>
+          <div className="absolute bottom-5 right-8 flex gap-2">
+            {events.map((_, i) => (
+              <button key={i} onClick={() => goTo(i)}
+                className={`rounded-full transition-all duration-300 ${i === current ? "w-6 h-2 bg-[#D4AF37]" : "w-2 h-2 bg-white/30 hover:bg-white/60"}`} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── President Card ────────────────────────────────────────────────────────────
 function PresidentCard({ president, whatsappNumber, whatsappMessage }: { president: BodMember; whatsappNumber?: string; whatsappMessage?: string }) {
   return (
@@ -451,6 +676,57 @@ function PresidentCard({ president, whatsappNumber, whatsappMessage }: { preside
   );
 }
 
+// ── Announcement Banner ──────────────────────────────────────────────────────
+function AnnouncementBanner({
+  ann, onDismiss,
+}: { ann: Announcement; onDismiss: () => void }) {
+  const typeColors = {
+    info: { bg: "bg-blue-50 border-blue-200", icon: "text-blue-600", title: "text-blue-900", body: "text-blue-700", btn: "bg-blue-600 hover:bg-blue-700 text-white" },
+    update: { bg: "bg-amber-50 border-amber-200", icon: "text-amber-600", title: "text-amber-900", body: "text-amber-700", btn: "bg-amber-600 hover:bg-amber-700 text-white" },
+    event: { bg: "bg-green-50 border-green-200", icon: "text-green-600", title: "text-green-900", body: "text-green-700", btn: "bg-green-600 hover:bg-green-700 text-white" },
+  }[ann.type];
+
+  const isExternal = ann.linkUrl ? /^https?:\/\//i.test(ann.linkUrl) : false;
+
+  return (
+    <div className={`rounded-2xl border px-4 sm:px-5 py-4 flex items-start gap-3 sm:gap-4 ${typeColors.bg}`}>
+      {ann.imageUrl && (
+        <img
+          src={ann.imageUrl}
+          alt=""
+          className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-white/60 shrink-0 bg-white"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
+      )}
+      <Megaphone size={18} className={`shrink-0 mt-0.5 hidden sm:block ${typeColors.icon}`} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`font-bold text-sm ${typeColors.title}`}>{ann.title}</span>
+          {ann.pinned && <span className="text-xs font-semibold opacity-60">📌 Pinned</span>}
+          <span className={`text-xs opacity-50 ${typeColors.body}`}>
+            {new Date(ann.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          </span>
+        </div>
+        {ann.body && <p className={`text-sm mt-0.5 ${typeColors.body}`}>{ann.body}</p>}
+        {ann.linkLabel && ann.linkUrl && (
+          <a
+            href={ann.linkUrl}
+            target={isExternal ? "_blank" : undefined}
+            rel={isExternal ? "noopener noreferrer" : undefined}
+            className={`inline-flex items-center gap-1.5 mt-3 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${typeColors.btn}`}
+          >
+            {ann.linkLabel} <ArrowRight size={12} />
+          </a>
+        )}
+      </div>
+      <button onClick={onDismiss}
+        className={`shrink-0 p-1 rounded-lg hover:bg-black/10 transition-colors ${typeColors.icon}`} aria-label="Dismiss">
+        <XIcon size={14} />
+      </button>
+    </div>
+  );
+}
+
 // ── Main HomePage ─────────────────────────────────────────────────────────────
 export default function HomePage() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -460,8 +736,12 @@ export default function HomePage() {
   const [clubSettings, setClubSettings] = useState<ClubSettings>({});
   const [awards, setAwards] = useState<AwardType[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [events, setEvents] = useState<ClubEvent[]>([]);
+  const [serviceImpact, setServiceImpact] = useState<ServiceImpact | null>(null);
   const [dismissedAnnouncements, setDismissedAnnouncements] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+
+  const currentLeoYear = getCurrentLeoYear();
 
   useEffect(() => {
     Promise.all([
@@ -472,22 +752,46 @@ export default function HomePage() {
       getClubSettings().catch(() => ({} as ClubSettings)),
       getAwards().catch(() => [] as AwardType[]),
       getAnnouncements().catch(() => [] as Announcement[]),
-    ]).then(([m, a, f, b, s, aw, ann]) => {
+      getClubEvents().catch(() => [] as ClubEvent[]),
+      getServiceImpact(currentLeoYear).catch(() => null),
+    ]).then(([m, a, f, b, s, aw, ann, evs, impact]) => {
       setMembers(m); setActivities(a); setFeaturedActivities(f); setBod(b);
-      setClubSettings(s); setAwards(aw); setAnnouncements(ann);
+      setClubSettings(s); setAwards(aw); setAnnouncements(ann); setEvents(evs);
+      setServiceImpact(impact);
     }).finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const visibleAnnouncements = announcements.filter((a) => !dismissedAnnouncements.has(a.id));
+  const visibleAnnouncements = announcements.filter(
+    (a) => !dismissedAnnouncements.has(a.id) && !isAnnouncementExpired(a)
+  );
   const president = bod[0] ?? null;
   const otherBod = bod.slice(1);
   const latest = activities.slice(0, 6);
 
+  const today = new Date().toISOString().split("T")[0];
+  const featuredEvents = events
+    .filter((e) => e.pinned && e.status !== "cancelled" && (e.endDate || e.date) >= today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const yearsOfService = (() => {
+    const established = new Date("June 11, 2024");
+    const now = new Date();
+    let years = now.getFullYear() - established.getFullYear();
+    if (
+      now.getMonth() < established.getMonth() ||
+      (now.getMonth() === established.getMonth() && now.getDate() < established.getDate())
+    ) {
+      years -= 1;
+    }
+    return Math.max(1, years);
+  })();
+
   const stats = [
     { label: "Active Members", value: loading ? "—" : members.length, icon: Users },
     { label: "Activities Completed", value: loading ? "—" : activities.length, icon: Calendar },
-    { label: "Service Awards Given", value: loading ? "—" : activities.reduce((s, a) => s + a.participants.length, 0), icon: Award },
-    { label: "Years of Service", value: "3+", icon: Shield },
+    { label: "Awards Given", value: loading ? "—" : awards.length, icon: Award },
+    { label: "Years of Service", value: loading ? "—" : `${yearsOfService}+`, icon: Shield },
   ];
 
   return (
@@ -522,7 +826,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── Stats ── */}
+      {/* ── Stats (existing) ── */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -542,9 +846,18 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── President's Slogan Banner (top of content) ── */}
+      {/* ── Service Impact (NEW — right below the 4 stats) ── */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-10">
+        <ServiceImpactSection
+          impact={serviceImpact}
+          activities={activities}
+          leoYear={currentLeoYear}
+        />
+      </div>
+
+      {/* ── President's Slogan Banner ── */}
       {clubSettings.presidentSlogan && (
-        <div className="bg-gradient-to-r from-[#002147] via-[#003575] to-[#002147] border-y-2 border-[#D4AF37]/30">
+        <div className="bg-gradient-to-r from-[#002147] via-[#003575] to-[#002147] border-y-2 border-[#D4AF37]/30 mt-10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
             <div className="flex flex-col md:flex-row items-center gap-6 md:gap-12">
               {clubSettings.presidentSloganPhotoUrl && (
@@ -579,33 +892,32 @@ export default function HomePage() {
         {visibleAnnouncements.length > 0 && (
           <section>
             <div className="space-y-3">
-              {visibleAnnouncements.map((ann) => {
-                const typeColors = {
-                  info: { bg: "bg-blue-50 border-blue-200", icon: "text-blue-600", title: "text-blue-900", body: "text-blue-700" },
-                  update: { bg: "bg-amber-50 border-amber-200", icon: "text-amber-600", title: "text-amber-900", body: "text-amber-700" },
-                  event: { bg: "bg-green-50 border-green-200", icon: "text-green-600", title: "text-green-900", body: "text-green-700" },
-                }[ann.type];
-                return (
-                  <div key={ann.id} className={`rounded-2xl border px-5 py-4 flex items-start gap-4 ${typeColors.bg}`}>
-                    <Megaphone size={18} className={`shrink-0 mt-0.5 ${typeColors.icon}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`font-bold text-sm ${typeColors.title}`}>{ann.title}</span>
-                        {ann.pinned && <span className="text-xs font-semibold opacity-60">📌 Pinned</span>}
-                        <span className={`text-xs opacity-50 ${typeColors.body}`}>
-                          {new Date(ann.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </span>
-                      </div>
-                      {ann.body && <p className={`text-sm mt-0.5 ${typeColors.body}`}>{ann.body}</p>}
-                    </div>
-                    <button onClick={() => setDismissedAnnouncements((prev) => new Set([...prev, ann.id]))}
-                      className={`shrink-0 p-1 rounded-lg hover:bg-black/10 transition-colors ${typeColors.icon}`} aria-label="Dismiss">
-                      <XIcon size={14} />
-                    </button>
-                  </div>
-                );
-              })}
+              {visibleAnnouncements.map((ann) => (
+                <AnnouncementBanner
+                  key={ann.id}
+                  ann={ann}
+                  onDismiss={() => setDismissedAnnouncements((prev) => new Set([...prev, ann.id]))}
+                />
+              ))}
             </div>
+          </section>
+        )}
+
+        {/* ── Featured Events Carousel ── */}
+        {featuredEvents.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-[#002147]">Upcoming Events</h2>
+                <p className="text-gray-500 text-sm mt-1">
+                  {featuredEvents.length === 1 ? "Our next big event" : "Featured events — don't miss these"}
+                </p>
+              </div>
+              <Link href="/events" className="text-sm text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1">
+                View All Events <ArrowRight size={14} />
+              </Link>
+            </div>
+            <FeaturedEventsCarousel events={featuredEvents} />
           </section>
         )}
 
@@ -857,7 +1169,7 @@ export default function HomePage() {
 
         {/* ── Impact Stats ── */}
         <ImpactStats memberCount={members.length} activityCount={activities.length}
-          participationCount={activities.reduce((s, a) => s + a.participants.length, 0)} />
+          awardCount={awards.length} />
 
         {/* ── Become a Leo ── */}
         <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
@@ -936,7 +1248,13 @@ export default function HomePage() {
 
         {/* ── Leo Analytics ── */}
         {!loading && members.length > 0 && activities.length > 0 && (
-          <LeoAnalytics members={members} activities={activities} awards={awards} />
+          <LeoAnalytics
+            members={members}
+            activities={activities}
+            awards={awards}
+            serviceImpact={serviceImpact}
+            currentLeoYear={currentLeoYear}
+          />
         )}
 
         {/* ── Donate Now ── */}

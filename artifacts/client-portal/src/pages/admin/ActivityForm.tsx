@@ -1,14 +1,22 @@
 import { useState, useEffect } from "react";
 import { getMembers, createActivity } from "@/lib/firestore";
 import type { Member, ActivityParticipant } from "@/lib/types";
-import { LEO_YEARS, MONTHS } from "@/lib/types";
+import { LEO_YEARS, getMonthsInLeoOrder, leoMonthYearLabel } from "@/lib/types";
 import { Plus, X, Search, Check, ChevronDown } from "lucide-react";
 
-export default function ActivityForm({ onSuccess }: { onSuccess: () => void }) {
+export default function ActivityForm({
+  onSuccess,
+  defaultYear,
+  defaultMonth,
+}: {
+  onSuccess: () => void;
+  defaultYear?: string;
+  defaultMonth?: string;
+}) {
   const [members, setMembers] = useState<Member[]>([]);
   const [form, setForm] = useState({
-    year: LEO_YEARS[0],
-    month: MONTHS[0],
+    year: defaultYear ?? LEO_YEARS[0],
+    month: defaultMonth ?? "July",
     title: "",
     description: "",
     photosRaw: "",
@@ -23,6 +31,17 @@ export default function ActivityForm({ onSuccess }: { onSuccess: () => void }) {
   useEffect(() => {
     getMembers().then(setMembers).catch(console.error);
   }, []);
+
+  // Sync default year/month if they change after mount
+  useEffect(() => {
+    if (defaultYear || defaultMonth) {
+      setForm((f) => ({
+        ...f,
+        year: defaultYear ?? f.year,
+        month: defaultMonth ?? f.month,
+      }));
+    }
+  }, [defaultYear, defaultMonth]);
 
   const filteredMembers = members.filter(
     (m) =>
@@ -70,7 +89,13 @@ export default function ActivityForm({ onSuccess }: { onSuccess: () => void }) {
         participants,
       });
       setSuccess(true);
-      setForm({ year: LEO_YEARS[0], month: MONTHS[0], title: "", description: "", photosRaw: "" });
+      setForm({
+        year: defaultYear ?? LEO_YEARS[0],
+        month: defaultMonth ?? "July",
+        title: "",
+        description: "",
+        photosRaw: "",
+      });
       setParticipants([]);
       onSuccess();
       setTimeout(() => setSuccess(false), 3000);
@@ -80,6 +105,8 @@ export default function ActivityForm({ onSuccess }: { onSuccess: () => void }) {
       setSubmitting(false);
     }
   }
+
+  const monthLabel = leoMonthYearLabel(form.year, form.month);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -97,7 +124,7 @@ export default function ActivityForm({ onSuccess }: { onSuccess: () => void }) {
             ))}
           </select>
         </div>
-        {/* Month */}
+        {/* Month — in Leo Year order (July → June), with real calendar year hint */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Month</label>
           <select
@@ -105,11 +132,21 @@ export default function ActivityForm({ onSuccess }: { onSuccess: () => void }) {
             onChange={(e) => setForm({ ...form, month: e.target.value })}
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] focus:ring-2 focus:ring-[#002147]/10"
           >
-            {MONTHS.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
+            {getMonthsInLeoOrder().map((m) => {
+              const label = leoMonthYearLabel(form.year, m);
+              return <option key={m} value={m}>{label} ({m})</option>;
+            })}
           </select>
         </div>
+      </div>
+
+      {/* Confirmation hint */}
+      <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl px-4 py-3 text-sm text-[#002147] flex items-start gap-2">
+        <span className="text-[#D4AF37] font-bold mt-0.5">ℹ</span>
+        <span>
+          This activity will be recorded as <strong>{monthLabel}</strong> in Leo Year{" "}
+          <strong>{form.year}</strong>. Months are ordered July → June to match the Leo Year.
+        </span>
       </div>
 
       {/* Title */}

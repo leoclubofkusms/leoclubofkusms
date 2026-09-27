@@ -48,7 +48,7 @@ export interface Activity {
   participants: ActivityParticipant[];
   featured?: boolean;
   manual?: boolean;
-  createdAt?: string;  // ISO date string for chronological ordering
+  createdAt?: string;
 }
 
 export interface ActivityFormData {
@@ -75,13 +75,12 @@ export interface BodMember {
 
 // Auto-generates Leo Years from the club's founding (2024) through current year + 5
 export const LEO_YEARS: string[] = (() => {
-  const START_YEAR = 2024; // club was chartered in 2024
+  const START_YEAR = 2024;
   const today = new Date();
   const currentCalendarYear = today.getFullYear();
-  const month = today.getMonth(); // 0 = Jan, 6 = July
-  // The Leo Year that's currently active
+  const month = today.getMonth();
   const currentLeoStart = month >= 6 ? currentCalendarYear : currentCalendarYear - 1;
-  const END_YEAR = currentLeoStart + 5; // always show 5 years ahead
+  const END_YEAR = currentLeoStart + 5;
 
   const years: string[] = [];
   for (let y = START_YEAR; y <= END_YEAR; y++) {
@@ -100,7 +99,6 @@ export const FACULTIES = [
   "MBBS", "BDS", "B.Sc. Nursing", "BPT", "BMIT", "BNS", "Other",
 ];
 
-// Admission years available as batch options
 export const BATCH_YEARS: string[] = [];
 for (let y = 2018; y <= 2035; y++) BATCH_YEARS.push(String(y));
 
@@ -138,7 +136,7 @@ export interface PastLeader {
   id: string;
   name: string;
   role: string;
-  leoYear: string;   // e.g. "2024/25"
+  leoYear: string;
   photoUrl?: string;
   note?: string;
   order: number;
@@ -165,16 +163,47 @@ export interface ClubEvent {
   title: string;
   description: string;
   date: string;
+  endDate?: string;
   location: string;
   status: "planned" | "completed" | "cancelled";
   photoUrl?: string;
   eventType?: string;
+  pinned?: boolean;
+  applicationsEnabled?: boolean;
+  applicationType?: string;
+  applicationPrompt?: string;
+  applicationDeadline?: string;
+  feeLeo?: number;
+  feeNonLeo?: number;
+  paymentQrUrl?: string;
+  paymentNote?: string;
+  customQuestions?: CustomQuestion[];
 }
 
-// ── Constitution ──────────────────────────────────────────────────────────────
+export interface CustomQuestion {
+  id: string;
+  label: string;
+  required: boolean;
+}
+
+export interface EventApplication {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  name: string;
+  facultyBatch: string;
+  phone: string;
+  memberType: "leo" | "non-leo";
+  membershipId?: string;
+  transactionId?: string;
+  feeAmount?: number;
+  customAnswers?: { question: string; answer: string }[];
+  submittedAt: string;
+}
+
 export interface ConstitutionSection {
   id: string;
-  number: string;   // e.g. "Article I", "Section 2.1"
+  number: string;
   title: string;
   content: string;
 }
@@ -191,9 +220,28 @@ export interface Announcement {
   id: string;
   title: string;
   body: string;
-  createdAt: string;  // ISO date string
+  createdAt: string;
   pinned: boolean;
   type: "info" | "update" | "event";
+  imageUrl?: string;
+  linkLabel?: string;
+  linkUrl?: string;
+  expiresAt?: string;
+}
+
+// ── Service Impact (Lions Portal style) ──────────────────────────────────────
+// One record per Leo Year. `volunteers` is auto-calculated from activities at
+// display time — it is NOT stored (kept in sync with real activity data).
+export interface ServiceImpact {
+  leoYear: string;              // "2026/27" — used as document ID in Firestore
+  peopleServed: number;         // manual
+  volunteerHours: number;       // manual
+  fundsDonatedUsd?: number;     // manual — optional
+  fundsDonatedNpr?: number;     // manual — optional
+  fundsRaisedUsd?: number;      // manual — optional
+  fundsRaisedNpr?: number;      // manual — optional
+  note?: string;                // optional admin note
+  updatedAt: string;            // ISO timestamp
 }
 
 export const CLUB_ID = "172194";
@@ -202,15 +250,10 @@ export const CLUB_FACEBOOK = "https://www.facebook.com/share/1B5inBvASe/?mibexti
 export const CLUB_TIKTOK = "https://www.tiktok.com/@leoclub.kusms";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-/** Sort key for chronological ordering of Leo year + month */
 export function activitySortKey(year: string, month: string): number {
   return LEO_YEARS.indexOf(year) * 12 + MONTHS.indexOf(month);
 }
 
-/**
- * Returns the current Leo Year as a string, such as "YYYY/YY".
- * The Leo Year runs July 1 – June 30. Auto-updates every July 1st.
- */
 export function getCurrentLeoYear(): string {
   const now = new Date();
   const calendarYear = now.getFullYear();
@@ -220,9 +263,52 @@ export function getCurrentLeoYear(): string {
   return `${startYear}/${endYear}`;
 }
 
-/**
- * Returns a display label in the form "Leo Year YYYY/YY".
- */
 export function getCurrentLeoYearLabel(): string {
   return `Leo Year ${getCurrentLeoYear()}`;
+}
+
+export function leoMonthToCalendarYear(leoYear: string, month: string): number {
+  const startYear = parseInt(leoYear.split("/")[0], 10);
+  if (isNaN(startYear)) return new Date().getFullYear();
+  const monthIdx = MONTHS.indexOf(month);
+  if (monthIdx === -1) return startYear;
+  return monthIdx >= 6 ? startYear : startYear + 1;
+}
+
+export function leoMonthYearLabel(leoYear: string, month: string): string {
+  const year = leoMonthToCalendarYear(leoYear, month);
+  return `${month.slice(0, 3)} ${year}`;
+}
+
+export function getMonthsInLeoOrder(): string[] {
+  return [
+    "July", "August", "September", "October", "November", "December",
+    "January", "February", "March", "April", "May", "June",
+  ];
+}
+
+export function leoMonthPosition(month: string): number {
+  return getMonthsInLeoOrder().indexOf(month) + 1;
+}
+
+export function isAnnouncementExpired(a: Announcement): boolean {
+  if (!a.expiresAt) return false;
+  const today = new Date().toISOString().split("T")[0];
+  return a.expiresAt < today;
+}
+
+/** Format a number with thousand separators, handling decimals. */
+export function formatImpactNumber(n: number): string {
+  if (!isFinite(n)) return "0";
+  // If integer, no decimals; else 1 decimal max
+  return Number.isInteger(n)
+    ? n.toLocaleString("en-US")
+    : n.toLocaleString("en-US", { maximumFractionDigits: 1 });
+}
+
+/** Format a currency value. */
+export function formatCurrency(n: number, currency: "USD" | "NPR"): string {
+  if (!isFinite(n)) return currency === "USD" ? "$0" : "Rs. 0";
+  const formatted = n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return currency === "USD" ? `$${formatted}` : `Rs. ${formatted}`;
 }

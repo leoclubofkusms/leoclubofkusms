@@ -132,20 +132,27 @@ export default function MembersPage() {
           </p>
 
           {/* Stats row */}
-          {!loadingMembers && (
-            <div className="flex gap-6 mt-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-[#D4AF37]">{members.length}</div>
-                <div className="text-white/50 text-xs">Active Members</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-[#D4AF37]">
-                  {members.reduce((s, m) => s + (m.activities?.length ?? 0), 0)}
+          {!loadingMembers && (() => {
+            // Count unique activity IDs across all members (not per-member sums)
+            const uniqueActivityIds = new Set<string>();
+            members.forEach((m) => {
+              (m.activities ?? []).forEach((a) => {
+                if (a.activityId) uniqueActivityIds.add(a.activityId);
+              });
+            });
+            return (
+              <div className="flex gap-6 mt-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-[#D4AF37]">{members.length}</div>
+                  <div className="text-white/50 text-xs">Active Members</div>
                 </div>
-                <div className="text-white/50 text-xs">Total Activities</div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-[#D4AF37]">{uniqueActivityIds.size}</div>
+                  <div className="text-white/50 text-xs">Total Activities</div>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Search bar */}
           <div className="relative mt-6" ref={dropdownRef}>

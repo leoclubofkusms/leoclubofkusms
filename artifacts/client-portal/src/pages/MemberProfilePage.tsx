@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getMembers, getActivities, getAwards, getBodMembers } from "@/lib/firestore";
 import type { Member, Activity, Award, BodMember } from "@/lib/types";
-import { LEO_YEARS, activitySortKey } from "@/lib/types";
+import { LEO_YEARS, activitySortKey, leoMonthToCalendarYear } from "@/lib/types";
 import { Link } from "wouter";
 import {
   ArrowLeft, Calendar, Award as AwardIcon, CheckCircle,
@@ -23,9 +23,18 @@ function yearsServed(member: Member): number {
   const left = member.leftLeoYear ?? "";
   if (!joined) return 0;
   const jIdx = LEO_YEARS.indexOf(joined);
-  const lIdx = left ? LEO_YEARS.indexOf(left) : LEO_YEARS.length - 1;
   if (jIdx === -1) return 1;
-  return Math.max(1, (lIdx === -1 ? LEO_YEARS.length - 1 : lIdx) - jIdx + 1);
+  if (left) {
+    const lIdx = LEO_YEARS.indexOf(left);
+    if (lIdx === -1) return 1;
+    return Math.max(1, lIdx - jIdx + 1);
+  }
+  const now = new Date();
+  const currentLeoStart = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  const currentLeoYear = `${currentLeoStart}/${String(currentLeoStart + 1).slice(-2)}`;
+  const cIdx = LEO_YEARS.indexOf(currentLeoYear);
+  if (cIdx === -1) return 1;
+  return Math.max(1, cIdx - jIdx + 1);
 }
 
 type ActivityOrder = "latest" | "oldest";
@@ -35,6 +44,18 @@ function compareActivities(a: Activity, b: Activity): number {
   if (dateDifference !== 0) return dateDifference;
   const createdDifference = (a.createdAt ?? "").localeCompare(b.createdAt ?? "");
   return createdDifference !== 0 ? createdDifference : a.id.localeCompare(b.id);
+}
+
+/**
+ * A role counts as "President" only when it's the actual top office —
+ * not "Vice President", "Chartered Vice President", "Past President",
+ * "President Elect", "Deputy President", "Assistant President", etc.
+ */
+function isActualPresidentRole(roleName: string): boolean {
+  const r = (roleName ?? "").trim().toLowerCase();
+  if (!r) return false;
+  if (/vice|past|elect|chartered|deputy|assistant|co-?president/.test(r)) return false;
+  return r === "president" || r === "club president" || r.endsWith(" president");
 }
 
 interface Props { memberId: string; }
@@ -112,13 +133,16 @@ export default function MemberProfilePage({ memberId }: Props) {
   );
 
   const isActive = member.isActive !== false;
+
+  // ── Role by Leo Year ────────────────────────────────────────────────────────
   const roleByYear: Record<string, string> = {};
-  (member.roleHistory ?? []).forEach((role) => {
-    roleByYear[role.leoYear] = role.role;
-  });
   bodRecords.forEach((record) => {
     if (record.leoYear) roleByYear[record.leoYear] = record.role;
   });
+  (member.roleHistory ?? []).forEach((role) => {
+    roleByYear[role.leoYear] = role.role;
+  });
+
   const joinedIndex = LEO_YEARS.indexOf(member.joinedLeoYear ?? "");
   const leftIndex = member.leftLeoYear ? LEO_YEARS.indexOf(member.leftLeoYear) : -1;
   const currentCalendarYear = new Date().getFullYear();
@@ -126,30 +150,47 @@ export default function MemberProfilePage({ memberId }: Props) {
     ? `${currentCalendarYear}/${String(currentCalendarYear + 1).slice(-2)}`
     : `${currentCalendarYear - 1}/${String(currentCalendarYear).slice(-2)}`;
   const currentIndex = Math.max(0, LEO_YEARS.indexOf(currentLeoYear));
+
   const sortedActivities = [...activities].sort((a, b) =>
     activityOrder === "latest" ? compareActivities(b, a) : compareActivities(a, b)
   );
+
   const roleYears = Object.keys(roleByYear).length > 0
     ? [...new Set([
       ...(joinedIndex >= 0 ? LEO_YEARS.slice(joinedIndex, (leftIndex >= 0 ? leftIndex : currentIndex) + 1) : []),
       ...Object.keys(roleByYear),
     ])].sort((a, b) => LEO_YEARS.indexOf(a) - LEO_YEARS.indexOf(b))
     : (joinedIndex >= 0 ? LEO_YEARS.slice(joinedIndex, (leftIndex >= 0 ? leftIndex : currentIndex) + 1) : []);
+
   roleYears.forEach((year) => {
     if (!roleByYear[year]) roleByYear[year] = "General Member";
   });
-  const presidentRoles = bodRecords.filter((record) => record.role.trim().toLowerCase() === "president" && record.leoYear);
-  const presidentialService = presidentRoles.map((record) => ({
-    ...record,
+
+  // ── President's Service Record ──────────────────────────────────────────────
+  // Read from roleHistory (source of truth for historical roles). BOD records
+  // are current-year only and should NOT be used for historical presidential years.
+  // All presidential years are shown — most recent first.
+  const presidentialYears = [...new Set(
+    (member.roleHistory ?? [])
+      .filter((rh) => rh.leoYear && isActualPresidentRole(rh.role))
+      .map((rh) => rh.leoYear)
+  )].sort((a, b) => LEO_YEARS.indexOf(b) - LEO_YEARS.indexOf(a));
+
+  const presidentialService = presidentialYears.map((leoYear) => ({
+    id: `president-${leoYear}`,
+    leoYear,
     activities: allActivities
-      .filter((activity) => activity.year === record.leoYear)
-      .sort((a, b) => activityOrder === "latest" ? compareActivities(b, a) : compareActivities(a, b)),
+      .filter((activity) => activity.year === leoYear)
+      .sort((a, b) =>
+        activityOrder === "latest" ? compareActivities(b, a) : compareActivities(a, b)
+      ),
   }));
+
   const profileActivityCount = new Set([
     ...activities.map((activity) => activity.id),
     ...presidentialService.flatMap((service) => service.activities.map((activity) => activity.id)),
   ]).size;
-  // Group activities by year in chrono order
+
   const byYear: Record<string, Activity[]> = {};
   sortedActivities.forEach((a) => {
     if (!byYear[a.year]) byYear[a.year] = [];
@@ -169,7 +210,6 @@ export default function MemberProfilePage({ memberId }: Props) {
             <ArrowLeft size={16} /> All Members
           </Link>
 
-          {/* Status badge */}
           <div className="mb-5">
             {isActive ? (
               <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-400/40 rounded-xl px-4 py-1.5">
@@ -233,7 +273,6 @@ export default function MemberProfilePage({ memberId }: Props) {
             background: "#fff", fontFamily: "system-ui, -apple-system, sans-serif", position: "relative",
           }}
         >
-          {/* Navy header */}
           <div style={{ background: "linear-gradient(135deg,#002147 0%,#003575 100%)", height: "68px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", position: "relative" }}>
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "#D4AF37" }} />
             <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
@@ -247,7 +286,6 @@ export default function MemberProfilePage({ memberId }: Props) {
               {isActive ? "● ACTIVE" : "◌ PAST"}
             </div>
           </div>
-          {/* Body */}
           <div style={{ display: "flex", alignItems: "flex-start", padding: "12px 14px", gap: "12px" }}>
             {member.photoUrl
               ? <img src={member.photoUrl} alt={member.name} style={{ width: "64px", height: "64px", borderRadius: "10px", objectFit: "cover", border: "2px solid #002147", flexShrink: 0 }} />
@@ -270,7 +308,6 @@ export default function MemberProfilePage({ memberId }: Props) {
               <div style={{ fontSize: "7px", color: "#aaa", textAlign: "center" }}>Scan to verify</div>
             </div>
           </div>
-          {/* Footer */}
           <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "#F8FAFC", borderTop: "1px solid #eee", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 14px" }}>
             <div style={{ fontSize: "7.5px", color: "#aaa" }}>Roll No: {member.rollNo}</div>
             <div style={{ fontSize: "7.5px", color: "#aaa" }}>leoclubofkusms.org</div>
@@ -305,7 +342,6 @@ export default function MemberProfilePage({ memberId }: Props) {
               </div>
             )}
 
-            {/* Service info */}
             {(member.joinedLeoYear || member.leftLeoYear) && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <h3 className="font-bold text-[#002147] mb-3 text-sm flex items-center gap-2">
@@ -351,7 +387,6 @@ export default function MemberProfilePage({ memberId }: Props) {
 
           {/* Right: awards + activities */}
           <div className="md:col-span-2 space-y-6">
-            {/* Leadership roles by Leo Year */}
             {roleYears.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <h3 className="font-bold text-[#002147] mb-4 flex items-center gap-2">
@@ -368,16 +403,17 @@ export default function MemberProfilePage({ memberId }: Props) {
               </div>
             )}
 
-            {/* President's service record */}
             {presidentialService.length > 0 && (
               <div className="bg-[#002147] rounded-2xl shadow-sm p-5 text-white">
                 <h3 className="font-bold mb-1 flex items-center gap-2">
                   <AwardIcon size={16} className="text-[#D4AF37]" /> President&apos;s Service Record
                 </h3>
-                <p className="text-xs text-white/60 mb-4">All club activities recorded during this member&apos;s presidential Leo Year(s).</p>
-                <div className="space-y-4">
+                <p className="text-xs text-white/60 mb-4">
+                  All club activities recorded during this member&apos;s presidential Leo Year{presidentialService.length > 1 ? "s" : ""}.
+                </p>
+                <div className="space-y-5">
                   {presidentialService.map((service) => (
-                    <div key={`${service.id}-${service.leoYear}`}>
+                    <div key={service.id}>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-bold text-[#D4AF37]">Leo Year {service.leoYear}</span>
                         <span className="text-xs text-white/50">{service.activities.length} event{service.activities.length === 1 ? "" : "s"}</span>
@@ -390,7 +426,9 @@ export default function MemberProfilePage({ memberId }: Props) {
                             <Link key={activity.id} href={`/activity/${activity.id}`}
                               className="flex items-center justify-between gap-3 rounded-lg bg-white/10 hover:bg-white/15 px-3 py-2 transition-colors">
                               <span className="text-sm truncate">{activity.title}</span>
-                              <span className="text-xs text-white/50 shrink-0">{activity.month}</span>
+                              <span className="text-xs text-white/50 shrink-0">
+                                {activity.month} {leoMonthToCalendarYear(activity.year, activity.month)}
+                              </span>
                             </Link>
                           ))}
                         </div>
@@ -401,7 +439,6 @@ export default function MemberProfilePage({ memberId }: Props) {
               </div>
             )}
 
-            {/* Awards */}
             {awards.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <h3 className="font-bold text-[#002147] mb-4 flex items-center gap-2">
@@ -413,7 +450,10 @@ export default function MemberProfilePage({ memberId }: Props) {
                       <Star size={18} className="text-[#D4AF37] shrink-0" />
                       <div>
                         <div className="font-semibold text-[#002147] text-sm">{a.title}</div>
-                        <div className="text-xs text-gray-400">{a.month} · Leo Year {a.year}{a.awardedBy ? ` · By ${a.awardedBy}` : ""}</div>
+                        <div className="text-xs text-gray-400">
+                          {a.month} {leoMonthToCalendarYear(a.year, a.month)} · Leo Year {a.year}
+                          {a.awardedBy ? ` · By ${a.awardedBy}` : ""}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -466,7 +506,9 @@ export default function MemberProfilePage({ memberId }: Props) {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="font-semibold text-[#002147] text-sm group-hover:text-[#003575]">{a.title}</div>
-                                  <div className="text-xs text-gray-400">{a.month} · Leo Year {a.year}</div>
+                                  <div className="text-xs text-gray-400">
+                                    {a.month} {leoMonthToCalendarYear(a.year, a.month)} · Leo Year {a.year}
+                                  </div>
                                   {a.description && <div className="text-xs text-gray-400 mt-1 line-clamp-1">{a.description}</div>}
                                 </div>
                                 {participation?.awardTitle && (

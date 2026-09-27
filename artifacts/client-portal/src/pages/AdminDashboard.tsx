@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import ActivityForm from "./admin/ActivityForm";
 import MemberManagement from "./admin/MemberManagement";
-import ActivityList from "./admin/ActivityList";
+import ActivitiesManager from "./admin/ActivitiesManager";
 import QRGenerator from "./admin/QRGenerator";
 import IDCardGenerator from "./admin/IDCardGenerator";
 import BodManagement from "./admin/BodManagement";
 import ClubSettings from "./admin/ClubSettings";
 import AwardsManagement from "./admin/AwardsManagement";
 import EventsManagement from "./admin/EventsManagement";
+import EventApplicationsManager from "./admin/EventApplicationsManager";
 import AnnualReport from "./admin/AnnualReport";
 import CertificateGenerator from "./admin/CertificateGenerator";
 import ConstitutionManager from "./admin/ConstitutionManager";
@@ -17,36 +17,38 @@ import BatchEditor from "./admin/BatchEditor";
 import AnnouncementsManager from "./admin/AnnouncementsManager";
 import LeaderQuotesManager from "./admin/LeaderQuotesManager";
 import PastLeadersManager from "./admin/PastLeadersManager";
+import ServiceImpactManager from "./admin/ServiceImpactManager";
 import {
-  PlusCircle, Users, List, QrCode, LogOut, Home, Crown, Settings,
-  Award, CalendarDays, FileText, CreditCard, Scroll, BookOpen, Wrench, Megaphone, ShieldCheck, Quote,
+  Users, QrCode, LogOut, Home, Crown, Settings,
+  Award, CalendarDays, FileText, CreditCard, Scroll, BookOpen, Wrench, Megaphone, ShieldCheck, Quote, Inbox, Heart,
 } from "lucide-react";
 import BrandMark from "@/components/BrandMark";
 
 const ADMIN_TABS = [
-  { id: "new-activity", label: "New Activity", icon: PlusCircle },
+  { id: "activities", label: "Activities", icon: CalendarDays },
   { id: "members", label: "Members", icon: Users },
-  { id: "activities", label: "Activity List", icon: List },
   { id: "awards", label: "Awards", icon: Award },
   { id: "events", label: "Events", icon: CalendarDays },
+  { id: "event-applications", label: "Applications", icon: Inbox },
   { id: "bod", label: "Board of Directors", icon: Crown },
   { id: "leader-quotes", label: "Leader Quotes", icon: Quote },
   { id: "past-leaders", label: "Past Leaders", icon: Crown },
+  { id: "service-impact", label: "Service Impact", icon: Heart },
   { id: "qr", label: "QR Generator", icon: QrCode },
   { id: "id-cards", label: "ID Cards", icon: CreditCard },
   { id: "certificates", label: "Certificates", icon: Scroll },
   { id: "announcements", label: "Announcements", icon: Megaphone },
   { id: "constitution", label: "Constitution", icon: BookOpen },
-  { id: "batch-editor", label: "Data Tools", icon: Wrench },
+  { id: "batch-editor", label <: "Data Tools", icon: Wrench },
   { id: "settings", label: "Club Settings", icon: Settings },
   { id: "annual-report", label: "Annual Report", icon: FileText },
 ] as const;
 
 const OPERATOR_TABS = [
-  { id: "new-activity", label: "New Activity", icon: PlusCircle },
-  { id: "activities", label: "Activity List", icon: List },
+  { id: "activities", label: "Activities", icon: CalendarDays },
   { id: "awards", label: "Awards", icon: Award },
   { id: "events", label: "Events", icon: CalendarDays },
+  { id: "event-applications", label: "Applications", icon: Inbox },
   { id: "qr", label: "QR Generator", icon: QrCode },
   { id: "id-cards", label: "ID Cards", icon: CreditCard },
   { id: "certificates", label: "Certificates", icon: Scroll },
@@ -59,8 +61,7 @@ type TabId = AdminTabId | OperatorTabId;
 export default function AdminDashboard() {
   const { signOut, isAdmin, isOperator, user } = useAuth();
   const tabs = isAdmin ? ADMIN_TABS : OPERATOR_TABS;
-  const [activeTab, setActiveTab] = useState<TabId>("new-activity");
-  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<TabId>("activities");
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -88,7 +89,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {user && <span className="text-white/40 text-xs hidden sm:block">{user.email}</span>}
+          {user &&span className="text-white/40 text-xs hidden sm:block">{user.email}</span>}
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-white/10"
@@ -140,29 +141,15 @@ export default function AdminDashboard() {
 
         {/* Tab content */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          {activeTab === "new-activity" && (
-            <div>
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-[#002147]">Add Activity</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Record a service activity — past or upcoming. Select any Leo Year and month.
-                </p>
-              </div>
-              <ActivityForm onSuccess={() => setActivityRefreshKey((k) => k + 1)} />
-            </div>
-          )}
+          {activeTab === "activities" && <ActivitiesManager />}
           {activeTab === "members" && isAdmin && <MemberManagement />}
-          {activeTab === "activities" && (
-            <ActivityList
-              refreshKey={activityRefreshKey}
-              onActivityUpdated={() => setActivityRefreshKey((k) => k + 1)}
-            />
-          )}
           {activeTab === "awards" && <AwardsManagement />}
           {activeTab === "events" && <EventsManagement />}
+          {activeTab === "event-applications" && <EventApplicationsManager />}
           {activeTab === "bod" && isAdmin && <BodManagement />}
           {activeTab === "leader-quotes" && isAdmin && <LeaderQuotesManager />}
           {activeTab === "past-leaders" && isAdmin && <PastLeadersManager />}
+          {activeTab === "service-impact" && isAdmin && <ServiceImpactManager />}
           {activeTab === "qr" && <QRGenerator />}
           {activeTab === "id-cards" && <IDCardGenerator />}
           {activeTab === "certificates" && <CertificateGenerator />}

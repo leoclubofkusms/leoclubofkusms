@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { getClubEvents } from "@/lib/firestore";
 import type { ClubEvent } from "@/lib/types";
-import { CalendarDays, MapPin, Clock, ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight, LayoutList, Calendar } from "lucide-react";
+import { CalendarDays, MapPin, Clock, ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight, LayoutList, Calendar, Users, QrCode, Pin } from "lucide-react";
 import { Link } from "wouter";
+import ApplicationFormModal from "@/components/ApplicationFormModal";
 
 const STATUS_CONFIG = {
   planned: { label: "Upcoming", color: "bg-blue-100 text-blue-700", icon: Clock },
@@ -13,7 +14,16 @@ const STATUS_CONFIG = {
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-function CalendarView({ events }: { events: ClubEvent[] }) {
+function formatEventDate(ev: ClubEvent): string {
+  if (ev.endDate && ev.endDate !== ev.date) {
+    const start = new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    const end = new Date(ev.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    return `${start} – ${end}`;
+  }
+  return new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: ClubEvent) => void }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth()); // 0-indexed
@@ -21,15 +31,26 @@ function CalendarView({ events }: { events: ClubEvent[] }) {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Map date string "YYYY-MM-DD" to events
+  // Map date string "YYYY-MM-DD" to events — expand multi-day events to cover every day
   const eventsMap: Record<string, ClubEvent[]> = {};
   for (const ev of events) {
-    const d = ev.date?.slice(0, 10);
-    if (!d) continue;
-    const [ey, em] = d.split("-").map(Number);
-    if (ey === year && em === month + 1) {
-      if (!eventsMap[d]) eventsMap[d] = [];
-      eventsMap[d].push(ev);
+    const startStr = ev.date?.slice(0, 10);
+    if (!startStr) continue;
+    const endStr = (ev.endDate && ev.endDate >= ev.date) ? ev.endDate.slice(0, 10) : startStr;
+
+    // Iterate each day between start and end (inclusive)
+    const cursor = new Date(startStr + "T00:00:00");
+    const end = new Date(endStr + "T00:00:00");
+    while (cursor <= end) {
+      const y = cursor.getFullYear();
+      const m = cursor.getMonth();
+      const d = cursor.getDate();
+      if (y === year && m === month) {
+        const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        if (!eventsMap[key]) eventsMap[key] = [];
+        eventsMap[key].push(ev);
+      }
+      cursor.setDate(cursor.getDate() + 1);
     }
   }
 
@@ -51,6 +72,13 @@ function CalendarView({ events }: { events: ClubEvent[] }) {
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
+
+  function canApply(ev: ClubEvent) {
+    if (!ev.applicationsEnabled) return false;
+    if (ev.status === "cancelled") return false;
+    if (ev.applicationDeadline && ev.applicationDeadline < today) return false;
+    return true;
+  }
 
   return (
     <div>
@@ -99,7 +127,7 @@ function CalendarView({ events }: { events: ClubEvent[] }) {
                     <div key={i} className={`w-1.5 h-1.5 rounded-full ${
                       isSelected ? "bg-white" :
                       ev.status === "cancelled" ? "bg-red-400" :
-                      ev.date >= today ? "bg-blue-500" : "bg-green-500"
+                      (ev.endDate || ev.date) >= today ? "bg-blue-500" : "bg-green-500"
                     }`} />
                   ))}
                 </div>
@@ -124,15 +152,47 @@ function CalendarView({ events }: { events: ClubEvent[] }) {
                 const StatusIcon = cfg.icon;
                 return (
                   <div key={ev.id} className="bg-[#F8FAFC] rounded-xl border border-gray-100 p-4">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${cfg.color}`}>
                         <StatusIcon size={11} /> {cfg.label}
                       </span>
                       {ev.eventType && <span className="text-xs bg-[#002147]/10 text-[#002147] px-2.5 py-1 rounded-full">{ev.eventType}</span>}
+                      {ev.pinned && (
+                        <span className="text-xs bg-[#D4AF37] text-[#002147] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                          <Pin size={10} /> Pinned
+                        </span>
+                      )}
                     </div>
                     <h5 className="font-bold text-[#002147]">{ev.title}</h5>
+                    {ev.endDate && ev.endDate !== ev.date && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Runs {formatEventDate(ev)}
+                      </p>
+                    )}
                     {ev.description && <p className="text-sm text-gray-500 mt-1">{ev.description}</p>}
                     {ev.location && <p className="flex items-center gap-1.5 text-xs text-gray-400 mt-2"><MapPin size={11} className="text-[#D4AF37]" /> {ev.location}</p>}
+
+                    {/* Application section in calendar */}
+                    {ev.applicationsEnabled && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        {ev.applicationPrompt && (
+                          <p className="text-xs text-gray-600 italic mb-2">{ev.applicationPrompt}</p>
+                        )}
+                        {canApply(ev) ? (
+                          <button
+                            onClick={() => onApply(ev)}
+                            className="w-full flex items-center justify-center gap-2 bg-[#002147] hover:bg-[#003575] text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
+                          >
+                            <Users size={14} />
+                            Apply as {ev.applicationType || "Applicant"}
+                          </button>
+                        ) : (
+                          <div className="text-xs text-center text-gray-400 bg-gray-100 rounded-lg py-2">
+                            Applications closed
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -157,19 +217,27 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "upcoming" | "past">("upcoming");
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [applyingEvent, setApplyingEvent] = useState<ClubEvent | null>(null);
 
   useEffect(() => {
     getClubEvents().then(setEvents).catch(console.error).finally(() => setLoading(false));
   }, []);
 
   const today = new Date().toISOString().split("T")[0];
-  const upcoming = events.filter((e) => e.date >= today && e.status !== "cancelled");
-  const past = events.filter((e) => e.date < today || e.status === "completed" || e.status === "cancelled");
+  const upcoming = events.filter((e) => (e.endDate || e.date) >= today && e.status !== "cancelled");
+  const past = events.filter((e) => (e.endDate || e.date) < today || e.status === "completed" || e.status === "cancelled");
 
   const displayed =
     filter === "upcoming" ? upcoming :
     filter === "past" ? [...past].reverse() :
     events;
+
+  function canApply(ev: ClubEvent) {
+    if (!ev.applicationsEnabled) return false;
+    if (ev.status === "cancelled") return false;
+    if (ev.applicationDeadline && ev.applicationDeadline < today) return false;
+    return true;
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -203,7 +271,6 @@ export default function EventsPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Controls row */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
-          {/* Filter tabs */}
           <div className="flex gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 shadow-sm">
             {(["upcoming", "past", "all"] as const).map((f) => (
               <button key={f} onClick={() => setFilter(f)}
@@ -212,7 +279,6 @@ export default function EventsPage() {
               </button>
             ))}
           </div>
-          {/* View toggle */}
           <div className="flex gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 shadow-sm">
             <button onClick={() => setViewMode("list")}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${viewMode === "list" ? "bg-[#002147] text-white shadow-sm" : "text-gray-500 hover:text-[#002147]"}`}>
@@ -231,7 +297,7 @@ export default function EventsPage() {
           </div>
         ) : viewMode === "calendar" ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <CalendarView events={events} />
+            <CalendarView events={events} onApply={setApplyingEvent} />
           </div>
         ) : displayed.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
@@ -244,20 +310,38 @@ export default function EventsPage() {
             {displayed.map((ev) => {
               const cfg = STATUS_CONFIG[ev.status];
               const StatusIcon = cfg.icon;
-              const dateStr = new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-              const isPast = ev.date < today;
+              const dateStr = formatEventDate(ev);
+              const isPast = (ev.endDate || ev.date) < today;
+              const canApplyNow = canApply(ev);
+              const feeShown = ev.feeLeo || ev.feeNonLeo;
+              const isMultiDay = ev.endDate && ev.endDate !== ev.date;
               return (
-                <div key={ev.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow ${isPast ? "border-gray-100 opacity-80" : "border-[#D4AF37]/20"}`}>
+                <div key={ev.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col ${isPast ? "border-gray-100 opacity-80" : "border-[#D4AF37]/20"}`}>
                   {ev.photoUrl && (
                     <img src={ev.photoUrl} alt={ev.title} className="w-full h-40 object-cover" />
                   )}
-                  <div className="p-5">
+                  <div className="p-5 flex-1 flex flex-col">
                     <div className="flex items-center gap-2 mb-3 flex-wrap">
                       <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${cfg.color}`}>
                         <StatusIcon size={11} /> {cfg.label}
                       </span>
                       {ev.eventType && (
                         <span className="text-xs bg-[#002147]/10 text-[#002147] px-2.5 py-1 rounded-full font-medium">{ev.eventType}</span>
+                      )}
+                      {ev.pinned && (
+                        <span className="text-xs bg-[#D4AF37] text-[#002147] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                          <Pin size={10} /> Pinned
+                        </span>
+                      )}
+                      {isMultiDay && (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                          Multi-day
+                        </span>
+                      )}
+                      {ev.applicationsEnabled && (
+                        <span className="text-xs bg-[#D4AF37]/20 text-[#002147] px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+                          <Users size={10} /> {ev.applicationType || "Applications open"}
+                        </span>
                       )}
                     </div>
                     <h3 className="font-bold text-[#002147] text-lg mb-2">{ev.title}</h3>
@@ -266,6 +350,45 @@ export default function EventsPage() {
                       <span className="flex items-center gap-2"><Clock size={13} className="text-[#D4AF37]" /> {dateStr}</span>
                       {ev.location && <span className="flex items-center gap-2"><MapPin size={13} className="text-[#D4AF37]" /> {ev.location}</span>}
                     </div>
+
+                    {/* Applications section */}
+                    {ev.applicationsEnabled && (
+                      <div className="mt-4 pt-4 border-t border-gray-100 mt-auto">
+                        {ev.applicationPrompt && (
+                          <p className="text-xs text-gray-600 italic mb-3 leading-relaxed">{ev.applicationPrompt}</p>
+                        )}
+
+                        {canApplyNow ? (
+                          <button
+                            onClick={() => setApplyingEvent(ev)}
+                            className="w-full flex items-center justify-center gap-2 bg-[#002147] hover:bg-[#003575] text-white text-sm font-bold py-3 rounded-xl transition-colors"
+                          >
+                            <Users size={15} />
+                            Apply as {ev.applicationType || "Applicant"}
+                          </button>
+                        ) : (
+                          <div className="text-xs text-center text-gray-400 bg-gray-100 rounded-xl py-2.5">
+                            {ev.applicationDeadline && ev.applicationDeadline < today
+                              ? "Applications closed"
+                              : "Applications unavailable"}
+                          </div>
+                        )}
+
+                        {/* Payment info chip */}
+                        {feeShown > 0 && canApplyNow && (
+                          <div className="mt-2 text-xs text-gray-500 text-center flex items-center justify-center gap-1.5">
+                            <QrCode size={11} className="text-[#D4AF37]" />
+                            {ev.feeLeo === ev.feeNonLeo
+                              ? `Fee: NPR ${ev.feeLeo}`
+                              : ev.feeLeo === 0
+                              ? `Free for Leo · NPR ${ev.feeNonLeo} for Non-Leo`
+                              : ev.feeNonLeo === 0
+                              ? `NPR ${ev.feeLeo} for Leo · Free for Non-Leo`
+                              : `NPR ${ev.feeLeo} (Leo) · NPR ${ev.feeNonLeo} (Non-Leo)`}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -273,6 +396,14 @@ export default function EventsPage() {
           </div>
         )}
       </div>
+
+      {/* Application modal */}
+      {applyingEvent && (
+        <ApplicationFormModal
+          event={applyingEvent}
+          onClose={() => setApplyingEvent(null)}
+        />
+      )}
     </div>
   );
 }
