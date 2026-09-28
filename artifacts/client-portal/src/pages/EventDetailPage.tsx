@@ -289,3 +289,20 @@ export default function EventDetailPage({ eventId }: { eventId: string }) {
               className="!bg-[#002147] !border-[#002147] hover:!bg-[#003575]"
             />
           </div>
+        </section>
+
+        {/* Back link */}
+        <div className="pt-4 border-t border-gray-100">
+          <Link href="/events" className="inline-flex items-center gap-2 text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors text-sm">
+            <ArrowLeft size={14} /> View all events
+          </Link>
+        </div>
+      </div>
+
+      {/* Application modal */}
+      {applying && (
+        <ApplicationFormModal event={event} onClose={() => setApplying(false)} />
+      )}
+    </div>
+  );
+}
