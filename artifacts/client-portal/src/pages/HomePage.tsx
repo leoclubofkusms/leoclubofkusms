@@ -6,8 +6,8 @@ import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ID, LEO_YEARS, MONTH
 import {
   ArrowRight, Award, Users, Calendar, Shield, Mail, Phone,
   ChevronLeft, ChevronRight, Pin, Info, Facebook, ExternalLink,
-  Star, Building, Quote, Heart, TrendingUp, MessageCircle,
-  Zap, Trophy, Flame, BarChart3, Megaphone, X as XIcon, Clock, Link as LinkIcon, DollarSign,
+  Star, Building, Heart, TrendingUp, MessageCircle,
+  Zap, Trophy, Flame, BarChart3, Megaphone, X as XIcon, Clock, DollarSign,
 } from "lucide-react";
 
 // ── Animated counter hook ──────────────────────────────────────────────────────
@@ -28,80 +28,16 @@ function useCountUp(target: number, duration = 1800, start = false) {
   return count;
 }
 
-// ── Impact Stats Section (existing) ───────────────────────────────────────────
-function ImpactStats({
-  memberCount, activityCount, awardCount,
-}: { memberCount: number; activityCount: number; awardCount: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setVisible(true); obs.disconnect(); }
-    }, { threshold: 0.3 });
-    if (ref.current) obs.observe(ref.current);
-    return () => obs.disconnect();
-  }, []);
-
-  const m = useCountUp(memberCount, 1600, visible);
-  const a = useCountUp(activityCount, 1800, visible);
-  const p = useCountUp(awardCount, 2000, visible);
-
-  const yearsOfService = (() => {
-    const established = new Date("June 11, 2024");
-    const now = new Date();
-    let years = now.getFullYear() - established.getFullYear();
-    if (
-      now.getMonth() < established.getMonth() ||
-      (now.getMonth() === established.getMonth() && now.getDate() < established.getDate())
-    ) {
-      years -= 1;
-    }
-    return Math.max(1, years);
-  })();
-  const y = useCountUp(yearsOfService, 1200, visible);
-
-  const stats = [
-    { label: "Active Members", value: m, icon: Users, suffix: "+" },
-    { label: "Activities Completed", value: a, icon: Calendar, suffix: "" },
-    { label: "Awards Given", value: p, icon: Award, suffix: "" },
-    { label: "Years of Service", value: y, icon: TrendingUp, suffix: "+" },
-  ];
-
-  return (
-    <section ref={ref} className="relative overflow-hidden rounded-3xl bg-[#002147] text-white py-12 px-6 shadow-xl">
-      <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#D4AF37]/5 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
-      <div className="relative z-10">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-3">
-            <TrendingUp size={13} /> Our Impact
-          </div>
-          <h2 className="text-2xl md:text-3xl font-bold">Making a Difference Together</h2>
-          <p className="text-white/60 text-sm mt-2">Every member, every activity, every life touched counts.</p>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {stats.map(({ label, value, icon: Icon, suffix }) => (
-            <div key={label} className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-6 text-center transition-all">
-              <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/20 flex items-center justify-center mx-auto mb-3">
-                <Icon size={18} className="text-[#D4AF37]" />
-              </div>
-              <div className="text-4xl font-bold text-white mb-1 tabular-nums">
-                {value}{suffix}
-              </div>
-              <div className="text-white/50 text-xs leading-tight">{label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── Service Impact Section (Lions Portal style) ───────────────────────────────
+// ── Merged Service Impact + Club Snapshot section ─────────────────────────────
 function ServiceImpactSection({
-  impact, activities, leoYear,
-}: { impact: ServiceImpact | null; activities: Activity[]; leoYear: string }) {
+  impact, activities, leoYear, memberCount, activityCount,
+}: {
+  impact: ServiceImpact | null;
+  activities: Activity[];
+  leoYear: string;
+  memberCount: number;
+  activityCount: number;
+}) {
   const [currency, setCurrency] = useState<"NPR" | "USD">("NPR");
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -109,7 +45,7 @@ function ServiceImpactSection({
   useEffect(() => {
     const obs = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) { setVisible(true); obs.disconnect(); }
-    }, { threshold: 0.3 });
+    }, { threshold: 0.2 });
     if (ref.current) obs.observe(ref.current);
     return () => obs.disconnect();
   }, []);
@@ -129,8 +65,25 @@ function ServiceImpactSection({
   const peopleCount = useCountUp(peopleServed, 1600, visible);
   const volunteerCount = useCountUp(volunteers, 1600, visible);
   const hoursCount = useCountUp(volunteerHours, 1600, visible);
+  const memberCountAnim = useCountUp(memberCount, 1400, visible);
+  const activityCountAnim = useCountUp(activityCount, 1600, visible);
 
-  const animatedStats = [
+  // Years of service — always computed live from club establishment date
+  const yearsOfService = (() => {
+    const established = new Date("June 11, 2024");
+    const now = new Date();
+    let years = now.getFullYear() - established.getFullYear();
+    if (
+      now.getMonth() < established.getMonth() ||
+      (now.getMonth() === established.getMonth() && now.getDate() < established.getDate())
+    ) {
+      years -= 1;
+    }
+    return Math.max(1, years);
+  })();
+  const yearsCountAnim = useCountUp(yearsOfService, 1200, visible);
+
+  const impactStats = [
     { label: "People Served", value: formatImpactNumber(peopleCount), icon: Heart },
     { label: "Volunteers", value: formatImpactNumber(volunteerCount), icon: Users },
     { label: "Volunteer Hours", value: formatImpactNumber(hoursCount), icon: Clock },
@@ -138,13 +91,20 @@ function ServiceImpactSection({
     { label: "Funds Raised", value: formatCurrency(fundsRaised, currency), icon: TrendingUp },
   ];
 
+  const clubStats = [
+    { label: "Active Members", value: `${memberCountAnim}`, icon: Users },
+    { label: "Activities Completed", value: `${activityCountAnim}`, icon: Calendar },
+    { label: "Years of Service", value: `${yearsCountAnim}+`, icon: Shield },
+  ];
+
   return (
-    <section ref={ref} className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#002147] to-[#003575] text-white py-12 px-6 shadow-xl border-2 border-[#D4AF37]/20">
+    <section ref={ref} className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#002147] to-[#003575] text-white py-10 sm:py-12 px-5 sm:px-6 shadow-xl border-2 border-[#D4AF37]/20">
       <div className="absolute top-0 right-0 w-72 h-72 bg-[#D4AF37]/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-56 h-56 bg-[#D4AF37]/5 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
       <div className="relative z-10">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
           <div className="text-center sm:text-left">
             <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-3">
               <Heart size={13} /> Our Service Impact
@@ -152,11 +112,11 @@ function ServiceImpactSection({
             <h2 className="text-2xl md:text-3xl font-bold">
               Leo Year {leoYear}
             </h2>
-            <p className="text-white/60 text-sm mt-2">
-              Measured in lives touched, hours served, and generosity given.
+            <p className="text-white/60 text-sm mt-2 max-w-xl">
+              Making a difference together — measured in lives touched, hours served, and generosity given.
             </p>
           </div>
-          <div className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-xl p-1 self-center sm:self-auto">
+          <div className="flex items-center gap-1 bg-white/10 border border-white/20 rounded-xl p-1 self-center sm:self-start">
             {(["NPR", "USD"] as const).map((c) => (
               <button
                 key={c}
@@ -173,8 +133,9 @@ function ServiceImpactSection({
           </div>
         </div>
 
+        {/* Headline impact — 5 big cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
-          {animatedStats.map(({ label, value, icon: Icon }) => (
+          {impactStats.map(({ label, value, icon: Icon }) => (
             <div key={label} className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 sm:p-5 text-center transition-all">
               <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/20 flex items-center justify-center mx-auto mb-3">
                 <Icon size={16} className="text-[#D4AF37]" />
@@ -187,6 +148,25 @@ function ServiceImpactSection({
           ))}
         </div>
 
+        {/* Club snapshot — 3 small stat rows */}
+        <div className="mt-5 bg-white/[0.03] border border-white/10 rounded-2xl p-4 sm:p-5">
+          <div className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] text-[#D4AF37]/80 mb-3 text-center sm:text-left">
+            Club Snapshot
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {clubStats.map(({ label, value, icon: Icon }) => (
+              <div key={label} className="text-center">
+                <div className="flex items-center justify-center gap-1.5 mb-1">
+                  <Icon size={12} className="text-[#D4AF37]" />
+                  <span className="text-lg sm:text-xl font-bold text-white tabular-nums">{value}</span>
+                </div>
+                <div className="text-[10px] sm:text-xs text-white/50 leading-tight">{label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 text-xs text-white/50">
           {hasData ? (
             <span>Last updated {new Date(impact!.updatedAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
@@ -774,26 +754,6 @@ export default function HomePage() {
     .filter((e) => e.pinned && e.status !== "cancelled" && (e.endDate || e.date) >= today)
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const yearsOfService = (() => {
-    const established = new Date("June 11, 2024");
-    const now = new Date();
-    let years = now.getFullYear() - established.getFullYear();
-    if (
-      now.getMonth() < established.getMonth() ||
-      (now.getMonth() === established.getMonth() && now.getDate() < established.getDate())
-    ) {
-      years -= 1;
-    }
-    return Math.max(1, years);
-  })();
-
-  const stats = [
-    { label: "Active Members", value: loading ? "—" : members.length, icon: Users },
-    { label: "Activities Completed", value: loading ? "—" : activities.length, icon: Calendar },
-    { label: "Awards Given", value: loading ? "—" : awards.length, icon: Award },
-    { label: "Years of Service", value: loading ? "—" : `${yearsOfService}+`, icon: Shield },
-  ];
-
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-[#F8FAFC]">
       {/* ── Hero ── */}
@@ -826,32 +786,14 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── Stats (existing) ── */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {stats.map((s) => {
-              const Icon = s.icon;
-              return (
-                <div key={s.label} className="text-center">
-                  <div className="w-10 h-10 rounded-xl bg-[#002147]/5 flex items-center justify-center mx-auto mb-2">
-                    <Icon size={20} className="text-[#002147]" />
-                  </div>
-                  <div className="text-3xl font-bold text-[#002147]">{s.value}</div>
-                  <div className="text-sm text-gray-500 mt-0.5">{s.label}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Service Impact (NEW — right below the 4 stats) ── */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-10">
+      {/* ── Merged Service Impact + Club Snapshot (replaces old 4-stat bar) ── */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10">
         <ServiceImpactSection
           impact={serviceImpact}
           activities={activities}
           leoYear={currentLeoYear}
+          memberCount={members.length}
+          activityCount={activities.length}
         />
       </div>
 
@@ -1166,10 +1108,6 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-
-        {/* ── Impact Stats ── */}
-        <ImpactStats memberCount={members.length} activityCount={activities.length}
-          awardCount={awards.length} />
 
         {/* ── Become a Leo ── */}
         <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">

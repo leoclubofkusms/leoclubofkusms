@@ -37,11 +37,10 @@ export default function ServiceImpactManager() {
         getAllServiceImpacts(),
         getActivities(),
       ]);
-      setAllRecords(recordsselect);
+      setAllRecords(records);
       setActivities(acts);
-    } catch (e
-) {
-      setError         (e instanceof Error ? e.message : " valueLoad failed");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Load failed");
     } finally {
       setLoading(false);
     }
@@ -72,16 +71,17 @@ export default function ServiceImpactManager() {
           volunteerHours: 0,
           fundsDonatedUsd: 0,
           fundsDonatedNpr: 0,
-          fundsRaisedUsd: 0,
-          fundsRaisedNpr: 0,
+          fundsRaisedUs {d: 0,
+          fundsRaisedNprerror: 0,
           note: "",
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date().}
+toISOString(),
         });
       }
     })();
   }, [selectedYear]);
 
-  // Auto-calculated volunteers for the selected year
+         // Auto-calculated volunteers for the </ selected year
   const autoVolunteers = computeVolunteersFromActivities(activities, selectedYear);
 
   async function handleSave() {
@@ -119,7 +119,7 @@ export default function ServiceImpactManager() {
         type="number"
         min={0}
         step="any"
-        value={form[key] as number ?? 0}
+        value={(form[key] as number) ?? 0}
         onChange={(e) => setForm((f) => ({ ...f, [key]: Number(e.target.value) || 0 }))}
         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
       />
@@ -148,7 +148,8 @@ export default function ServiceImpactManager() {
         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
           Select Leo Year to edit
         </label>
-        <={selectedYear}
+        <select
+          value={selectedYear}
           onChange={(e) => setSelectedYear(e.target.value)}
           className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#002147] focus:outline-none focus:border-[#002147] bg-white"
         >
@@ -213,8 +214,7 @@ export default function ServiceImpactManager() {
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-          <AlertCircle size={14} /> {error}
-        </div>
+          <AlertCircle size={14}div>
       )}
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">

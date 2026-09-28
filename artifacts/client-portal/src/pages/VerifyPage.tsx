@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { getMember, getActivity } from "@/lib/firestore";
-import type { Member, Activity, MemberActivity } from "@/lib/types";
+import { getMember, getActivity, getBodMembers } from "@/lib/firestore";
+import type { Member, Activity, MemberActivity, BodMember } from "@/lib/types";
 import { MONTHS, LEO_YEARS, activitySortKey, leoMonthToCalendarYear } from "@/lib/types";
 import { QRCodeSVG } from "qrcode.react";
-import { User, Calendar, Award, ExternalLink, ArrowLeft, CheckCircle, Clock } from "lucide-react";
+import { User, Calendar, Award, ExternalLink, ArrowLeft, CheckCircle, Clock, Shield, ArrowRight } from "lucide-react";
 
 interface ActivityRecord {
   activity: Activity;
@@ -38,9 +38,21 @@ function yearsServed(member: Member): number {
   return Math.max(1, cIdx - jIdx + 1);
 }
 
+/**
+ * A role counts as "President" only when it's the actual top office —
+ * not "Vice President", "Chartered Vice President", "Past President", etc.
+ */
+function isActualPresidentRole(roleName: string): boolean {
+  const r = (roleName ?? "").trim().toLowerCase();
+  if (!r) return false;
+  if (/vice|past|elect|chartered|deputy|assistant|co-?president/.test(r)) return false;
+  return r === "president" || r === "club president" || r.endsWith(" president");
+}
+
 export default function VerifyPage({ memberId }: { memberId: string }) {
   const [member, setMember] = useState<Member | null>(null);
   const [records, setRecords] = useState<ActivityRecord[]>([]);
+  const [bodRecords, setBodRecords] = useState<BodMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const pageUrl = window.location.href;
@@ -56,6 +68,15 @@ export default function VerifyPage({ memberId }: { memberId: string }) {
           return;
         }
         setMember(m);
+
+        // Fetch BOD records filtered to this member (for role-by-year fallback)
+        try {
+          const allBod = await getBodMembers();
+          setBodRecords(allBod.filter((b) => b.memberId === memberId));
+        } catch {
+          setBodRecords([]);
+        }
+
         const recs: ActivityRecord[] = [];
         for (const ma of m.activities) {
           const act = await getActivity(ma.activityId);
@@ -119,6 +140,43 @@ export default function VerifyPage({ memberId }: { memberId: string }) {
     if (!byYear[y]) byYear[y] = [];
     byYear[y].push(r);
   });
+
+  // ── Role by Leo Year (from roleHistory + BOD fallback) ──
+  const roleByYear: Record<string, string> = {};
+  bodRecords.forEach((record) => {
+    if (record.leoYear) roleByYear[record.leoYear] = record.role;
+  });
+  (member.roleHistory ?? []).forEach((role) => {
+    roleByYear[role.leoYear] = role.role;
+  });
+
+  const joinedIndex = LEO_YEARS.indexOf(member.joinedLeoYear ?? "");
+  const leftIndex = member.leftLeoYear ? LEO_YEARS.indexOf(member.leftLeoYear) : -1;
+  const currentCalendarYear = new Date().getFullYear();
+  const currentLeoYear = new Date().getMonth() >= 6
+    ? `${currentCalendarYear}/${String(currentCalendarYear + 1).slice(-2)}`
+    : `${currentCalendarYear - 1}/${String(currentCalendarYear).slice(-2)}`;
+  const currentIndex = Math.max(0, LEO_YEARS.indexOf(currentLeoYear));
+
+  const roleYears = Object.keys(roleByYear).length > 0
+    ? [...new Set([
+      ...(joinedIndex >= 0 ? LEO_YEARS.slice(joinedIndex, (leftIndex >= 0 ? leftIndex : currentIndex) + 1) : []),
+      ...Object.keys(roleByYear),
+    ])].sort((a, b) => LEO_YEARS.indexOf(a) - LEO_YEARS.indexOf(b))
+    : (joinedIndex >= 0 ? LEO_YEARS.slice(joinedIndex, (leftIndex >= 0 ? leftIndex : currentIndex) + 1) : []);
+
+  roleYears.forEach((year) => {
+    if (!roleByYear[year]) roleByYear[year] = "General Member";
+  });
+
+  // ── Presidential years (from roleHistory only) ──
+  const presidentialYears = [...new Set(
+    (member.roleHistory ?? [])
+      .filter((rh) => rh.leoYear && isActualPresidentRole(rh.role))
+      .map((rh) => rh.leoYear)
+  )].sort((a, b) => LEO_YEARS.indexOf(b) - LEO_YEARS.indexOf(a));
+
+  const isPresident = presidentialYears.length > 0;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -221,6 +279,12 @@ export default function VerifyPage({ memberId }: { memberId: string }) {
                       ` (${yearsServed(member)} year${yearsServed(member) > 1 ? "s" : ""} of service)`}
                   </div>
                 )}
+                {isPresident && (
+                  <div className="inline-flex items-center gap-2 mt-3 ml-0 md:ml-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#D4AF37] text-[#002147]">
+                    <Award size={11} />
+                    President · Leo Year {presidentialYears.join(", ")}
+                  </div>
+                )}
                 {!isActive && (
                   <div className="mt-2 text-xs text-white/40 italic">
                     This member has completed their service in the Leo Club of KUSMS.
@@ -251,6 +315,28 @@ export default function VerifyPage({ memberId }: { memberId: string }) {
             </div>
           </div>
         </div>
+
+        {/* ── Role by Leo Year (NEW) ── */}
+        {roleYears.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-8">
+            <h3 className="font-bold text-[#002147] mb-4 flex items-center gap-2">
+              <Shield size={16} className="text-[#D4AF37]" /> Role by Leo Year
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {roleYears.map((year) => (
+                <div
+                  key={year}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-[#F8FAFC] border border-gray-100 px-3 py-2.5"
+                >
+                  <span className="text-xs font-semibold text-gray-500">Leo Year {year}</span>
+                  <span className="text-xs font-bold text-[#002147] text-right">
+                    {roleByYear[year]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <h2 className="text-2xl font-bold text-[#002147] mb-6">Activity Timeline</h2>
         {records.length === 0 ? (
@@ -313,6 +399,19 @@ export default function VerifyPage({ memberId }: { memberId: string }) {
               ))}
           </div>
         )}
+
+        {/* ── View Full Profile Link (NEW) ── */}
+        <div className="mt-10 bg-gradient-to-r from-[#002147] to-[#003575] rounded-2xl p-6 text-center text-white shadow-lg">
+          <p className="text-white/70 text-sm mb-3">
+            Want to see awards, bio, president&apos;s service record and more?
+          </p>
+          <Link
+            href={`/members/${member.memberId}`}
+            className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-6 py-3 rounded-xl font-bold hover:bg-[#c9a432] transition-colors"
+          >
+            View Full Profile <ArrowRight size={16} />
+          </Link>
+        </div>
       </div>
     </div>
   );
