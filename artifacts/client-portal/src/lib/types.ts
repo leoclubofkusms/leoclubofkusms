@@ -118,6 +118,9 @@ export interface ClubSettings {
   donationAccountName?: string;
   donationAccountNumber?: string;
   donationNote?: string;
+  // Exchange rate used to auto-compute USD ↔ NPR on the Service Impact page.
+  // Defaults to DEFAULT_USD_TO_NPR_RATE when not set.
+  usdToNprRate?: number;
 }
 
 export interface LeaderQuote {
@@ -233,13 +236,13 @@ export interface Announcement {
 // One record per Leo Year. `volunteers` is auto-calculated from activities at
 // display time — it is NOT stored (kept in sync with real activity data).
 export interface ServiceImpact {
-  leoYear: string;              // "2026/27" — used as document ID in Firestore
+  leoYear: string;              // "2026/27" — used as document ID in Firestore (encoded to "2026-27")
   peopleServed: number;         // manual
   volunteerHours: number;       // manual
-  fundsDonatedUsd?: number;     // manual — optional
-  fundsDonatedNpr?: number;     // manual — optional
-  fundsRaisedUsd?: number;      // manual — optional
-  fundsRaisedNpr?: number;      // manual — optional
+  fundsDonatedUsd?: number;     // stored value (frozen at entry)
+  fundsDonatedNpr?: number;     // stored value (frozen at entry)
+  fundsRaisedUsd?: number;      // stored value (frozen at entry)
+  fundsRaisedNpr?: number;      // stored value (frozen at entry)
   note?: string;                // optional admin note
   updatedAt: string;            // ISO timestamp
 }
@@ -248,6 +251,22 @@ export const CLUB_ID = "172194";
 export const CLUB_ESTABLISHED = "June 11, 2024";
 export const CLUB_FACEBOOK = "https://www.facebook.com/share/1B5inBvASe/?mibextid=wwXIfr";
 export const CLUB_TIKTOK = "https://www.tiktok.com/@leoclub.kusms";
+
+// ── Currency / Exchange Rate ──────────────────────────────────────────────────
+/** Default USD → NPR rate used when Club Settings doesn't specify one. */
+export const DEFAULT_USD_TO_NPR_RATE = 133;
+
+/** Convert USD to NPR using the given rate (or default). */
+export function convertUsdToNpr(usd: number, rate?: number): number {
+  const r = rate && rate > 0 ? rate : DEFAULT_USD_TO_NPR_RATE;
+  return Math.round(usd * r * 100) / 100;
+}
+
+/** Convert NPR to USD using the given rate (or default). */
+export function convertNprToUsd(npr: number, rate?: number): number {
+  const r = rate && rate > 0 ? rate : DEFAULT_USD_TO_NPR_RATE;
+  return Math.round((npr / r) * 100) / 100;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 export function activitySortKey(year: string, month: string): number {
@@ -297,18 +316,59 @@ export function isAnnouncementExpired(a: Announcement): boolean {
   return a.expiresAt < today;
 }
 
-/** Format a number with thousand separators, handling decimals. */
+/**
+ * Formats a number for display with sensible precision and shorthand.
+ * - Whole numbers → "1,247"
+ * - Non-whole with 1 decimal → "172.5"
+ * - ≥ 10,000 → "12.5k"
+ */
 export function formatImpactNumber(n: number): string {
   if (!isFinite(n)) return "0";
-  // If integer, no decimals; else 1 decimal max
-  return Number.isInteger(n)
-    ? n.toLocaleString("en-US")
-    : n.toLocaleString("en-US", { maximumFractionDigits: 1 });
+  if (n === 0) return "0";
+  const abs = Math.abs(n);
+  if (Number.isInteger(n)) {
+    if (abs >= 1_000_000) {
+      const m = n / 1_000_000;
+      return `${Number.isInteger(m) ? m : m.toFixed(1)}M`;
+    }
+    if (abs >= 10_000) {
+      const k = n / 1000;
+      return `${Number.isInteger(k) ? k : k.toFixed(1)}k`;
+    }
+    return n.toLocaleString("en-US");
+  }
+  // Non-integer → 1 decimal max, unless < 100 then keep up to 2 decimals
+  if (abs < 100) {
+    return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  }
+  return n.toLocaleString("en-US", { maximumFractionDigits: 1 });
 }
 
-/** Format a currency value. */
+/**
+ * Formats a currency value with sensible precision and shorthand.
+ * - Whole numbers → "$1,247" / "Rs. 1,247"
+ * - Non-whole → "$8,664.5"
+ * - Large values → "$12.5k" / "Rs. 1.5M"
+ * - Never shows trailing ".00"
+ */
 export function formatCurrency(n: number, currency: "USD" | "NPR"): string {
-  if (!isFinite(n)) return currency === "USD" ? "$0" : "Rs. 0";
-  const formatted = n.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  return currency === "USD" ? `$${formatted}` : `Rs. ${formatted}`;
+  const prefix = currency === "USD" ? "$" : "Rs. ";
+  if (!isFinite(n)) return `${prefix}0`;
+  if (n === 0) return `${prefix}0`;
+  const abs = Math.abs(n);
+
+  if (abs >= 1_000_000) {
+    const m = n / 1_000_000;
+    return `${prefix}${Number.isInteger(m) ? m : m.toFixed(1)}M`;
+  }
+  if (abs >= 100_000) {
+    const k = n / 1000;
+    return `${prefix}${Number.isInteger(k) ? k : k.toFixed(1)}k`;
+  }
+
+  // Under 100k → show with up to 2 decimals, strip trailing zeros
+  const formatted = Number.isInteger(n)
+    ? n.toLocaleString("en-US")
+    : n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return `${prefix}${formatted}`;
 }
