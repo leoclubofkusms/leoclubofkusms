@@ -8,7 +8,12 @@ import {
   updateActivity,
 } from "@/lib/firestore";
 import type { Activity, ActivityParticipant, Member } from "@/lib/types";
-import { LEO_YEARS, MONTHS, getCurrentLeoYear } from "@/lib/types";
+import {
+  LEO_YEARS,
+  getCurrentLeoYear,
+  getMonthsInLeoOrder,
+  leoMonthToCalendarYear,
+} from "@/lib/types";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Calendar, Trash2, Eye, Users, Pin, PinOff,
@@ -17,19 +22,15 @@ import {
 } from "lucide-react";
 import ActivityForm from "./ActivityForm";
 
-const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 export default function ActivitiesManager() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ── View state ──
   const [selectedYear, setSelectedYear] = useState<string>(getCurrentLeoYear());
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // ── Row actions state ──
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
@@ -61,7 +62,6 @@ export default function ActivitiesManager() {
     load();
   }, []);
 
-  // ── Derived data ──
   const activitiesInYear = activities.filter((a) => a.year === selectedYear);
   const countForMonth = (month: string) =>
     activitiesInYear.filter((a) => a.month === month).length;
@@ -72,7 +72,6 @@ export default function ActivitiesManager() {
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
     : [];
 
-  // ── Row actions ──
   async function handleDelete(act: Activity) {
     try {
       await deleteActivity(act.id, act.participants);
@@ -184,24 +183,25 @@ export default function ActivitiesManager() {
     ? `${window.location.origin}${import.meta.env.BASE_URL}activity/${qrActivity.id}`
     : "";
 
-  // ══════════════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────
   // ADD ACTIVITY VIEW
-  // ══════════════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────
   if (showAddForm && selectedMonth) {
+    const addCalendarYear = leoMonthToCalendarYear(selectedYear, selectedMonth);
     return (
       <div className="space-y-5">
         <button
           onClick={() => setShowAddForm(false)}
           className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#002147] transition-colors"
         >
-          <ArrowLeft size={15} /> Back to {selectedMonth} {selectedYear}
+          <ArrowLeft size={15} /> Back to {selectedMonth} {addCalendarYear}
         </button>
         <div>
           <h3 className="text-lg font-bold text-[#002147]">
-            Add Activity · {selectedMonth} {selectedYear}
+            Add Activity · {selectedMonth} {addCalendarYear}
           </h3>
           <p className="text-sm text-gray-500 mt-1">
-            The year and month are pre-filled. Fill in the rest below.
+            This will be recorded in Leo Year {selectedYear}. Year and month are pre-filled.
           </p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
@@ -218,13 +218,13 @@ export default function ActivitiesManager() {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────
   // MONTH DETAIL VIEW
-  // ══════════════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────
   if (selectedMonth) {
+    const detailCalendarYear = leoMonthToCalendarYear(selectedYear, selectedMonth);
     return (
       <div className="space-y-5">
-        {/* QR modal */}
         {qrActivity && (
           <div
             className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
@@ -272,7 +272,6 @@ export default function ActivitiesManager() {
           </div>
         )}
 
-        {/* Header */}
         <button
           onClick={() => {
             setSelectedMonth(null);
@@ -286,11 +285,12 @@ export default function ActivitiesManager() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h3 className="text-lg font-bold text-[#002147]">
-              {selectedMonth} · Leo Year {selectedYear}
+              {selectedMonth} {detailCalendarYear} · Leo Year {selectedYear}
             </h3>
             <p className="text-sm text-gray-500">
               {activitiesInSelectedMonth.length} activit
-              {activitiesInSelectedMonth.length === 1 ? "y" : "ies"} recorded
+              {activitiesInSelectedMonth.length === 1 ? "y" : "ies"} recorded in {selectedMonth}{" "}
+              {detailCalendarYear}
             </p>
           </div>
           <button
@@ -301,11 +301,12 @@ export default function ActivitiesManager() {
           </button>
         </div>
 
-        {/* Activity list */}
         {activitiesInSelectedMonth.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
             <FolderOpen size={40} className="mx-auto mb-3 text-gray-300" />
-            <p className="text-gray-400">No activities in {selectedMonth} yet</p>
+            <p className="text-gray-400">
+              No activities in {selectedMonth} {detailCalendarYear} yet
+            </p>
             <button
               onClick={() => setShowAddForm(true)}
               className="mt-4 inline-flex items-center gap-2 bg-[#002147] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors"
@@ -325,7 +326,6 @@ export default function ActivitiesManager() {
                 }`}
               >
                 {editId === act.id ? (
-                  /* ── Inline edit ── */
                   <div className="space-y-3">
                     <div>
                       <label className="text-xs text-gray-500 font-medium mb-1 block">Title</label>
@@ -467,7 +467,6 @@ export default function ActivitiesManager() {
                     </div>
                   </div>
                 ) : (
-                  /* ── Normal row ── */
                   <div className="flex items-start gap-4">
                     {act.photos[0] ? (
                       <img
@@ -573,9 +572,9 @@ export default function ActivitiesManager() {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════
-  // YEAR → MONTH GRID VIEW
-  // ══════════════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────
+  // YEAR → MONTH GRID VIEW (Leo Year order: July → June)
+  // ─────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -595,7 +594,6 @@ export default function ActivitiesManager() {
         </div>
       ) : (
         <>
-          {/* Year selector */}
           <div className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-4 flex-wrap">
             <label className="text-sm font-medium text-gray-600">Leo Year:</label>
             <select
@@ -617,10 +615,11 @@ export default function ActivitiesManager() {
             </span>
           </div>
 
-          {/* Month grid */}
+          {/* Month grid — July → June order, with real calendar year label */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {MONTHS.map((month, idx) => {
+            {getMonthsInLeoOrder().map((month) => {
               const count = countForMonth(month);
+              const calendarYear = leoMonthToCalendarYear(selectedYear, month);
               return (
                 <button
                   key={month}
@@ -633,7 +632,7 @@ export default function ActivitiesManager() {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider">
-                      {MONTH_SHORT[idx]}
+                      {month.slice(0, 3)}
                     </span>
                     {count > 0 && (
                       <span className="inline-flex items-center justify-center min-w-[1.75rem] h-6 px-2 rounded-full bg-[#002147] text-white text-xs font-bold">
@@ -642,7 +641,7 @@ export default function ActivitiesManager() {
                     )}
                   </div>
                   <div className={`text-sm font-semibold ${count > 0 ? "text-[#002147]" : "text-gray-400"}`}>
-                    {month}
+                    {month} {calendarYear}
                   </div>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {count > 0

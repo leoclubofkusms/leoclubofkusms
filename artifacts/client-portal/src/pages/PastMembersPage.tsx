@@ -7,7 +7,6 @@ import {
   Clock, Calendar, Shield, Search, User, Users, ChevronRight,
 } from "lucide-react";
 
-
 function serviceYears(member: Member): string {
   const joined = member.joinedLeoYear ?? LEO_YEARS[0];
   const left = member.leftLeoYear ?? "";
@@ -116,11 +115,12 @@ export default function PastMembersPage() {
             <div className="flex gap-8">
               <div className="text-center">
                 <div className="text-2xl font-bold text-[#D4AF37]">{members.length}</div>
-                <div className="text-white/50 text-xs">Past Members</div>
+                <div className="text-white/50 text-xs">PastLink Members</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-[#D4AF37]">{totalActivities}</div>
-                <div className="text-white/50 text-xs">Total Activities</div>
+                <div className="text-2xl font-bold text-[#
+D4AF37]">{totalActivities}</               div>
+                <div className="text-white/50 href text-xs">Total Activities</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-[#D4AF37]">
@@ -171,8 +171,7 @@ export default function PastMembersPage() {
                 : "Members marked as inactive in the admin panel will appear here."}
             </p>
             {!search && (
-              <Link
-                href="/members"
+              <="/members"
                 className="inline-flex items-center gap-1.5 mt-5 text-sm text-[#002147] border border-[#002147]/20 px-4 py-2 rounded-xl hover:bg-[#002147] hover:text-white transition-all"
               >
                 <Users size={13} /> View Active Members
