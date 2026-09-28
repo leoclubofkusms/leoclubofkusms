@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { getMembers, getActivities } from "@/lib/firestore";
-import type { Member, Activity } from "@/lib/types";
-import { FACULTIES, LEO_YEARS, MONTHS, getMonthsInLeoOrder } from "@/lib/types";
-import { Users, Calendar, Award, BarChart3, TrendingUp, Star } from "lucide-react";
+import { getMembers, getActivities, getAllServiceImpacts, computeVolunteersFromActivities } from "@/lib/firestore";
+import type { Member, Activity, ServiceImpact } from "@/lib/types";
+import { FACULTIES, LEO_YEARS, getMonthsInLeoOrder, getCurrentLeoYear, formatImpactNumber, formatCurrency } from "@/lib/types";
+import { Users, Calendar, Award, BarChart3, TrendingUp, Star, Heart, DollarSign, Clock } from "lucide-react";
 
 function Bar({ pct, color = "#002147" }: { pct: number; color?: string }) {
   return (
@@ -18,11 +18,16 @@ function Bar({ pct, color = "#002147" }: { pct: number; color?: string }) {
 export default function StatsPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [impacts, setImpacts] = useState<ServiceImpact[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getMembers(), getActivities()])
-      .then(([m, a]) => { setMembers(m); setActivities(a); })
+    Promise.all([
+      getMembers(),
+      getActivities(),
+      getAllServiceImpacts().catch(() => [] as ServiceImpact[]),
+    ])
+      .then(([m, a, imp]) => { setMembers(m); setActivities(a); setImpacts(imp); })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -38,26 +43,47 @@ export default function StatsPage() {
   const totalParticipations = activities.reduce((s, a) => s + a.participants.length, 0);
 
   // ── Faculty distribution ───────────────────────────────────────────────────
+  // Treat null / undefined / empty / whitespace faculty as "Other", and include
+  // any custom faculty values that aren't in the FACULTIES list. "Other" is
+  // always sorted last.
   const facultyCounts: Record<string, number> = {};
   members.forEach((m) => {
-    const f = m.faculty ?? "Other";
+    const raw = (m.faculty ?? "").trim();
+    const f = raw === "" ? "Other" : raw;
     facultyCounts[f] = (facultyCounts[f] ?? 0) + 1;
   });
   const maxFaculty = Math.max(1, ...Object.values(facultyCounts));
-  const facultyRows = FACULTIES
+  const allFacultyLabels = new Set<string>([
+    ...FACULTIES,
+    ...Object.keys(facultyCounts),
+  ]);
+  const facultyRows = [...allFacultyLabels]
     .map((f) => ({ label: f, count: facultyCounts[f] ?? 0 }))
     .filter((r) => r.count > 0)
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => {
+      // "Other" always goes last
+      if (a.label === "Other" && b.label !== "Other") return 1;
+      if (b.label === "Other" && a.label !== "Other") return -1;
+      return b.count - a.count;
+    });
 
   // ── Batch year distribution ────────────────────────────────────────────────
+  // Treat null / undefined / empty / whitespace batch as "Unknown". "Unknown"
+  // is always sorted last.
   const batchCounts: Record<string, number> = {};
   members.forEach((m) => {
-    const b = m.batch.trim() || "Unknown";
+    const raw = (m.batch ?? "").trim();
+    const b = raw === "" ? "Unknown" : raw;
     batchCounts[b] = (batchCounts[b] ?? 0) + 1;
   });
   const maxBatch = Math.max(1, ...Object.values(batchCounts));
   const batchRows = Object.entries(batchCounts)
-    .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+    .sort((a, b) => {
+      // "Unknown" always goes last
+      if (a[0] === "Unknown" && b[0] !== "Unknown") return 1;
+      if (b[0] === "Unknown" && a[0] !== "Unknown") return -1;
+      return a[0].localeCompare(b[0], undefined, { numeric: true });
+    })
     .map(([label, count]) => ({ label, count }));
 
   // ── Activities per Leo year ────────────────────────────────────────────────
@@ -85,6 +111,41 @@ export default function StatsPage() {
   const topMembers = [...members]
     .sort((a, b) => (b.activities?.length ?? 0) - (a.activities?.length ?? 0))
     .slice(0, 10);
+
+  // ── Service Impact by Leo Year ─────────────────────────────────────────────
+  const allImpactYears = [...new Set([
+    ...impacts.map((i) => i.leoYear),
+    ...actYearRows.map((r) => r.label),
+  ])].sort((a, b) => LEO_YEARS.indexOf(b) - LEO_YEARS.indexOf(a));
+
+  const impactRows = allImpactYears.map((year) => {
+    const rec = impacts.find((i) => i.leoYear === year) ?? null;
+    const volunteers = computeVolunteersFromActivities(activities, year);
+    const activityCount = actsByYear[year] ?? 0;
+    return {
+      leoYear: year,
+      peopleServed: rec?.peopleServed ?? 0,
+      volunteers,
+      volunteerHours: rec?.volunteerHours ?? 0,
+      fundsDonatedNpr: rec?.fundsDonatedNpr ?? 0,
+      fundsRaisedNpr: rec?.fundsRaisedNpr ?? 0,
+      hasRecord: rec !== null,
+      activityCount,
+    };
+  });
+
+  const impactTotals = impactRows.reduce(
+    (acc, r) => ({
+      peopleServed: acc.peopleServed + r.peopleServed,
+      volunteers: acc.volunteers + r.volunteers,
+      volunteerHours: acc.volunteerHours + r.volunteerHours,
+      fundsDonatedNpr: acc.fundsDonatedNpr + r.fundsDonatedNpr,
+      fundsRaisedNpr: acc.fundsRaisedNpr + r.fundsRaisedNpr,
+    }),
+    { peopleServed: 0, volunteers: 0, volunteerHours: 0, fundsDonatedNpr: 0, fundsRaisedNpr: 0 }
+  );
+
+  const currentLeoYear = getCurrentLeoYear();
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -118,6 +179,107 @@ export default function StatsPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
 
+        {/* ── Service Impact by Leo Year ── */}
+        {impactRows.length > 0 && (
+          <section className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-2xl border-2 border-[#D4AF37]/20 p-6 shadow-xl text-white">
+            <div className="flex items-center gap-2 mb-2">
+              <Heart size={20} className="text-[#D4AF37]" />
+              <h2 className="text-xl font-bold">Our Service Impact</h2>
+            </div>
+            <p className="text-white/60 text-sm mb-6">
+              Cumulative impact across all Leo Years — measured in lives touched, hours served, and generosity given.
+            </p>
+
+            {/* Cumulative totals card */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6">
+              <div className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-4">
+                Cumulative — All Leo Years
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                {[
+                  { label: "People Served", value: formatImpactNumber(impactTotals.peopleServed), icon: Heart },
+                  { label: "Volunteers", value: formatImpactNumber(impactTotals.volunteers), icon: Users },
+                  { label: "Hours", value: formatImpactNumber(impactTotals.volunteerHours), icon: Clock },
+                  { label: "Funds Donated", value: formatCurrency(impactTotals.fundsDonatedNpr, "NPR"), icon: DollarSign },
+                  { label: "Funds Raised", value: formatCurrency(impactTotals.fundsRaisedNpr, "NPR"), icon: TrendingUp },
+                ].map((s) => {
+                  const Icon = s.icon;
+                  return (
+                    <div key={s.label} className="text-center">
+                      <Icon size={16} className="text-[#D4AF37] mx-auto mb-2" />
+                      <div className="text-xl sm:text-2xl font-bold text-white tabular-nums">{s.value}</div>
+                      <div className="text-white/50 text-[10px] sm:text-xs mt-1 leading-tight">{s.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Per-year table */}
+            <div className="overflow-x-auto -mx-2 sm:mx-0">
+              <table className="w-full text-sm min-w-[600px]">
+                <thead>
+                  <tr className="text-left text-white/60 text-xs uppercase tracking-wider border-b border-white/10">
+                    <th className="py-3 px-3 font-semibold">Leo Year</th>
+                    <th className="py-3 px-3 font-semibold text-right">People Served</th>
+                    <th className="py-3 px-3 font-semibold text-right">Volunteers</th>
+                    <th className="py-3 px-3 font-semibold text-right">Hours</th>
+                    <th className="py-3 px-3 font-semibold text-right">Donated (NPR)</th>
+                    <th className="py-3 px-3 font-semibold text-right">Raised (NPR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {impactRows.map((r) => {
+                    const isCurrent = r.leoYear === currentLeoYear;
+                    return (
+                      <tr
+                        key={r.leoYear}
+                        className={`border-b border-white/5 ${isCurrent ? "bg-[#D4AF37]/10" : ""}`}
+                      >
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white">{r.leoYear}</span>
+                            {isCurrent && (
+                              <span className="text-[9px] font-bold text-[#002147] bg-[#D4AF37] px-1.5 py-0.5 rounded-full uppercase">
+                                Current
+                              </span>
+                            )}
+                            {!r.hasRecord && (
+                              <span className="text-[9px] text-white/40 italic">(auto)</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-white/40">
+                            {r.activityCount} activit{r.activityCount === 1 ? "y" : "ies"}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-right tabular-nums text-white">{formatImpactNumber(r.peopleServed)}</td>
+                        <td className="py-3 px-3 text-right tabular-nums text-white">{formatImpactNumber(r.volunteers)}</td>
+                        <td className="py-3 px-3 text-right tabular-nums text-white">{formatImpactNumber(r.volunteerHours)}</td>
+                        <td className="py-3 px-3 text-right tabular-nums text-white">{formatCurrency(r.fundsDonatedNpr, "NPR")}</td>
+                        <td className="py-3 px-3 text-right tabular-nums text-white">{formatCurrency(r.fundsRaisedNpr, "NPR")}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-[#D4AF37]/30">
+                    <td className="py-3 px-3 font-bold text-[#D4AF37]">Total</td>
+                    <td className="py-3 px-3 text-right font-bold text-[#D4AF37] tabular-nums">{formatImpactNumber(impactTotals.peopleServed)}</td>
+                    <td className="py-3 px-3 text-right font-bold text-[#D4AF37] tabular-nums">{formatImpactNumber(impactTotals.volunteers)}</td>
+                    <td className="py-3 px-3 text-right font-bold text-[#D4AF37] tabular-nums">{formatImpactNumber(impactTotals.volunteerHours)}</td>
+                    <td className="py-3 px-3 text-right font-bold text-[#D4AF37] tabular-nums">{formatCurrency(impactTotals.fundsDonatedNpr, "NPR")}</td>
+                    <td className="py-3 px-3 text-right font-bold text-[#D4AF37] tabular-nums">{formatCurrency(impactTotals.fundsRaisedNpr, "NPR")}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <p className="text-xs text-white/40 mt-4">
+              Volunteers are auto-counted from unique participants in each year's activities. Other numbers are entered by admin.
+            </p>
+          </section>
+        )}
+
         {/* Members by Faculty */}
         {facultyRows.length > 0 && (
           <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
@@ -128,7 +290,7 @@ export default function StatsPage() {
               {facultyRows.map((r) => (
                 <div key={r.label} className="flex items-center gap-3">
                   <div className="w-28 text-sm text-gray-600 font-medium shrink-0 truncate">{r.label}</div>
-                  <Bar pct={r.count / maxFaculty} color="#002147" />
+                  <Bar pct={r.count / maxFaculty} color={r.label === "Other" ? "#94a3b8" : "#002147"} />
                   <div className="w-10 text-right text-sm font-bold text-[#002147] shrink-0">{r.count}</div>
                 </div>
               ))}
@@ -150,7 +312,7 @@ export default function StatsPage() {
               {batchRows.map((r) => (
                 <div key={r.label} className="flex items-center gap-3">
                   <div className="w-16 text-sm text-gray-600 font-mono font-medium shrink-0">{r.label}</div>
-                  <Bar pct={r.count / maxBatch} color="#D4AF37" />
+                  <Bar pct={r.count / maxBatch} color={r.label === "Unknown" ? "#94a3b8" : "#D4AF37"} />
                   <div className="w-10 text-right text-sm font-bold text-[#002147] shrink-0">{r.count}</div>
                 </div>
               ))}
