@@ -4,7 +4,7 @@ import type { Member } from "@/lib/types";
 import { LEO_YEARS } from "@/lib/types";
 import { Link } from "wouter";
 import {
-  Clock, Calendar, Shield, Search, User, Users, ChevronRight,
+  Clock, Calendar, Shield, Search, User, Users, ChevronRight, Award,
 } from "lucide-react";
 
 function serviceYears(member: Member): string {
@@ -26,13 +26,26 @@ function yearsServed(member: Member): number {
     if (lIdx === -1) return 1;
     return Math.max(1, lIdx - jIdx + 1);
   }
-  // Still serving — count from joined to CURRENT Leo Year
   const now = new Date();
   const currentLeoStart = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
   const currentLeoYear = `${currentLeoStart}/${String(currentLeoStart + 1).slice(-2)}`;
   const cIdx = LEO_YEARS.indexOf(currentLeoYear);
   if (cIdx === -1) return 1;
   return Math.max(1, cIdx - jIdx + 1);
+}
+
+/**
+ * Matches only the actual top office "President" — rejects
+ * "Vice President", "Chartered Vice President", "Past President",
+ * "President Elect", "Deputy President", "Assistant President", etc.
+ * Reads from member.roleHistory (permanent per-year role record),
+ * NOT from the BOD collection — so history survives yearly BOD rotation.
+ */
+function isActualPresidentRole(roleName: string): boolean {
+  const r = (roleName ?? "").trim().toLowerCase();
+  if (!r) return false;
+  if (/vice|past|elect|chartered|deputy|assistant|co-?president/.test(r)) return false;
+  return r === "president" || r === "club president" || r.endsWith(" president");
 }
 
 export default function PastMembersPage() {
@@ -73,7 +86,7 @@ export default function PastMembersPage() {
   });
   const sortedGroups = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
-  // Count UNIQUE activity IDs across all past members (not per-member sums)
+  // Count UNIQUE activity IDs across all past members
   const uniqueActivityIds = new Set<string>();
   members.forEach((m) => {
     (m.activities ?? []).forEach((a) => {
@@ -82,12 +95,33 @@ export default function PastMembersPage() {
   });
   const totalActivities = uniqueActivityIds.size;
 
+  // ── Presidential years per member (from roleHistory only) ──
+  // roleHistory is the permanent record. BOD only holds the CURRENT board,
+  // so it must never be used for historical presidential detection.
+  const presidentialYearsByMember: Record<string, string[]> = {};
+  members.forEach((m) => {
+    const years = (m.roleHistory ?? [])
+      .filter((rh) => rh.leoYear && isActualPresidentRole(rh.role))
+      .map((rh) => rh.leoYear);
+    if (years.length > 0) {
+      presidentialYearsByMember[m.memberId] = [...new Set(years)].sort(
+        (a, b) => LEO_YEARS.indexOf(b) - LEO_YEARS.indexOf(a)
+      );
+    }
+  });
+
+  const pastPresidents = members.filter((m) => presidentialYearsByMember[m.memberId]);
+  const regularPastMembers = members.filter((m) => !presidentialYearsByMember[m.memberId]);
+
+  // Apply the same search filter to both lists
+  const filteredPresidents = filtered.filter((m) => presidentialYearsByMember[m.memberId]);
+  const filteredRegular = filtered.filter((m) => !presidentialYearsByMember[m.memberId]);
+
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       {/* Header */}
       <div className="bg-[#002147] text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          {/* Page type indicator */}
           <div className="flex items-center gap-3 mb-6">
             <Link
               href="/members"
@@ -110,17 +144,19 @@ export default function PastMembersPage() {
             Alumni who served Leo Club of KUSMS with dedication and distinction.
           </p>
 
-          {/* Stats */}
           {!loading && (
-            <div className="flex gap-8">
+            <div className="flex gap-8 flex-wrap">
               <div className="text-center">
                 <div className="text-2xl font-bold text-[#D4AF37]">{members.length}</div>
-                <div className="text-white/50 text-xs">PastLink Members</div>
+                <div className="text-white/50 text-xs">Past Members</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-[#
-D4AF37]">{totalActivities}</               div>
-                <div className="text-white/50 href text-xs">Total Activities</div>
+                <div className="text-2xl font-bold text-[#D4AF37]">{pastPresidents.length}</div>
+                <div className="text-white/50 text-xs">Past Presidents</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-[#D4AF37]">{totalActivities}</div>
+                <div className="text-white/50 text-xs">Total Activities</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-[#D4AF37]">
@@ -130,18 +166,12 @@ D4AF37]">{totalActivities}</               div>
               </div>
             </div>
           )}
-
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-        <div className="flex items-center gap-3 mb-5 flex-wrap">
-          <span className="text-sm text-gray-400">
-            {filtered.length} of {members.length} past member{members.length !== 1 ? "s" : ""}
-          </span>
-        </div>
-
+        {/* Search */}
         <div className="relative mb-6">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -159,89 +189,189 @@ D4AF37]">{totalActivities}</               div>
               <div key={i} className="bg-white rounded-2xl border border-gray-100 h-28 animate-pulse" />
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : members.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <Clock size={48} className="mx-auto mb-4 opacity-20" />
-            <h3 className="text-lg font-semibold text-gray-500 mb-1">
-              {search ? "No results found" : "No past members yet"}
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-500 mb-1">No past members yet</h3>
             <p className="text-sm">
-              {search
-                ? "Try a different name, ID, or batch."
-                : "Members marked as inactive in the admin panel will appear here."}
+              Members marked as inactive in the admin panel will appear here.
             </p>
-            {!search && (
-              <="/members"
-                className="inline-flex items-center gap-1.5 mt-5 text-sm text-[#002147] border border-[#002147]/20 px-4 py-2 rounded-xl hover:bg-[#002147] hover:text-white transition-all"
-              >
-                <Users size={13} /> View Active Members
-              </Link>
-            )}
+            <Link
+              href="/members"
+              className="inline-flex items-center gap-1.5 mt-5 text-sm text-[#002147] border border-[#002147]/20 px-4 py-2 rounded-xl hover:bg-[#002147] hover:text-white transition-all"
+            >
+              <Users size={13} /> View Active Members
+            </Link>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <Search size={48} className="mx-auto mb-4 opacity-20" />
+            <h3 className="text-lg font-semibold text-gray-500 mb-1">No results found</h3>
+            <p className="text-sm">Try a different name, ID, or batch.</p>
           </div>
         ) : (
-          <div className="space-y-10">
-            {sortedGroups.map((yearGroup) => (
-              <div key={yearGroup}>
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="bg-[#002147] text-[#D4AF37] font-bold text-sm px-4 py-1.5 rounded-full">
-                    Leo Year {yearGroup}
+          <div className="space-y-12">
+
+            {/* ── Past Presidents section ── */}
+            {filteredPresidents.length > 0 && (
+              <section>
+                <div className="mb-5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-8 h-8 rounded-lg bg-[#D4AF37] flex items-center justify-center shrink-0">
+                      <Award size={15} className="text-[#002147]" />
+                    </div>
+                    <h2 className="text-xl font-bold text-[#002147]">Past Presidents</h2>
                   </div>
-                  <div className="flex-1 h-px bg-gray-200" />
-                  <span className="text-sm text-gray-400">
-                    {grouped[yearGroup].length} member{grouped[yearGroup].length !== 1 ? "s" : ""}
-                  </span>
+                  <p className="text-gray-500 text-sm ml-10">
+                    Honoring those who led the club as President.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {grouped[yearGroup].map((m) => (
-                    <Link
-                      key={m.memberId}
-                      href={`/members/${m.memberId}`}
-                      className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all p-5 flex items-center gap-4 group"
-                    >
-                      {m.photoUrl ? (
-                        <img
-                          src={m.photoUrl}
-                          alt={m.name}
-                          className="w-14 h-14 rounded-xl object-cover border-2 border-gray-200 shrink-0 group-hover:border-[#D4AF37]/40 transition-colors"
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-xl bg-gray-100 border-2 border-dashed border-gray-200 flex items-center justify-center shrink-0">
-                          <User size={22} className="text-gray-300" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-[#002147] group-hover:text-[#003575] transition-colors truncate">
+                  {filteredPresidents.map((m) => {
+                    const presYears = presidentialYearsByMember[m.memberId];
+                    return (
+                      <Link
+                        key={m.memberId}
+                        href={`/members/${m.memberId}`}
+                        className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-2xl shadow-md hover:shadow-xl transition-all p-5 flex items-center gap-4 group border-2 border-[#D4AF37]/30 hover:border-[#D4AF37]/60"
+                      >
+                        {m.photoUrl ? (
+                          <img
+                            src={m.photoUrl}
+                            alt={m.name}
+                            className="w-16 h-16 rounded-xl object-cover border-2 border-[#D4AF37] shrink-0"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl bg-[#D4AF37] flex items-center justify-center shrink-0">
+                            <span className="text-2xl font-bold text-[#002147]">{m.name.charAt(0)}</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Award size={10} className="text-[#D4AF37]" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">
+                              President · Leo Year {presYears.join(", ")}
+                            </span>
+                          </div>
+                          <h3 className="font-bold text-white group-hover:text-[#D4AF37] transition-colors truncate">
                             {m.name}
                           </h3>
-                          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full shrink-0">
-                            Alumni
+                          {m.currentRole && (
+                            <div className="text-xs text-white/60 mt-0.5 truncate">{m.currentRole}</div>
+                          )}
+                          {m.faculty && (
+                            <div className="text-xs text-white/50 truncate">{m.faculty} · {m.batch}</div>
+                          )}
+                          <div className="flex items-center gap-3 mt-2 text-xs text-white/60 flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <Clock size={10} className="text-[#D4AF37]" />
+                              {serviceYears(m)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar size={10} className="text-[#D4AF37]" />
+                              {m.activities.length} activit{m.activities.length !== 1 ? "ies" : "y"}
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-white/40 group-hover:text-[#D4AF37] transition-colors shrink-0" />
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* ── All Other Past Members ── */}
+            {filteredRegular.length > 0 && (
+              <section>
+                {filteredPresidents.length > 0 && (
+                  <div className="mb-5">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-8 h-8 rounded-lg bg-[#002147] flex items-center justify-center shrink-0">
+                        <Users size={15} className="text-[#D4AF37]" />
+                      </div>
+                      <h2 className="text-xl font-bold text-[#002147]">All Past Members</h2>
+                    </div>
+                    <p className="text-gray-500 text-sm ml-10">
+                      {regularPastMembers.length} alumni who served the club.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-10">
+                  {sortedGroups.map((yearGroup) => {
+                    const groupMembers = grouped[yearGroup].filter(
+                      (m) => !presidentialYearsByMember[m.memberId]
+                    );
+                    if (groupMembers.length === 0) return null;
+                    return (
+                      <div key={yearGroup}>
+                        <div className="flex items-center gap-3 mb-5">
+                          <div className="bg-[#002147] text-[#D4AF37] font-bold text-sm px-4 py-1.5 rounded-full">
+                            Leo Year {yearGroup}
+                          </div>
+                          <div className="flex-1 h-px bg-gray-200" />
+                          <span className="text-sm text-gray-400">
+                            {groupMembers.length} member{groupMembers.length !== 1 ? "s" : ""}
                           </span>
                         </div>
-                        {m.currentRole && (
-                          <div className="text-sm text-gray-500 mt-0.5 truncate">{m.currentRole}</div>
-                        )}
-                        {m.faculty && (
-                          <div className="text-xs text-gray-400 truncate">{m.faculty} · {m.batch}</div>
-                        )}
-                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <Clock size={11} className="text-[#002147]" />
-                            {serviceYears(m)} ({yearsServed(m)} yr{yearsServed(m) !== 1 ? "s" : ""})
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar size={11} className="text-[#D4AF37]" />
-                            {m.activities.length} activit{m.activities.length !== 1 ? "ies" : "y"}
-                          </span>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {groupMembers.map((m) => (
+                            <Link
+                              key={m.memberId}
+                              href={`/members/${m.memberId}`}
+                              className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all p-5 flex items-center gap-4 group"
+                            >
+                              {m.photoUrl ? (
+                                <img
+                                  src={m.photoUrl}
+                                  alt={m.name}
+                                  className="w-14 h-14 rounded-xl object-cover border-2 border-gray-200 shrink-0 group-hover:border-[#D4AF37]/40 transition-colors"
+                                />
+                              ) : (
+                                <div className="w-14 h-14 rounded-xl bg-gray-100 border-2 border-dashed border-gray-200 flex items-center justify-center shrink-0">
+                                  <User size={22} className="text-gray-300" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-bold text-[#002147] group-hover:text-[#003575] transition-colors truncate">
+                                    {m.name}
+                                  </h3>
+                                  <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full shrink-0">
+                                    Alumni
+                                  </span>
+                                </div>
+                                {m.currentRole && (
+                                  <div className="text-sm text-gray-500 mt-0.5 truncate">{m.currentRole}</div>
+                                )}
+                                {m.faculty && (
+                                  <div className="text-xs text-gray-400 truncate">{m.faculty} · {m.batch}</div>
+                                )}
+                                <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 flex-wrap">
+                                  <span className="flex items-center gap-1">
+                                    <Clock size={11} className="text-[#002147]" />
+                                    {serviceYears(m)} ({yearsServed(m)} yr{yearsServed(m) !== 1 ? "s" : ""})
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Calendar size={11} className="text-[#D4AF37]" />
+                                    {m.activities.length} activit{m.activities.length !== 1 ? "ies" : "y"}
+                                  </span>
+                                </div>
+                              </div>
+                              <ChevronRight size={16} className="text-gray-300 group-hover:text-[#002147] transition-colors shrink-0" />
+                            </Link>
+                          ))}
                         </div>
                       </div>
-                      <ChevronRight size={16} className="text-gray-300 group-hover:text-[#002147] transition-colors shrink-0" />
-                    </Link>
-                  ))}
+                    );
+                  })}
                 </div>
-              </div>
-            ))}
+              </section>
+            )}
+
           </div>
         )}
 
