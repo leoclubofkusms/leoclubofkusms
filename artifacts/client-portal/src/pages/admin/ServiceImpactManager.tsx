@@ -25,7 +25,6 @@ export default function ServiceImpactManager() {
   const [selectedYear, setSelectedYear] = useState<string>(getCurrentLeoYear());
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [rawText, setRawText] = useState<Record<string, string>>({});
-  // Direction of entry — which currency the admin is typing in.
   const [direction, setDirection] = useState<CurrencyDirection>("npr");
   const [usdToNprRate, setUsdToNprRate] = useState<number>(DEFAULT_USD_TO_NPR_RATE);
 
@@ -96,37 +95,19 @@ export default function ServiceImpactManager() {
     })();
   }, [selectedYear]);
 
-  // Auto-calculated values for the selected year
   const autoVolunteers = computeVolunteersFromActivities(activities, selectedYear);
   const autoActivities = activities.filter((a) => a.year === selectedYear).length;
 
-  // ── Auto-compute the opposite currency as the admin types ──
-  function setFundsValue(
-    primary: "donated" | "raised",
-    currency: CurrencyDirection,
-    value: number
-  ) {
-    setForm((f) => {
-      const next = { ...f };
-      if (primary === "donated") {
-        if (currency === "npr") {
-          next.fundsDonatedNpr = value;
-          next.fundsDonatedUsd = convertNprToUsd(value, usdToNprRate);
-        } else {
-          next.fundsDonatedUsd = value;
-          next.fundsDonatedNpr = convertUsdToNpr(value, usdToNprRate);
-        }
-      } else {
-        if (currency === "npr") {
-          next.fundsRaisedNpr = value;
-          next.fundsRaisedUsd = convertNprToUsd(value, usdToNprRate);
-        } else {
-          next.fundsRaisedUsd = value;
-          next.fundsRaisedNpr = convertUsdToNpr(value, usdToNprRate);
-        }
-      }
-      return next;
-    });
+  // Map of currency-paired fields — when one is edited, the other is auto-computed
+  function currencyPair(key: keyof ServiceImpact): {
+    pair: keyof ServiceImpact;
+    direction: "npr-to-usd" | "usd-to-npr";
+  } | null {
+    if (key === "fundsDonatedNpr") return { pair: "fundsDonatedUsd", direction: "npr-to-usd" };
+    if (key === "fundsDonatedUsd") return { pair: "fundsDonatedNpr", direction: "usd-to-npr" };
+    if (key === "fundsRaisedNpr") return { pair: "fundsRaisedUsd", direction: "npr-to-usd" };
+    if (key === "fundsRaisedUsd") return { pair: "fundsRaisedNpr", direction: "usd-to-npr" };
+    return null;
   }
 
   async function handleSave() {
@@ -192,7 +173,19 @@ export default function ServiceImpactManager() {
             if (!/^\d*\.?\d*$/.test(text)) return;
             setRawText((prev) => ({ ...prev, [fieldKey]: text }));
             const n = text === "" || text === "." ? 0 : Number(text);
-            setForm((f) => ({ ...f, [key]: isNaN(n) ? 0 : n }));
+            const safeN = isNaN(n) ? 0 : n;
+
+            setForm((f) => {
+              const next: ServiceImpact = { ...f, [key]: safeN };
+              const c = currencyPair(key);
+              if (c) {
+                const computed = c.direction === "npr-to-usd"
+                  ? convertNprToUsd(safeN, usdToNprRate)
+                  : convertUsdToNpr(safeN, usdToNprRate);
+                (next[c.pair] as number) = computed;
+              }
+              return next;
+            });
           }}
           placeholder="0"
           className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
@@ -202,7 +195,6 @@ export default function ServiceImpactManager() {
     );
   };
 
-  // Read-only auto-computed field for the opposite currency.
   const autoField = (label: string, value: number, currency: "USD" | "NPR") => (
     <div>
       <label className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1.5">
@@ -211,7 +203,7 @@ export default function ServiceImpactManager() {
           auto
         </span>
       </label>
-      <div className="w-full border border-dashed border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-600 tabular-nums font-medium">
+      <div className="w-full border border-dashed border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-700 tabular-nums font-medium truncate">
         {formatCurrency(value, currency)}
       </div>
       <p className="text-xs text-gray-400 mt-1">Computed from the other field</p>
@@ -290,7 +282,6 @@ export default function ServiceImpactManager() {
               <DollarSign size={14} className="text-[#D4AF37]" />
               <span className="text-sm font-bold text-[#002147]">Funds</span>
             </div>
-            {/* Direction toggle */}
             <div className="flex items-center gap-1 bg-gray-100 border border-gray-200 rounded-xl p-1">
               {(["npr", "usd"] as const).map((d) => (
                 <button
