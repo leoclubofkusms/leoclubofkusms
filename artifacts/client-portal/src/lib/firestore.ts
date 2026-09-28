@@ -570,16 +570,34 @@ export async function deleteEventApplication(id: string): Promise<void> {
 
 // ── Service Impact ────────────────────────────────────────────────────────────
 // One Firestore document per Leo Year, stored in the "serviceImpact" collection.
-// The document ID is the Leo Year string (e.g. "2026/27").
+// Leo Year strings contain a "/" (e.g. "2026/27"), which Firestore treats as a
+// path separator. We encode it to "2026-27" for the document ID and decode it
+// back to "2026/27" when reading.
+
+/** Encode a Leo Year for use as a Firestore document ID. "2026/27" → "2026-27" */
+function encodeLeoYear(leoYear: string): string {
+  return leoYear.replace(/\//g, "-");
+}
+
+/** Decode a Firestore document ID back to a Leo Year. "2026-27" → "2026/27" */
+function decodeLeoYear(docId: string): string {
+  const m = docId.match(/^(\d{4})-(\d{2})$/);
+  return m ? `${m[1]}/${m[2]}` : docId;
+}
 
 export async function getServiceImpact(leoYear: string): Promise<ServiceImpact | null> {
-  const snap = await getDoc(doc(db, "serviceImpact", leoYear));
-  return snap.exists() ? (snap.data() as ServiceImpact) : null;
+  const snap = await getDoc(doc(db, "serviceImpact", encodeLeoYear(leoYear)));
+  if (!snap.exists()) return null;
+  const data = snap.data() as ServiceImpact;
+  return { ...data, leoYear: decodeLeoYear(snap.id) };
 }
 
 export async function getAllServiceImpacts(): Promise<ServiceImpact[]> {
   const snap = await getDocs(collection(db, "serviceImpact"));
-  const items = snap.docs.map((d) => ({ leoYear: d.id, ...d.data() } as ServiceImpact));
+  const items = snap.docs.map((d) => {
+    const data = d.data() as ServiceImpact;
+    return { ...data, leoYear: decodeLeoYear(d.id) };
+  });
   return items.sort((a, b) => b.leoYear.localeCompare(a.leoYear));
 }
 
@@ -588,11 +606,11 @@ export async function updateServiceImpact(data: ServiceImpact): Promise<void> {
     ...data,
     updatedAt: new Date().toISOString(),
   });
-  await setDoc(doc(db, "serviceImpact", data.leoYear), clean);
+  await setDoc(doc(db, "serviceImpact", encodeLeoYear(data.leoYear)), clean);
 }
 
 export async function deleteServiceImpact(leoYear: string): Promise<void> {
-  await deleteDoc(doc(db, "serviceImpact", leoYear));
+  await deleteDoc(doc(db, "serviceImpact", encodeLeoYear(leoYear)));
 }
 
 /**
