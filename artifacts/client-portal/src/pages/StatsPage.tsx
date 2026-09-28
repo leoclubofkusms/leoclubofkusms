@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
-import { getMembers, getActivities, getAllServiceImpacts, computeVolunteersFromActivities } from "@/lib/firestore";
-import type { Member, Activity, ServiceImpact } from "@/lib/types";
-import { FACULTIES, LEO_YEARS, getMonthsInLeoOrder, getCurrentLeoYear, formatImpactNumber, formatCurrency } from "@/lib/types";
-import { Users, Calendar, Award, BarChart3, TrendingUp, Star, Heart, DollarSign, Clock } from "lucide-react";
+import { Link } from "wouter";
+import {
+  getMembers, getActivities, getAllServiceImpacts,
+  getBodMembers, getAwards, computeVolunteersFromActivities,
+} from "@/lib/firestore";
+import type { Member, Activity, ServiceImpact, BodMember, Award } from "@/lib/types";
+import {
+  FACULTIES, LEO_YEARS, MONTHS, getMonthsInLeoOrder, getCurrentLeoYear,
+  leoMonthToCalendarYear, formatImpactNumber, formatCurrency,
+} from "@/lib/types";
+import {
+  Users, Calendar, Award as AwardIcon, BarChart3, TrendingUp,
+  Star, Heart, DollarSign, Clock, Flame, Trophy, Zap, Crown,
+} from "lucide-react";
 
 function Bar({ pct, color = "#002147" }: { pct: number; color?: string }) {
   return (
@@ -15,10 +25,39 @@ function Bar({ pct, color = "#002147" }: { pct: number; color?: string }) {
   );
 }
 
+// ── Helper: pick highest-activity member from a filtered set ─────────────────
+// Excludes BOD members, breaks ties alphabetically.
+function pickTopMember(
+  members: Member[],
+  activitiesInScope: Activity[],
+  bodMemberIds: Set<string>
+): { member: Member; count: number } | null {
+  const counts: Record<string, number> = {};
+  activitiesInScope.forEach((a) => {
+    a.participants.forEach((p) => {
+      if (!p.memberId) return;
+      if (bodMemberIds.has(p.memberId)) return; // exclude BOD
+      counts[p.memberId] = (counts[p.memberId] ?? 0) + 1;
+    });
+  });
+  const eligible = members
+    .filter((m) => counts[m.memberId] && !bodMemberIds.has(m.memberId))
+    .sort((a, b) => {
+      const diff = (counts[b.memberId] ?? 0) - (counts[a.memberId] ?? 0);
+      if (diff !== 0) return diff;
+      return a.name.localeCompare(b.name);
+    });
+  const top = eligible[0];
+  if (!top) return null;
+  return { member: top, count: counts[top.memberId] ?? 0 };
+}
+
 export default function StatsPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [impacts, setImpacts] = useState<ServiceImpact[]>([]);
+  const [bodMembers, setBodMembers] = useState<BodMember[]>([]);
+  const [awards, setAwards] = useState<Award[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,8 +65,16 @@ export default function StatsPage() {
       getMembers(),
       getActivities(),
       getAllServiceImpacts().catch(() => [] as ServiceImpact[]),
+      getBodMembers().catch(() => [] as BodMember[]),
+      getAwards().catch(() => [] as Award[]),
     ])
-      .then(([m, a, imp]) => { setMembers(m); setActivities(a); setImpacts(imp); })
+      .then(([m, a, imp, bod, aw]) => {
+        setMembers(m);
+        setActivities(a);
+        setImpacts(imp);
+        setBodMembers(bod);
+        setAwards(aw);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -42,10 +89,30 @@ export default function StatsPage() {
   const pastMembers = members.filter((m) => m.isActive === false);
   const totalParticipations = activities.reduce((s, a) => s + a.participants.length, 0);
 
-  // ── Faculty distribution ───────────────────────────────────────────────────
-  // Treat null / undefined / empty / whitespace faculty as "Other", and include
-  // any custom faculty values that aren't in the FACULTIES list. "Other" is
-  // always sorted last.
+  // ── BOD member IDs — used to exclude BOD from Leo of Month/Year suggestions ──
+  const bodMemberIds = new Set(
+    bodMembers.map((b) => b.memberId).filter((id): id is string => Boolean(id))
+  );
+
+  // ── Current date info ──
+  const currentLeoYear = getCurrentLeoYear();
+  const now = new Date();
+  const currentMonthName = MONTHS[now.getMonth()]; // e.g. "September"
+  const currentCalendarYear = now.getFullYear();
+
+  // ── Suggested Leo of the Month ──
+  // Activities from the CURRENT calendar month + current Leo Year only.
+  const monthActivities = activities.filter(
+    (a) => a.month === currentMonthName && a.year === currentLeoYear
+  );
+  const leoOfMonth = pickTopMember(members, monthActivities, bodMemberIds);
+
+  // ── Suggested Leo of the Year ──
+  // Activities from the whole CURRENT Leo Year.
+  const yearActivities = activities.filter((a) => a.year === currentLeoYear);
+  const leoOfYear = pickTopMember(members, yearActivities, bodMemberIds);
+
+  // ── Faculty distribution ──────────────────────────────────────────────────
   const facultyCounts: Record<string, number> = {};
   members.forEach((m) => {
     const raw = (m.faculty ?? "").trim();
@@ -53,47 +120,24 @@ export default function StatsPage() {
     facultyCounts[f] = (facultyCounts[f] ?? 0) + 1;
   });
   const maxFaculty = Math.max(1, ...Object.values(facultyCounts));
-  const allFacultyLabels = new Set<string>([
-    ...FACULTIES,
-    ...Object.keys(facultyCounts),
-  ]);
+  const allFacultyLabels = new Set<string>([...FACULTIES, ...Object.keys(facultyCounts)]);
   const facultyRows = [...allFacultyLabels]
     .map((f) => ({ label: f, count: facultyCounts[f] ?? 0 }))
     .filter((r) => r.count > 0)
     .sort((a, b) => {
-      // "Other" always goes last
       if (a.label === "Other" && b.label !== "Other") return 1;
       if (b.label === "Other" && a.label !== "Other") return -1;
       return b.count - a.count;
     });
 
-  // ── Batch year distribution ────────────────────────────────────────────────
-  // Treat null / undefined / empty / whitespace batch as "Unknown". "Unknown"
-  // is always sorted last.
-  const batchCounts: Record<string, number> = {};
-  members.forEach((m) => {
-    const raw = (m.batch ?? "").trim();
-    const b = raw === "" ? "Unknown" : raw;
-    batchCounts[b] = (batchCounts[b] ?? 0) + 1;
-  });
-  const maxBatch = Math.max(1, ...Object.values(batchCounts));
-  const batchRows = Object.entries(batchCounts)
-    .sort((a, b) => {
-      // "Unknown" always goes last
-      if (a[0] === "Unknown" && b[0] !== "Unknown") return 1;
-      if (b[0] === "Unknown" && a[0] !== "Unknown") return -1;
-      return a[0].localeCompare(b[0], undefined, { numeric: true });
-    })
-    .map(([label, count]) => ({ label, count }));
-
-  // ── Activities per Leo year ────────────────────────────────────────────────
+  // ── Activities per Leo year ───────────────────────────────────────────────
   const actsByYear: Record<string, number> = {};
   activities.forEach((a) => { actsByYear[a.year] = (actsByYear[a.year] ?? 0) + 1; });
   const maxActYear = Math.max(1, ...Object.values(actsByYear));
   const actYearRows = LEO_YEARS.map((y) => ({ label: y, count: actsByYear[y] ?? 0 }))
     .filter((r) => r.count > 0);
 
-  // ── Busiest months (tie-break using Leo Year order: July → June) ───────────
+  // ── Busiest months ────────────────────────────────────────────────────────
   const actsByMonth: Record<string, number> = {};
   activities.forEach((a) => { actsByMonth[a.month] = (actsByMonth[a.month] ?? 0) + 1; });
   const maxActMonth = Math.max(1, ...Object.values(actsByMonth));
@@ -107,12 +151,12 @@ export default function StatsPage() {
     })
     .slice(0, 6);
 
-  // ── Top contributors ───────────────────────────────────────────────────────
+  // ── Top contributors (all-time, includes everyone) ────────────────────────
   const topMembers = [...members]
     .sort((a, b) => (b.activities?.length ?? 0) - (a.activities?.length ?? 0))
     .slice(0, 10);
 
-  // ── Service Impact by Leo Year ─────────────────────────────────────────────
+  // ── Service Impact by Leo Year ────────────────────────────────────────────
   const allImpactYears = [...new Set([
     ...impacts.map((i) => i.leoYear),
     ...actYearRows.map((r) => r.label),
@@ -145,11 +189,45 @@ export default function StatsPage() {
     { peopleServed: 0, volunteers: 0, volunteerHours: 0, fundsDonatedNpr: 0, fundsRaisedNpr: 0 }
   );
 
-  const currentLeoYear = getCurrentLeoYear();
+  // ── Club Intelligence ─────────────────────────────────────────────────────
+  const mostProductiveYear = LEO_YEARS.reduce<{ year: string; count: number }>(
+    (best, y) => {
+      const count = activities.filter((a) => a.year === y).length;
+      return count > best.count ? { year: y, count } : best;
+    },
+    { year: "", count: 0 }
+  );
+
+  const mostActiveMonth = MONTHS.reduce<{ month: string; count: number }>(
+    (best, m) => {
+      const count = activities.filter((a) => a.month === m).length;
+      return count > best.count ? { month: m, count } : best;
+    },
+    { month: "", count: 0 }
+  );
+
+  const mostAwardedMember = [...members]
+    .map((m) => ({ member: m, count: awards.filter((a) => a.memberId === m.memberId).length }))
+    .filter((x) => x.count > 0)
+    .sort((a, b) => b.count - a.count)[0];
+
+  // ── Membership Growth ─────────────────────────────────────────────────────
+  // Count how many members joined in each Leo Year (using joinedLeoYear).
+  const joinedByYear: Record<string, number> = {};
+  members.forEach((m) => {
+    const y = m.joinedLeoYear ?? "";
+    if (!y) return;
+    joinedByYear[y] = (joinedByYear[y] ?? 0) + 1;
+  });
+  const growthRows = LEO_YEARS
+    .map((y) => ({ label: y, count: joinedByYear[y] ?? 0 }))
+    .filter((r) => r.count > 0);
+  const maxGrowth = Math.max(1, ...growthRows.map((r) => r.count));
+  const totalJoined = growthRows.reduce((s, r) => s + r.count, 0);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="bg-[#002147] text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center gap-3 mb-3">
@@ -160,13 +238,12 @@ export default function StatsPage() {
           </div>
           <p className="text-white/70">A snapshot of Leo Club of KUSMS — members, activities, and impact.</p>
 
-          {/* Summary stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-8">
             {[
               { label: "Total Members", value: members.length, icon: Users, color: "text-[#D4AF37]" },
               { label: "Active Members", value: activeMembers.length, icon: Star, color: "text-green-400" },
               { label: "Activities", value: activities.length, icon: Calendar, color: "text-[#D4AF37]" },
-              { label: "Participations", value: totalParticipations, icon: Award, color: "text-[#D4AF37]" },
+              { label: "Participations", value: totalParticipations, icon: AwardIcon, color: "text-[#D4AF37]" },
             ].map((s) => (
               <div key={s.label} className="text-center">
                 <div className={`text-3xl font-bold ${s.color}`}>{s.value}</div>
@@ -190,7 +267,6 @@ export default function StatsPage() {
               Cumulative impact across all Leo Years — measured in lives touched, hours served, and generosity given.
             </p>
 
-            {/* Cumulative totals card */}
             <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6">
               <div className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-4">
                 Cumulative — All Leo Years
@@ -215,7 +291,6 @@ export default function StatsPage() {
               </div>
             </div>
 
-            {/* Per-year table */}
             <div className="overflow-x-auto -mx-2 sm:mx-0">
               <table className="w-full text-sm min-w-[600px]">
                 <thead>
@@ -232,10 +307,7 @@ export default function StatsPage() {
                   {impactRows.map((r) => {
                     const isCurrent = r.leoYear === currentLeoYear;
                     return (
-                      <tr
-                        key={r.leoYear}
-                        className={`border-b border-white/5 ${isCurrent ? "bg-[#D4AF37]/10" : ""}`}
-                      >
+                      <tr key={r.leoYear} className={`border-b border-white/5 ${isCurrent ? "bg-[#D4AF37]/10" : ""}`}>
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-white">{r.leoYear}</span>
@@ -244,9 +316,7 @@ export default function StatsPage() {
                                 Current
                               </span>
                             )}
-                            {!r.hasRecord && (
-                              <span className="text-[9px] text-white/40 italic">(auto)</span>
-                            )}
+                            {!r.hasRecord && <span className="text-[9px] text-white/40 italic">(auto)</span>}
                           </div>
                           <div className="text-xs text-white/40">
                             {r.activityCount} activit{r.activityCount === 1 ? "y" : "ies"}
@@ -280,7 +350,108 @@ export default function StatsPage() {
           </section>
         )}
 
-        {/* Members by Faculty */}
+        {/* ── Suggested Leo of the Month + Leo of the Year ── */}
+        {(leoOfMonth || leoOfYear) && (
+          <section>
+            <div className="flex items-center gap-2 mb-5">
+              <div className="w-8 h-8 rounded-lg bg-[#002147] flex items-center justify-center">
+                <Flame size={15} className="text-[#D4AF37]" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-[#002147]">Suggested Leo of the Month &amp; Year</h2>
+                <p className="text-xs text-gray-500">Recognizing outstanding non-BOD contributors</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Leo of the Month */}
+              {leoOfMonth && (
+                <div className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-2xl p-5 sm:p-6 text-white shadow-lg border-2 border-[#D4AF37]/30">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Flame size={15} className="text-[#D4AF37]" />
+                    <span className="text-[#D4AF37] font-bold text-xs uppercase tracking-wider">
+                      Leo of the Month
+                    </span>
+                    <span className="ml-auto text-xs text-white/40">
+                      {currentMonthName} {currentCalendarYear}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {leoOfMonth.member.photoUrl ? (
+                      <img src={leoOfMonth.member.photoUrl} alt={leoOfMonth.member.name}
+                        className="w-16 h-16 rounded-2xl object-cover border-2 border-[#D4AF37] shrink-0" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-[#D4AF37]/20 border-2 border-[#D4AF37]/40 flex items-center justify-center shrink-0">
+                        <span className="text-2xl font-bold text-[#D4AF37]">{leoOfMonth.member.name[0]}</span>
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-lg sm:text-xl font-bold truncate">{leoOfMonth.member.name}</div>
+                      <div className="text-white/60 text-xs sm:text-sm truncate">
+                        {leoOfMonth.member.currentRole || "Leo Member"}
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        <div className="bg-[#D4AF37] text-[#002147] text-xs font-bold px-3 py-1 rounded-full">
+                          {leoOfMonth.count} activit{leoOfMonth.count === 1 ? "y" : "ies"} this month
+                        </div>
+                        <Link href={`/members/${leoOfMonth.member.memberId}`}
+                          className="text-xs text-white/60 hover:text-white transition-colors underline underline-offset-2">
+                          View Profile
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Leo of the Year */}
+              {leoOfYear && (
+                <div className="bg-gradient-to-br from-[#D4AF37] to-[#c9a432] rounded-2xl p-5 sm:p-6 text-[#002147] shadow-lg">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Trophy size={15} className="text-[#002147]" />
+                    <span className="font-bold text-xs uppercase tracking-wider">
+                      Leo of the Year
+                    </span>
+                    <span className="ml-auto text-xs text-[#002147]/60">
+                      Leo Year {currentLeoYear}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {leoOfYear.member.photoUrl ? (
+                      <img src={leoOfYear.member.photoUrl} alt={leoOfYear.member.name}
+                        className="w-16 h-16 rounded-2xl object-cover border-2 border-[#002147] shrink-0" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-[#002147]/15 border-2 border-[#002147]/30 flex items-center justify-center shrink-0">
+                        <span className="text-2xl font-bold text-[#002147]">{leoOfYear.member.name[0]}</span>
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-lg sm:text-xl font-bold truncate">{leoOfYear.member.name}</div>
+                      <div className="text-[#002147]/70 text-xs sm:text-sm truncate">
+                        {leoOfYear.member.currentRole || "Leo Member"}
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        <div className="bg-[#002147] text-[#D4AF37] text-xs font-bold px-3 py-1 rounded-full">
+                          {leoOfYear.count} activit{leoOfYear.count === 1 ? "y" : "ies"} this year
+                        </div>
+                        <Link href={`/members/${leoOfYear.member.memberId}`}
+                          className="text-xs text-[#002147]/70 hover:text-[#002147] transition-colors underline underline-offset-2">
+                          View Profile
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-400 mt-3 text-center">
+              BOD members are excluded from these recognitions to give regular members a chance to shine.
+            </p>
+          </section>
+        )}
+
+        {/* ── Members by Faculty ── */}
         {facultyRows.length > 0 && (
           <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
             <h2 className="text-lg font-bold text-[#002147] mb-5 flex items-center gap-2">
@@ -302,27 +473,8 @@ export default function StatsPage() {
           </section>
         )}
 
-        {/* Members by Batch Year */}
-        {batchRows.length > 0 && (
-          <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-[#002147] mb-5 flex items-center gap-2">
-              <TrendingUp size={18} className="text-[#D4AF37]" /> Members by Admission Year
-            </h2>
-            <div className="space-y-3">
-              {batchRows.map((r) => (
-                <div key={r.label} className="flex items-center gap-3">
-                  <div className="w-16 text-sm text-gray-600 font-mono font-medium shrink-0">{r.label}</div>
-                  <Bar pct={r.count / maxBatch} color={r.label === "Unknown" ? "#94a3b8" : "#D4AF37"} />
-                  <div className="w-10 text-right text-sm font-bold text-[#002147] shrink-0">{r.count}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Two column: activities per year + busiest months */}
+        {/* ── Activities per Leo Year + Busiest Months (2-column) ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
           {actYearRows.length > 0 && (
             <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
               <h2 className="text-base font-bold text-[#002147] mb-4 flex items-center gap-2">
@@ -343,7 +495,7 @@ export default function StatsPage() {
           {monthRows.length > 0 && (
             <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
               <h2 className="text-base font-bold text-[#002147] mb-4 flex items-center gap-2">
-                <Award size={16} className="text-[#D4AF37]" /> Busiest Months
+                <AwardIcon size={16} className="text-[#D4AF37]" /> Busiest Months
               </h2>
               <div className="space-y-3">
                 {monthRows.map((r) => (
@@ -358,7 +510,52 @@ export default function StatsPage() {
           )}
         </div>
 
-        {/* Top Contributors */}
+        {/* ── Club Intelligence ── */}
+        <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-[#002147] mb-5 flex items-center gap-2">
+            <Zap size={18} className="text-[#D4AF37]" /> Club Intelligence
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {mostProductiveYear.year && (
+              <div className="flex items-center justify-between p-4 bg-[#F8FAFC] rounded-xl">
+                <div>
+                  <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">Most Productive Year</div>
+                  <div className="font-bold text-[#002147] mt-0.5">Leo Year {mostProductiveYear.year}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-[#D4AF37]">{mostProductiveYear.count}</div>
+                  <div className="text-xs text-gray-400">activities</div>
+                </div>
+              </div>
+            )}
+            {mostActiveMonth.month && (
+              <div className="flex items-center justify-between p-4 bg-[#F8FAFC] rounded-xl">
+                <div>
+                  <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">Most Active Month</div>
+                  <div className="font-bold text-[#002147] mt-0.5">{mostActiveMonth.month}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-[#D4AF37]">{mostActiveMonth.count}</div>
+                  <div className="text-xs text-gray-400">across all years</div>
+                </div>
+              </div>
+            )}
+            {mostAwardedMember && (
+              <div className="flex items-center justify-between p-4 bg-[#F8FAFC] rounded-xl">
+                <div className="min-w-0">
+                  <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">Most Recognized Leo</div>
+                  <div className="font-bold text-[#002147] mt-0.5 truncate">{mostAwardedMember.member.name}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-xl font-bold text-[#D4AF37]">{mostAwardedMember.count}</div>
+                  <div className="text-xs text-gray-400">awards</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ── Top Contributors — All Time ── */}
         {topMembers.length > 0 && (
           <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
             <h2 className="text-lg font-bold text-[#002147] mb-5 flex items-center gap-2">
@@ -393,6 +590,30 @@ export default function StatsPage() {
                 );
               })}
             </div>
+          </section>
+        )}
+
+        {/* ── Membership Growth ── */}
+        {growthRows.length > 0 && (
+          <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-[#002147] mb-2 flex items-center gap-2">
+              <TrendingUp size={18} className="text-[#D4AF37]" /> Membership Growth
+            </h2>
+            <p className="text-sm text-gray-500 mb-5">
+              {totalJoined} member{totalJoined === 1 ? "" : "s"} joined across {growthRows.length} Leo Year{growthRows.length === 1 ? "" : "s"}.
+            </p>
+            <div className="space-y-3">
+              {growthRows.map((r) => (
+                <div key={r.label} className="flex items-center gap-3">
+                  <div className="w-20 text-xs text-gray-600 font-mono shrink-0">{r.label}</div>
+                  <Bar pct={r.count / maxGrowth} color="#D4AF37" />
+                  <div className="w-10 text-right text-sm font-bold text-[#002147] shrink-0">{r.count}</div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-4">
+              Counts members whose joined Leo Year matches each year. Members without a joined year are not shown.
+            </p>
           </section>
         )}
 
