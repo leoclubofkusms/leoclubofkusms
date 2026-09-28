@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
 import {
   getServiceImpact, updateServiceImpact, getAllServiceImpacts,
-  getActivities, computeVolunteersFromActivities,
+  getActivities, computeVolunteersFromActivities, getClubSettings,
 } from "@/lib/firestore";
 import type { ServiceImpact, Activity } from "@/lib/types";
-import { LEO_YEARS, getCurrentLeoYear, formatImpactNumber, formatCurrency } from "@/lib/types";
+import {
+  LEO_YEARS, getCurrentLeoYear, formatImpactNumber, formatCurrency,
+  DEFAULT_USD_TO_NPR_RATE, convertNprToUsd, convertUsdToNpr,
+} from "@/lib/types";
 import {
   Save, Loader2, Check, Users, Clock, DollarSign,
-  TrendingUp, AlertCircle,
+  TrendingUp, AlertCircle, ArrowLeftRight,
 } from "lucide-react";
+
+type CurrencyDirection = "npr" | "usd";
 
 export default function ServiceImpactManager() {
   const [allRecords, setAllRecords] = useState<ServiceImpact[]>([]);
@@ -20,6 +25,10 @@ export default function ServiceImpactManager() {
   const [selectedYear, setSelectedYear] = useState<string>(getCurrentLeoYear());
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [rawText, setRawText] = useState<Record<string, string>>({});
+  // Direction of entry — which currency the admin is typing in.
+  const [direction, setDirection] = useState<CurrencyDirection>("npr");
+  const [usdToNprRate, setUsdToNprRate] = useState<number>(DEFAULT_USD_TO_NPR_RATE);
+
   const [form, setForm] = useState<ServiceImpact>({
     leoYear: getCurrentLeoYear(),
     peopleServed: 0,
@@ -35,12 +44,17 @@ export default function ServiceImpactManager() {
   async function load() {
     setLoading(true);
     try {
-      const [records, acts] = await Promise.all([
+      const [records, acts, settings] = await Promise.all([
         getAllServiceImpacts(),
         getActivities(),
+        getClubSettings().catch(() => ({})),
       ]);
       setAllRecords(records);
       setActivities(acts);
+      const rate = settings.usdToNprRate && settings.usdToNprRate > 0
+        ? settings.usdToNprRate
+        : DEFAULT_USD_TO_NPR_RATE;
+      setUsdToNprRate(rate);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Load failed");
     } finally {
@@ -85,6 +99,35 @@ export default function ServiceImpactManager() {
   // Auto-calculated values for the selected year
   const autoVolunteers = computeVolunteersFromActivities(activities, selectedYear);
   const autoActivities = activities.filter((a) => a.year === selectedYear).length;
+
+  // ── Auto-compute the opposite currency as the admin types ──
+  function setFundsValue(
+    primary: "donated" | "raised",
+    currency: CurrencyDirection,
+    value: number
+  ) {
+    setForm((f) => {
+      const next = { ...f };
+      if (primary === "donated") {
+        if (currency === "npr") {
+          next.fundsDonatedNpr = value;
+          next.fundsDonatedUsd = convertNprToUsd(value, usdToNprRate);
+        } else {
+          next.fundsDonatedUsd = value;
+          next.fundsDonatedNpr = convertUsdToNpr(value, usdToNprRate);
+        }
+      } else {
+        if (currency === "npr") {
+          next.fundsRaisedNpr = value;
+          next.fundsRaisedUsd = convertNprToUsd(value, usdToNprRate);
+        } else {
+          next.fundsRaisedUsd = value;
+          next.fundsRaisedNpr = convertUsdToNpr(value, usdToNprRate);
+        }
+      }
+      return next;
+    });
+  }
 
   async function handleSave() {
     setSaving(true); setError(""); setSuccess("");
@@ -159,6 +202,22 @@ export default function ServiceImpactManager() {
     );
   };
 
+  // Read-only auto-computed field for the opposite currency.
+  const autoField = (label: string, value: number, currency: "USD" | "NPR") => (
+    <div>
+      <label className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1.5">
+        {label}
+        <span className="text-[10px] uppercase font-bold text-[#D4AF37] bg-[#D4AF37]/10 px-1.5 py-0.5 rounded">
+          auto
+        </span>
+      </label>
+      <div className="w-full border border-dashed border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-600 tabular-nums font-medium">
+        {formatCurrency(value, currency)}
+      </div>
+      <p className="text-xs text-gray-400 mt-1">Computed from the other field</p>
+    </div>
+  );
+
   if (loading) return (
     <div className="flex items-center justify-center h-40">
       <Loader2 size={24} className="animate-spin text-[#002147]" />
@@ -224,16 +283,79 @@ export default function ServiceImpactManager() {
           {numField("Volunteer Hours", "volunteerHours", "Total hours contributed by all volunteers")}
         </div>
 
+        {/* Funds with direction toggle */}
         <div>
-          <div className="flex items-center gap-2 mb-3">
-            <DollarSign size={14} className="text-[#D4AF37]" />
-            <span className="text-sm font-bold text-[#002147]">Funds (enter both currencies if you have them)</span>
+          <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <DollarSign size={14} className="text-[#D4AF37]" />
+              <span className="text-sm font-bold text-[#002147]">Funds</span>
+            </div>
+            {/* Direction toggle */}
+            <div className="flex items-center gap-1 bg-gray-100 border border-gray-200 rounded-xl p-1">
+              {(["npr", "usd"] as const).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDirection(d)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                    direction === d
+                      ? "bg-[#002147] text-white shadow-sm"
+                      : "text-gray-500 hover:text-[#002147]"
+                  }`}
+                >
+                  Enter in {d}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {numField("Donated (USD)", "fundsDonatedUsd")}
-            {numField("Donated (NPR)", "fundsDonatedNpr")}
-            {numField("Raised (USD)", "fundsRaisedUsd")}
-            {numField("Raised (NPR)", "fundsRaisedNpr")}
+
+          <div className="bg-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-xl px-3 py-2 mb-3 flex items-center gap-2 text-xs text-gray-600">
+            <ArrowLeftRight size={12} className="text-[#D4AF37] shrink-0" />
+            <span>
+              Exchange rate: <strong>1 USD = {usdToNprRate} NPR</strong>. You enter in{" "}
+              <strong>{direction.toUpperCase()}</strong>; the other currency is auto-computed and frozen at save.
+              Rate can be updated in <strong>Club Settings</strong>.
+            </span>
+          </div>
+
+          {/* Donated row */}
+          <div className="mb-3">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Funds Donated
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {direction === "npr" ? (
+                <>
+                  {numField("Donated (NPR)", "fundsDonatedNpr")}
+                  {autoField("Donated (USD)", form.fundsDonatedUsd ?? 0, "USD")}
+                </>
+              ) : (
+                <>
+                  {numField("Donated (USD)", "fundsDonatedUsd")}
+                  {autoField("Donated (NPR)", form.fundsDonatedNpr ?? 0, "NPR")}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Raised row */}
+          <div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Funds Raised
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {direction === "npr" ? (
+                <>
+                  {numField("Raised (NPR)", "fundsRaisedNpr")}
+                  {autoField("Raised (USD)", form.fundsRaisedUsd ?? 0, "USD")}
+                </>
+              ) : (
+                <>
+                  {numField("Raised (USD)", "fundsRaisedUsd")}
+                  {autoField("Raised (NPR)", form.fundsRaisedNpr ?? 0, "NPR")}
+                </>
+              )}
+            </div>
           </div>
         </div>
 
