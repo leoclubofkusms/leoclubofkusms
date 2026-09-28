@@ -15,6 +15,7 @@ import VerifyPage from "@/pages/VerifyPage";
 import MembersPage from "@/pages/MembersPage";
 import AboutPage from "@/pages/AboutPage";
 import EventsPage from "@/pages/EventsPage";
+import EventDetailPage from "@/pages/EventDetailPage";
 import AwardsPage from "@/pages/AwardsPage";
 import MemberProfilePage from "@/pages/MemberProfilePage";
 import PastMembersPage from "@/pages/PastMembersPage";
@@ -72,6 +73,9 @@ function SeoManager() {
     } else if (path === "/events") {
       title = "Leo Club of KUSMS Events | Service Calendar";
       description = "See upcoming and completed service events, health initiatives, outreach programs, and club activities from Leo Club of KUSMS.";
+    } else if (segments[0] === "event" && segments[1]) {
+      title = "Event | Leo Club of KUSMS";
+      description = "View event details, dates, location, and applications for this Leo Club of KUSMS event.";
     } else if (path === "/awards") {
       title = "Awards & Recognition | Leo Club of KUSMS";
       description = "Recognize the service awards and achievements of members and the Leo Club of Kathmandu University School of Medical Sciences.";
@@ -150,6 +154,9 @@ function AppLayout() {
                 <Route path="/constitution" component={ConstitutionPage} />
                 <Route path="/wall-of-fame" component={WallOfFamePage} />
                 <Route path="/events" component={EventsPage} />
+                <Route path="/event/:id">
+                  {(params) => <EventDetailPage eventId={params.id} />}
+                </Route>
                 <Route path="/awards" component={AwardsPage} />
                 <Route path="/archive" component={ArchiveIndexPage} />
                 <Route path="/archive/:year/:month">
@@ -190,9 +197,7 @@ function AppLayout() {
 }
 
 function App() {
-  // Always show splash on every page load
   const [showSplash, setShowSplash] = useState(true);
-
 
   return (
     <QueryClientProvider client={queryClient}>
