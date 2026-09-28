@@ -6,8 +6,8 @@ import {
 import type { ServiceImpact, Activity } from "@/lib/types";
 import { LEO_YEARS, getCurrentLeoYear, formatImpactNumber, formatCurrency } from "@/lib/types";
 import {
-  Save, Loader2, Check, Heart, Users, Clock, DollarSign,
-  TrendingUp, AlertCircle, Trash2,
+  Save, Loader2, Check, Users, Clock, DollarSign,
+  TrendingUp, AlertCircle,
 } from "lucide-react";
 
 export default function ServiceImpactManager() {
@@ -19,13 +19,14 @@ export default function ServiceImpactManager() {
   const [success, setSuccess] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>(getCurrentLeoYear());
   const [form, setForm] = useState<ServiceImpact>({
-    leoYear: getCurrentLeoYear(),
+   0 leoYear: getCurrentLeoYear(),
     peopleServed: 0,
     volunteerHours: 0,
-    fundsDonatedUsd: 0,
-    fundsDonatedNpr: 0,
-    fundsRaisedUsd: 0,
-    fundsRaisedNpr: 0,
+    fundsDonatedUsd:,
+ 0,
+    fundsDonated         Npr: 0,
+    funds fundsRaisedUsd: Ra0,
+    fundsRaisedisedNpr: 0,
     note: "",
     updatedAt: new Date().toISOString(),
   });
@@ -70,18 +71,16 @@ export default function ServiceImpactManager() {
           peopleServed: 0,
           volunteerHours: 0,
           fundsDonatedUsd: 0,
-          fundsDonatedNpr: 0,
-          fundsRaisedUs {d: 0,
-          fundsRaisedNprerror: 0,
+          fundsDonatedNpr: Usd: 0,
+          fundsRaisedNpr: 0,
           note: "",
-          updatedAt: new Date().}
-toISOString(),
+          updatedAt: new Date().toISOString(),
         });
       }
     })();
   }, [selectedYear]);
 
-         // Auto-calculated volunteers for the </ selected year
+  // Auto-calculated volunteers for the selected year
   const autoVolunteers = computeVolunteersFromActivities(activities, selectedYear);
 
   async function handleSave() {
@@ -214,7 +213,8 @@ toISOString(),
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-          <AlertCircle size={14}div>
+          <AlertCircle size={14} /> {error}
+        </div>
       )}
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
