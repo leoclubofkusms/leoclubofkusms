@@ -19,14 +19,13 @@ export default function ServiceImpactManager() {
   const [success, setSuccess] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>(getCurrentLeoYear());
   const [form, setForm] = useState<ServiceImpact>({
-   0 leoYear: getCurrentLeoYear(),
+    leoYear: getCurrentLeoYear(),
     peopleServed: 0,
     volunteerHours: 0,
-    fundsDonatedUsd:,
- 0,
-    fundsDonated         Npr: 0,
-    funds fundsRaisedUsd: Ra0,
-    fundsRaisedisedNpr: 0,
+    fundsDonatedUsd: 0,
+    fundsDonatedNpr: 0,
+    fundsRaisedUsd: 0,
+    fundsRaisedNpr: 0,
     note: "",
     updatedAt: new Date().toISOString(),
   });
@@ -71,7 +70,8 @@ export default function ServiceImpactManager() {
           peopleServed: 0,
           volunteerHours: 0,
           fundsDonatedUsd: 0,
-          fundsDonatedNpr: Usd: 0,
+          fundsDonatedNpr: 0,
+          fundsRaisedUsd: 0,
           fundsRaisedNpr: 0,
           note: "",
           updatedAt: new Date().toISOString(),
@@ -82,6 +82,9 @@ export default function ServiceImpactManager() {
 
   // Auto-calculated volunteers for the selected year
   const autoVolunteers = computeVolunteersFromActivities(activities, selectedYear);
+
+  // Auto-calculated activities count for the selected year (for context)
+  const autoActivities = activities.filter((a) => a.year === selectedYear).length;
 
   async function handleSave() {
     setSaving(true); setError(""); setSuccess("");
@@ -138,7 +141,7 @@ export default function ServiceImpactManager() {
         <h3 className="text-lg font-bold text-[#002147]">Our Service Impact</h3>
         <p className="text-sm text-gray-500">
           Enter your club-wide service numbers for each Leo Year. These appear on the homepage and stats page.
-          Volunteers are auto-counted from activities — no need to enter them.
+          Volunteers and activities are auto-counted from the database — no need to enter them.
         </p>
       </div>
 
@@ -165,16 +168,21 @@ export default function ServiceImpactManager() {
         </p>
       </div>
 
-      {/* Auto-calculated volunteers banner */}
+      {/* Auto-calculated info banner */}
       <div className="bg-[#002147]/5 border border-[#002147]/20 rounded-2xl p-4 flex items-start gap-3">
         <Users size={18} className="text-[#002147] shrink-0 mt-0.5" />
-        <div className="text-sm">
-          <span className="font-bold text-[#002147]">
-            Volunteers (auto): {formatImpactNumber(autoVolunteers)}
-          </span>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Calculated automatically from unique participants across all activities in Leo Year {selectedYear}.
-            Update activities to change this number.
+        <div className="text-sm flex-1">
+          <div className="flex flex-wrap gap-x-6 gap-y-1">
+            <span className="font-bold text-[#002147]">
+              Volunteers (auto): {formatImpactNumber(autoVolunteers)}
+            </span>
+            <span className="font-bold text-[#002147]">
+              Activities (auto): {formatImpactNumber(autoActivities)}
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Volunteers = unique participants across all activities in Leo Year {selectedYear}.
+            Activities = number of activities recorded for that year. Both update automatically.
           </p>
         </div>
       </div>
@@ -243,7 +251,14 @@ export default function ServiceImpactManager() {
           <div className="space-y-2">
             {allRecords.map((r) => (
               <div key={r.leoYear} className="bg-[#F8FAFC] border border-gray-100 rounded-xl p-3 text-sm">
-                <div className="font-semibold text-[#002147] mb-1">Leo Year {r.leoYear}</div>
+                <div className="font-semibold text-[#002147] mb-1">
+                  Leo Year {r.leoYear}
+                  {r.leoYear === getCurrentLeoYear() && (
+                    <span className="ml-2 text-[10px] font-bold text-[#002147] bg-[#D4AF37] px-1.5 py-0.5 rounded-full uppercase">
+                      Current
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-500">
                   <span>👥 {formatImpactNumber(r.peopleServed)} served</span>
                   <span>⏱️ {formatImpactNumber(r.volunteerHours)} hrs</span>
