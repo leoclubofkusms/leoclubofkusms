@@ -18,6 +18,8 @@ export default function ServiceImpactManager() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>(getCurrentLeoYear());
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [rawText, setRawText] = useState<Record<string, string>>({});
   const [form, setForm] = useState<ServiceImpact>({
     leoYear: getCurrentLeoYear(),
     peopleServed: 0,
@@ -80,10 +82,8 @@ export default function ServiceImpactManager() {
     })();
   }, [selectedYear]);
 
-  // Auto-calculated volunteers for the selected year
+  // Auto-calculated values for the selected year
   const autoVolunteers = computeVolunteersFromActivities(activities, selectedYear);
-
-  // Auto-calculated activities count for the selected year (for context)
   const autoActivities = activities.filter((a) => a.year === selectedYear).length;
 
   async function handleSave() {
@@ -114,20 +114,50 @@ export default function ServiceImpactManager() {
     label: string,
     key: keyof ServiceImpact,
     help?: string
-  ) => (
-    <div>
-      <label className="text-xs font-medium text-gray-600 mb-1 block">{label}</label>
-      <input
-        type="number"
-        min={0}
-        step="any"
-        value={(form[key] as number) ?? 0}
-        onChange={(e) => setForm((f) => ({ ...f, [key]: Number(e.target.value) || 0 }))}
-        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
-      />
-      {help && <p className="text-xs text-gray-400 mt-1">{help}</p>}
-    </div>
-  );
+  ) => {
+    const fieldKey = String(key);
+    const isFocused = focusedField === fieldKey;
+    const displayValue = isFocused
+      ? (rawText[fieldKey] ?? "")
+      : String((form[key] as number) ?? 0);
+
+    return (
+      <div>
+        <label className="text-xs font-medium text-gray-600 mb-1 block">{label}</label>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={displayValue}
+          onFocus={() => {
+            setFocusedField(fieldKey);
+            const current = (form[key] as number) ?? 0;
+            setRawText((prev) => ({
+              ...prev,
+              [fieldKey]: current === 0 ? "" : String(current),
+            }));
+          }}
+          onBlur={() => {
+            setFocusedField(null);
+            setRawText((prev) => {
+              const copy = { ...prev };
+              delete copy[fieldKey];
+              return copy;
+            });
+          }}
+          onChange={(e) => {
+            const text = e.target.value;
+            if (!/^\d*\.?\d*$/.test(text)) return;
+            setRawText((prev) => ({ ...prev, [fieldKey]: text }));
+            const n = text === "" || text === "." ? 0 : Number(text);
+            setForm((f) => ({ ...f, [key]: isNaN(n) ? 0 : n }));
+          }}
+          placeholder="0"
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
+        />
+        {help && <p className="text-xs text-gray-400 mt-1">{help}</p>}
+      </div>
+    );
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center h-40">
