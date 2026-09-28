@@ -1,11 +1,11 @@
 import { useState, useRef } from "react";
 import { getMembers, getActivities, getAwards } from "@/lib/firestore";
 import type { Member, Activity, Award } from "@/lib/types";
-import { LEO_YEARS, MONTHS, activitySortKey } from "@/lib/types";
+import { LEO_YEARS, activitySortKey, getCurrentLeoYear, leoMonthToCalendarYear, getMonthsInLeoOrder } from "@/lib/types";
 import { FileText, Download, Loader2, ChevronDown } from "lucide-react";
 
 export default function AnnualReport() {
-  const [year, setYear] = useState(LEO_YEARS[2]);
+  const [year, setYear] = useState<string>(getCurrentLeoYear());
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const reportRef = useRef<HTMLDivElement>(null);
@@ -67,6 +67,14 @@ export default function AnnualReport() {
       .map((m) => ({ member: m, count: counts[m.memberId] ?? 0 }));
   };
 
+  // Newly joined members in the selected Leo Year
+  const newMembers = (members: Member[]) =>
+    members.filter((m) => m.joinedLeoYear === previewYear);
+
+  // Members who left during the selected Leo Year
+  const departedMembers = (members: Member[]) =>
+    members.filter((m) => m.leftLeoYear === previewYear);
+
   return (
     <div className="space-y-6">
       <div>
@@ -80,7 +88,11 @@ export default function AnnualReport() {
           <div className="relative">
             <select value={year} onChange={(e) => setYear(e.target.value)}
               className="appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm pr-9 focus:outline-none focus:border-[#002147]">
-              {LEO_YEARS.map((y) => <option key={y} value={y}>Leo Year {y}</option>)}
+              {[...LEO_YEARS].reverse().map((y) => (
+                <option key={y} value={y}>
+                  Leo Year {y}{y === getCurrentLeoYear() ? " (Current)" : ""}
+                </option>
+              ))}
             </select>
             <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
@@ -113,14 +125,15 @@ export default function AnnualReport() {
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 16 }}>
               Annual Report · Leo Year {previewYear}
             </div>
-            {/* Stats row */}
-            <div style={{ display: "flex", gap: 24 }}>
+            {/* Stats row — each label clarifies the scope */}
+            <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
               {[
-                { label: "Total Members", value: preview.members.length },
+                { label: "Members Ever", value: preview.members.length },
                 { label: "Active Members", value: preview.members.filter((m) => m.isActive !== false).length },
-                { label: "Activities", value: preview.activities.length },
+                { label: "Joined This Year", value: newMembers(preview.members).length },
+                { label: `Activities in ${previewYear}`, value: preview.activities.length },
                 { label: "Participants", value: preview.activities.reduce((s, a) => s + a.participants.length, 0) },
-                { label: "Awards", value: preview.awards.length },
+                { label: `Awards in ${previewYear}`, value: preview.awards.length },
               ].map(({ label, value }) => (
                 <div key={label} style={{ textAlign: "center" }}>
                   <div style={{ fontSize: 22, fontWeight: 700, color: "#D4AF37" }}>{value}</div>
@@ -130,31 +143,70 @@ export default function AnnualReport() {
             </div>
           </div>
 
-          {/* Activities by month */}
+          {/* Activities by month — Leo Year order (July → June) */}
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#002147", borderBottom: "2px solid #D4AF37", paddingBottom: 6, marginBottom: 14 }}>
               Activities — Leo Year {previewYear}
             </div>
-            {MONTHS.filter((m) => preview.activities.some((a) => a.month === m)).map((month) => (
-              <div key={month} style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#D4AF37", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{month}</div>
-                {preview.activities.filter((a) => a.month === month).map((a) => (
-                  <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "#002147" }}>{a.title}</div>
-                      {a.description && <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>{a.description}</div>}
-                    </div>
-                    <div style={{ fontSize: 10, color: "#999", whiteSpace: "nowrap", marginLeft: 12 }}>
-                      {a.participants.length} participant{a.participants.length !== 1 ? "s" : ""}
-                    </div>
+            {getMonthsInLeoOrder().filter((m) => preview.activities.some((a) => a.month === m)).map((month) => {
+              const calendarYear = leoMonthToCalendarYear(previewYear, month);
+              return (
+                <div key={month} style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#D4AF37", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
+                    {month} {calendarYear}
                   </div>
-                ))}
-              </div>
-            ))}
+                  {preview.activities.filter((a) => a.month === month).map((a) => (
+                    <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#002147" }}>{a.title}</div>
+                        {a.description && <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>{a.description}</div>}
+                      </div>
+                      <div style={{ fontSize: 10, color: "#999", whiteSpace: "nowrap", marginLeft: 12 }}>
+                        {a.participants.length} participant{a.participants.length !== 1 ? "s" : ""}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
             {preview.activities.length === 0 && (
               <div style={{ fontSize: 12, color: "#999", textAlign: "center", padding: 16 }}>No activities recorded for Leo Year {previewYear}.</div>
             )}
           </div>
+
+          {/* New Members */}
+          {newMembers(preview.members).length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#002147", borderBottom: "2px solid #D4AF37", paddingBottom: 6, marginBottom: 14 }}>
+                Members Who Joined — Leo Year {previewYear}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                {newMembers(preview.members).sort((a, b) => a.name.localeCompare(b.name)).map((m) => (
+                  <div key={m.memberId} style={{ padding: "5px 8px", background: "#F8FAFC", borderRadius: 6, borderLeft: "3px solid #D4AF37" }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "#002147" }}>{m.name}</div>
+                    <div style={{ fontSize: 9, color: "#999" }}>{m.memberId}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Departed Members */}
+          {departedMembers(preview.members).length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#002147", borderBottom: "2px solid #D4AF37", paddingBottom: 6, marginBottom: 14 }}>
+                Members Who Left — Leo Year {previewYear}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                {departedMembers(preview.members).sort((a, b) => a.name.localeCompare(b.name)).map((m) => (
+                  <div key={m.memberId} style={{ padding: "5px 8px", background: "#F8FAFC", borderRadius: 6, borderLeft: "3px solid #ccc" }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "#666" }}>{m.name}</div>
+                    <div style={{ fontSize: 9, color: "#999" }}>{m.memberId}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Top Contributors */}
           {topContributors(preview.members, preview.activities).length > 0 && (
@@ -201,7 +253,7 @@ export default function AnnualReport() {
               All Members
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-              {preview.members.sort((a, b) => a.name.localeCompare(b.name)).map((m) => (
+              {[...preview.members].sort((a, b) => a.name.localeCompare(b.name)).map((m) => (
                 <div key={m.memberId} style={{ padding: "5px 8px", background: "#F8FAFC", borderRadius: 6, borderLeft: "3px solid", borderLeftColor: m.isActive === false ? "#ccc" : "#D4AF37" }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: m.isActive === false ? "#888" : "#002147" }}>{m.name}</div>
                   <div style={{ fontSize: 9, color: "#999" }}>{m.memberId} {m.isActive === false ? "· Past" : ""}</div>

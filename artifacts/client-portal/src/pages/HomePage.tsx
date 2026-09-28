@@ -6,21 +6,23 @@ import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ID, LEO_YEARS, MONTH
 import {
   ArrowRight, Award, Users, Calendar, Shield, Mail, Phone,
   ChevronLeft, ChevronRight, Pin, Info, Facebook, ExternalLink,
-  Star, Building, Heart, TrendingUp, MessageCircle,
+  Star, Heart, TrendingUp, MessageCircle,
   Zap, Trophy, Flame, BarChart3, Megaphone, X as XIcon, Clock, DollarSign,
 } from "lucide-react";
 
-// ── Animated counter hook ──────────────────────────────────────────────────────
+// ── Animated counter hook — preserves 1 decimal for non-integers ──────────────
 function useCountUp(target: number, duration = 1800, start = false) {
   const [count, setCount] = useState(0);
   useEffect(() => {
     if (!start || target === 0) return;
+    const hasDecimal = !Number.isInteger(target);
     let startTime: number | null = null;
     const step = (ts: number) => {
       if (!startTime) startTime = ts;
       const progress = Math.min((ts - startTime) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.floor(eased * target));
+      const raw = eased * target;
+      setCount(hasDecimal ? Math.round(raw * 10) / 10 : Math.floor(raw));
       if (progress < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -68,7 +70,6 @@ function ServiceImpactSection({
   const memberCountAnim = useCountUp(memberCount, 1400, visible);
   const activityCountAnim = useCountUp(activityCount, 1600, visible);
 
-  // Years of service — always computed live from club establishment date
   const yearsOfService = (() => {
     const established = new Date("June 11, 2024");
     const now = new Date();
@@ -98,20 +99,17 @@ function ServiceImpactSection({
   ];
 
   return (
-    <section ref={ref} className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#002147] to-[#003575] text-white py-10 sm:py-12 px-5 sm:px-6 shadow-xl border-2 border-[#D4AF37]/20">
+    <section ref={ref} className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#002147] to-[#003575] text-white py-10 sm:py-12 px-4 sm:px-6 shadow-xl border-2 border-[#D4AF37]/20">
       <div className="absolute top-0 right-0 w-72 h-72 bg-[#D4AF37]/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-56 h-56 bg-[#D4AF37]/5 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
       <div className="relative z-10">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-7">
           <div className="text-center sm:text-left">
             <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-3">
               <Heart size={13} /> Our Service Impact
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold">
-              Leo Year {leoYear}
-            </h2>
+            <h2 className="text-2xl md:text-3xl font-bold">Leo Year {leoYear}</h2>
             <p className="text-white/60 text-sm mt-2 max-w-xl">
               Making a difference together — measured in lives touched, hours served, and generosity given.
             </p>
@@ -122,9 +120,7 @@ function ServiceImpactSection({
                 key={c}
                 onClick={() => setCurrency(c)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  currency === c
-                    ? "bg-[#D4AF37] text-[#002147]"
-                    : "text-white/60 hover:text-white"
+                  currency === c ? "bg-[#D4AF37] text-[#002147]" : "text-white/60 hover:text-white"
                 }`}
               >
                 {c}
@@ -133,24 +129,22 @@ function ServiceImpactSection({
           </div>
         </div>
 
-        {/* Headline impact — 5 big cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 sm:gap-3">
           {impactStats.map(({ label, value, icon: Icon }) => (
-            <div key={label} className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-4 sm:p-5 text-center transition-all">
-              <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/20 flex items-center justify-center mx-auto mb-3">
-                <Icon size={16} className="text-[#D4AF37]" />
+            <div key={label} className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-3 sm:p-4 text-center transition-all">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#D4AF37]/20 flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                <Icon size={15} className="text-[#D4AF37]" />
               </div>
-              <div className="text-2xl sm:text-3xl font-bold text-white mb-1 tabular-nums leading-tight">
+              <div className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-1 tabular-nums leading-tight break-words">
                 {value}
               </div>
-              <div className="text-white/50 text-[11px] sm:text-xs leading-tight">{label}</div>
+              <div className="text-white/50 text-[10px] sm:text-xs leading-tight">{label}</div>
             </div>
           ))}
         </div>
 
-        {/* Club snapshot — 3 small stat rows */}
-        <div className="mt-5 bg-white/[0.03] border border-white/10 rounded-2xl p-4 sm:p-5">
-          <div className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] text-[#D4AF37]/80 mb-3 text-center sm:text-left">
+        <div className="mt-4 bg-white/[0.03] border border-white/10 rounded-2xl p-3.5 sm:p-4">
+          <div className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] text-[#D4AF37]/80 mb-2.5 text-center sm:text-left">
             Club Snapshot
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -158,7 +152,7 @@ function ServiceImpactSection({
               <div key={label} className="text-center">
                 <div className="flex items-center justify-center gap-1.5 mb-1">
                   <Icon size={12} className="text-[#D4AF37]" />
-                  <span className="text-lg sm:text-xl font-bold text-white tabular-nums">{value}</span>
+                  <span className="text-base sm:text-lg font-bold text-white tabular-nums">{value}</span>
                 </div>
                 <div className="text-[10px] sm:text-xs text-white/50 leading-tight">{label}</div>
               </div>
@@ -166,8 +160,7 @@ function ServiceImpactSection({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 text-xs text-white/50">
+        <div className="mt-5 flex flex-col sm:flex-row items-center justify-center gap-3 text-xs text-white/50">
           {hasData ? (
             <span>Last updated {new Date(impact!.updatedAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
           ) : (
@@ -176,229 +169,6 @@ function ServiceImpactSection({
           <Link href="/stats" className="text-[#D4AF37] font-semibold hover:underline flex items-center gap-1">
             View full impact report <ArrowRight size={12} />
           </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── Leo Analytics ─────────────────────────────────────────────────────────────
-function LeoAnalytics({
-  members, activities, awards, serviceImpact, currentLeoYear,
-}: {
-  members: Member[];
-  activities: Activity[];
-  awards: AwardType[];
-  serviceImpact: ServiceImpact | null;
-  currentLeoYear: string;
-}) {
-  const latestYearWithData = [...LEO_YEARS].reverse().find((y) =>
-    activities.some((a) => a.year === y)
-  ) ?? LEO_YEARS[0];
-
-  const participationCounts: Record<string, number> = {};
-  activities.forEach((a) => {
-    a.participants.forEach((p) => {
-      participationCounts[p.memberId] = (participationCounts[p.memberId] ?? 0) + 1;
-    });
-  });
-
-  const currentYearCounts: Record<string, number> = {};
-  activities.filter((a) => a.year === latestYearWithData).forEach((a) => {
-    a.participants.forEach((p) => {
-      currentYearCounts[p.memberId] = (currentYearCounts[p.memberId] ?? 0) + 1;
-    });
-  });
-
-  const topAllTime = [...members]
-    .filter((m) => participationCounts[m.memberId])
-    .sort((a, b) => (participationCounts[b.memberId] ?? 0) - (participationCounts[a.memberId] ?? 0))
-    .slice(0, 3);
-
-  const topThisYear = [...members]
-    .filter((m) => currentYearCounts[m.memberId])
-    .sort((a, b) => (currentYearCounts[b.memberId] ?? 0) - (currentYearCounts[a.memberId] ?? 0))
-    .slice(0, 3);
-
-  const mostProductiveYear = LEO_YEARS.reduce<{ year: string; count: number }>(
-    (best, y) => {
-      const count = activities.filter((a) => a.year === y).length;
-      return count > best.count ? { year: y, count } : best;
-    },
-    { year: "", count: 0 }
-  );
-
-  const mostActiveMonth = MONTHS.reduce<{ month: string; count: number }>(
-    (best, m) => {
-      const count = activities.filter((a) => a.month === m).length;
-      return count > best.count ? { month: m, count } : best;
-    },
-    { month: "", count: 0 }
-  );
-
-  const mostAwardedMember = [...members]
-    .map((m) => ({ member: m, count: awards.filter((a) => a.memberId === m.memberId).length }))
-    .filter((x) => x.count > 0)
-    .sort((a, b) => b.count - a.count)[0];
-
-  const suggestedLeoOfMonth = topThisYear[0];
-
-  if (!topAllTime.length && !suggestedLeoOfMonth) return null;
-
-  return (
-    <section>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg bg-[#002147] flex items-center justify-center">
-              <Zap size={14} className="text-[#D4AF37]" />
-            </div>
-            <h2 className="text-2xl font-bold text-[#002147]">Leo Analytics</h2>
-          </div>
-          <p className="text-gray-500 text-sm">Data-driven insights from our club's activity history</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {suggestedLeoOfMonth && (
-          <div className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-2xl p-6 text-white shadow-lg md:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <Flame size={16} className="text-[#D4AF37]" />
-              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Suggested Leo of the Month</span>
-              <span className="ml-auto text-xs text-white/40">Leo Year {latestYearWithData}</span>
-            </div>
-            <div className="flex items-center gap-4">
-              {suggestedLeoOfMonth.photoUrl ? (
-                <img src={suggestedLeoOfMonth.photoUrl} alt={suggestedLeoOfMonth.name}
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-[#D4AF37] shrink-0" />
-              ) : (
-                <div className="w-16 h-16 rounded-2xl bg-[#D4AF37]/20 border-2 border-[#D4AF37]/40 flex items-center justify-center shrink-0">
-                  <span className="text-2xl font-bold text-[#D4AF37]">{suggestedLeoOfMonth.name[0]}</span>
-                </div>
-              )}
-              <div>
-                <div className="text-xl font-bold">{suggestedLeoOfMonth.name}</div>
-                <div className="text-white/60 text-sm">{suggestedLeoOfMonth.currentRole || "Leo Member"}</div>
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="bg-[#D4AF37] text-[#002147] text-xs font-bold px-3 py-1 rounded-full">
-                    {currentYearCounts[suggestedLeoOfMonth.memberId]} activit{currentYearCounts[suggestedLeoOfMonth.memberId] === 1 ? "y" : "ies"} this year
-                  </div>
-                  <Link href={`/members/${suggestedLeoOfMonth.memberId}`}
-                    className="text-xs text-white/50 hover:text-white transition-colors flex items-center gap-1">
-                    View Profile <ExternalLink size={10} />
-                  </Link>
-                </div>
-              </div>
-            </div>
-            {topThisYear.length > 1 && (
-              <div className="mt-5 pt-4 border-t border-white/10">
-                <div className="text-xs text-white/40 mb-3">Other top contributors this year</div>
-                <div className="flex gap-3 flex-wrap">
-                  {topThisYear.slice(1).map((m) => (
-                    <Link key={m.memberId} href={`/members/${m.memberId}`}
-                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-xl px-3 py-2 transition-colors">
-                      {m.photoUrl
-                        ? <img src={m.photoUrl} alt={m.name} className="w-6 h-6 rounded-full object-cover border border-white/30" />
-                        : <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">{m.name[0]}</div>
-                      }
-                      <span className="text-sm font-medium">{m.name}</span>
-                      <span className="text-xs text-white/50">{currentYearCounts[m.memberId]} acts</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {topAllTime.length > 0 && (
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Trophy size={16} className="text-[#D4AF37]" />
-              <h3 className="font-bold text-[#002147]">Top Contributors — All Time</h3>
-            </div>
-            <div className="space-y-3">
-              {topAllTime.map((m, i) => (
-                <Link key={m.memberId} href={`/members/${m.memberId}`}
-                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 ${i === 0 ? "bg-[#D4AF37] text-[#002147]" : i === 1 ? "bg-gray-200 text-gray-600" : "bg-gray-100 text-gray-500"}`}>
-                    #{i + 1}
-                  </div>
-                  {m.photoUrl
-                    ? <img src={m.photoUrl} alt={m.name} className="w-10 h-10 rounded-xl object-cover border border-gray-100 shrink-0" />
-                    : <div className="w-10 h-10 rounded-xl bg-[#002147] text-white flex items-center justify-center font-bold shrink-0">{m.name[0]}</div>
-                  }
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-[#002147] group-hover:text-[#003575] transition-colors truncate">{m.name}</div>
-                    <div className="text-xs text-gray-400">{m.currentRole || "Leo Member"}</div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-lg font-bold text-[#002147]">{participationCounts[m.memberId]}</div>
-                    <div className="text-xs text-gray-400">activities</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 size={16} className="text-[#002147]" />
-            <h3 className="font-bold text-[#002147]">Club Intelligence</h3>
-          </div>
-          <div className="space-y-4">
-            {mostProductiveYear.year && (
-              <div className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-xl">
-                <div>
-                  <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">Most Productive Year</div>
-                  <div className="font-bold text-[#002147] mt-0.5">Leo Year {mostProductiveYear.year}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xl font-bold text-[#D4AF37]">{mostProductiveYear.count}</div>
-                  <div className="text-xs text-gray-400">activities</div>
-                </div>
-              </div>
-            )}
-            {mostActiveMonth.month && (
-              <div className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-xl">
-                <div>
-                  <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">Most Active Month</div>
-                  <div className="font-bold text-[#002147] mt-0.5">{mostActiveMonth.month}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xl font-bold text-[#D4AF37]">{mostActiveMonth.count}</div>
-                  <div className="text-xs text-gray-400">across all years</div>
-                </div>
-              </div>
-            )}
-            {mostAwardedMember && (
-              <div className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-xl">
-                <div>
-                  <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">Most Recognized Leo</div>
-                  <div className="font-bold text-[#002147] mt-0.5 truncate max-w-[160px]">{mostAwardedMember.member.name}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xl font-bold text-[#D4AF37]">{mostAwardedMember.count}</div>
-                  <div className="text-xs text-gray-400">awards</div>
-                </div>
-              </div>
-            )}
-            <div className="flex items-center justify-between p-3 bg-[#002147] rounded-xl">
-              <div>
-                <div className="text-xs text-white/50 font-medium uppercase tracking-wide">Total Service Hours</div>
-                <div className="font-bold text-white mt-0.5">Leo Year {currentLeoYear}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-xl font-bold text-[#D4AF37]">
-                  {serviceImpact ? formatImpactNumber(serviceImpact.volunteerHours) : "—"}
-                </div>
-                <div className="text-xs text-white/50">
-                  {serviceImpact ? "hours served" : "not entered yet"}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -746,8 +516,6 @@ export default function HomePage() {
     (a) => !dismissedAnnouncements.has(a.id) && !isAnnouncementExpired(a)
   );
   const president = bod[0] ?? null;
-  const otherBod = bod.slice(1);
-  const latest = activities.slice(0, 6);
 
   const today = new Date().toISOString().split("T")[0];
   const featuredEvents = events
@@ -756,7 +524,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-[#F8FAFC]">
-      {/* ── Hero ── */}
+      {/* ═══ 1. HERO ═══ */}
       <div className="relative bg-[#002147] text-white overflow-hidden" style={{ minHeight: "520px" }}>
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#D4AF37]/10 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full translate-y-1/3 -translate-x-1/3 pointer-events-none" />
@@ -786,8 +554,50 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── Merged Service Impact + Club Snapshot (replaces old 4-stat bar) ── */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10">
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12 space-y-16">
+
+        {/* ═══ 2. PRESIDENT'S SLOGAN ═══ */}
+        {clubSettings.presidentSlogan && (
+          <section className="bg-gradient-to-r from-[#002147] via-[#003575] to-[#002147] rounded-3xl border-2 border-[#D4AF37]/30 overflow-hidden shadow-xl">
+            <div className="px-6 py-8 md:px-12 md:py-12">
+              <div className="flex flex-col md:flex-row items-center gap-6 md:gap-12">
+                {clubSettings.presidentSloganPhotoUrl && (
+                  <div className="relative flex h-32 w-32 shrink-0 items-center justify-center rounded-3xl border border-[#D4AF37]/70 bg-white/10 p-3 shadow-[0_16px_40px_rgba(0,0,0,.25)] sm:h-36 sm:w-36 md:h-44 md:w-44">
+                    <img src={clubSettings.presidentSloganPhotoUrl} alt="President"
+                      className="h-full w-full rounded-2xl bg-white p-2 object-contain" />
+                  </div>
+                )}
+                <div className="flex-1 text-center md:text-left">
+                  <div className="mb-4 flex items-center justify-center gap-3 md:justify-start">
+                    <div className="h-px w-10 bg-gradient-to-r from-transparent to-[#D4AF37] md:w-16" />
+                    <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#D4AF37] md:text-xs">
+                      {getCurrentLeoYearLabel()} · President&apos;s Slogan
+                    </div>
+                    <div className="h-px w-10 bg-gradient-to-l from-transparent to-[#D4AF37] md:hidden" />
+                  </div>
+                  <div className="relative">
+                    <p className="max-w-4xl text-xl font-semibold leading-snug tracking-[-0.02em] text-white sm:text-2xl md:text-4xl lg:text-5xl">
+                      {clubSettings.presidentSlogan}
+                    </p>
+                    <div className="mt-5 h-1 w-20 rounded-full bg-gradient-to-r from-[#D4AF37] to-transparent md:w-28" />
+                  </div>
+                  {(clubSettings.presidentSloganName || clubSettings.presidentSloganRole) && (
+                    <div className="mt-5 text-sm text-white/60">
+                      {clubSettings.presidentSloganName && (
+                        <div className="font-semibold text-white/80">{clubSettings.presidentSloganName}</div>
+                      )}
+                      {clubSettings.presidentSloganRole && (
+                        <div className="text-xs text-[#D4AF37]">{clubSettings.presidentSloganRole}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ═══ 3. SERVICE IMPACT ═══ */}
         <ServiceImpactSection
           impact={serviceImpact}
           activities={activities}
@@ -795,42 +605,8 @@ export default function HomePage() {
           memberCount={members.length}
           activityCount={activities.length}
         />
-      </div>
 
-      {/* ── President's Slogan Banner ── */}
-      {clubSettings.presidentSlogan && (
-        <div className="bg-gradient-to-r from-[#002147] via-[#003575] to-[#002147] border-y-2 border-[#D4AF37]/30 mt-10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-            <div className="flex flex-col md:flex-row items-center gap-6 md:gap-12">
-              {clubSettings.presidentSloganPhotoUrl && (
-                <div className="relative flex h-32 w-32 shrink-0 items-center justify-center rounded-3xl border border-[#D4AF37]/70 bg-white/10 p-3 shadow-[0_16px_40px_rgba(0,0,0,.25)] sm:h-36 sm:w-36 md:h-44 md:w-44">
-                  <img src={clubSettings.presidentSloganPhotoUrl} alt="President"
-                    className="h-full w-full rounded-2xl bg-white p-2 object-contain" />
-                </div>
-              )}
-              <div className="flex-1 text-center md:text-left">
-                <div className="mb-4 flex items-center justify-center gap-3 md:justify-start">
-                  <div className="h-px w-10 bg-gradient-to-r from-transparent to-[#D4AF37] md:w-16" />
-                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#D4AF37] md:text-xs">
-                    {getCurrentLeoYearLabel()} · President&apos;s Slogan
-                  </div>
-                  <div className="h-px w-10 bg-gradient-to-l from-transparent to-[#D4AF37] md:hidden" />
-                </div>
-                <div className="relative">
-                  <p className="max-w-4xl text-xl font-semibold leading-snug tracking-[-0.02em] text-white sm:text-2xl md:text-4xl lg:text-5xl">
-                    {clubSettings.presidentSlogan}
-                  </p>
-                  <div className="mt-5 h-1 w-20 rounded-full bg-gradient-to-r from-[#D4AF37] to-transparent md:w-28" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12 space-y-16">
-
-        {/* ── Announcements ── */}
+        {/* ═══ 4. ANNOUNCEMENTS ═══ */}
         {visibleAnnouncements.length > 0 && (
           <section>
             <div className="space-y-3">
@@ -845,7 +621,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ── Featured Events Carousel ── */}
+        {/* ═══ 5. UPCOMING EVENTS ═══ */}
         {featuredEvents.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-6">
@@ -863,8 +639,8 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ── President & BOD ── */}
-        {(president || bod.length > 0) && (
+        {/* ═══ 6. OUR LEADERSHIP (President only) ═══ */}
+        {president && (
           <section>
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -872,60 +648,16 @@ export default function HomePage() {
                 <p className="text-gray-500 text-sm mt-1">The team guiding our club this year</p>
               </div>
               <Link href="/about" className="text-sm text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1">
-                Full About Page <ArrowRight size={14} />
+                View Full Board <ArrowRight size={14} />
               </Link>
             </div>
-
-            {president && (
-              <div className="mb-6">
-                <PresidentCard president={president}
-                  whatsappNumber={clubSettings.presidentWhatsApp}
-                  whatsappMessage={clubSettings.presidentWhatsAppMessage} />
-              </div>
-            )}
-
-            {otherBod.length > 0 && (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4">
-                {otherBod.map((m) => (
-                  <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 text-center hover:shadow-md hover:-translate-y-0.5 transition-all sm:p-5">
-                    {m.photoUrl ? (
-                      <img src={m.photoUrl} alt={m.name}
-                        className="mx-auto mb-3 aspect-[4/5] h-auto w-full max-w-[8rem] rounded-xl border-2 border-[#D4AF37]/30 object-cover object-top" />
-                    ) : (
-                      <div className="mx-auto mb-3 flex aspect-[4/5] h-auto w-full max-w-[8rem] items-center justify-center rounded-xl bg-[#002147] text-4xl font-bold text-white">
-                        {m.name.charAt(0)}
-                      </div>
-                    )}
-                    <div className="font-bold text-[#002147] text-sm leading-tight">{m.name}</div>
-                    <div className="text-xs text-[#D4AF37] font-semibold mt-0.5">{m.role}</div>
-                    {m.bio && <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">{m.bio}</p>}
-                    <div className="flex justify-center gap-2 mt-3">
-                      {m.email && (
-                        <a href={`mailto:${m.email}`} className="p-1.5 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors">
-                          <Mail size={13} />
-                        </a>
-                      )}
-                      {m.phone && (
-                        <a href={`tel:${m.phone}`} className="p-1.5 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors">
-                          <Phone size={13} />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!loading && bod.length === 0 && (
-              <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-8 text-center text-gray-400">
-                <Users size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm">BOD members will appear here once added from the admin dashboard.</p>
-              </div>
-            )}
+            <PresidentCard president={president}
+              whatsappNumber={clubSettings.presidentWhatsApp}
+              whatsappMessage={clubSettings.presidentWhatsAppMessage} />
           </section>
         )}
 
-        {/* ── Featured Activities ── */}
+        {/* ═══ 7. FEATURED ACTIVITIES ═══ */}
         {featuredActivities.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-6">
@@ -941,175 +673,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ── Latest Activities ── */}
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-[#002147]">Latest Activities</h2>
-              <p className="text-gray-500 text-sm mt-1">Our most recent service work</p>
-            </div>
-            <Link href="/archive" className="text-sm text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1">
-              View All <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse">
-                  <div className="h-36 bg-gray-200 rounded-xl mb-4" />
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-                  <div className="h-3 bg-gray-100 rounded w-full" />
-                </div>
-              ))}
-            </div>
-          ) : latest.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center text-gray-400">
-              <Calendar size={40} className="mx-auto mb-3 opacity-30" />
-              <p>No activities yet. Admin can add the first one from the dashboard.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {latest.map((act) => (
-                <Link key={act.id} href={`/archive/${act.year.replace("/", "-")}/${act.month.toLowerCase()}`}
-                  className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden block">
-                  {act.photos[0] ? (
-                    <img src={act.photos[0]} alt={act.title} className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500" />
-                  ) : (
-                    <div className="w-full h-40 bg-gradient-to-br from-[#002147] to-[#003575] flex items-center justify-center">
-                      <Calendar size={36} className="text-[#D4AF37]/60" />
-                    </div>
-                  )}
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-medium text-[#D4AF37] bg-[#D4AF37]/10 px-2.5 py-0.5 rounded-full">
-                        {act.month} · {act.year}
-                      </span>
-                      {act.featured && <Pin size={11} className="text-[#D4AF37]" />}
-                    </div>
-                    <h3 className="font-bold text-[#002147] group-hover:text-[#003575] transition-colors line-clamp-2">{act.title}</h3>
-                    <p className="text-sm text-gray-500 mt-1.5 line-clamp-2">{act.description}</p>
-                    <div className="flex items-center gap-1 text-xs text-gray-400 mt-3">
-                      <Users size={11} /> {act.participants.length} participants
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* ── Awards ── */}
-        {(awards.length > 0 || loading) && (
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-[#002147]">Awards & Recognition</h2>
-                <p className="text-gray-500 text-sm mt-1">Leo of the Month, outstanding member and club achievements</p>
-              </div>
-              <Link href="/awards" className="text-sm text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1">
-                View All <ArrowRight size={14} />
-              </Link>
-            </div>
-            {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {[1,2,3].map(i => <div key={i} className="bg-white rounded-2xl border border-gray-100 h-36 animate-pulse" />)}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {awards.filter((a) => a.featured || a.type === "member").slice(0, 6).map((a) => (
-                  <div key={a.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
-                    <div className="flex items-start gap-3">
-                      {a.photoUrl
-                        ? <img src={a.photoUrl} alt={a.recipientName} className="w-12 h-12 rounded-xl object-cover border-2 border-[#D4AF37]/30 shrink-0" />
-                        : <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${a.type === "member" ? "bg-[#D4AF37]/20" : "bg-[#002147]/10"}`}>
-                            {a.type === "member" ? <Star size={20} className="text-[#D4AF37]" /> : <Building size={20} className="text-[#002147]" />}
-                          </div>
-                      }
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs text-[#D4AF37] font-bold uppercase tracking-wide mb-0.5">{a.title}</div>
-                        <div className="font-bold text-[#002147] truncate">{a.recipientName}</div>
-                        {a.awardedBy && <div className="text-xs text-gray-400 truncate">By {a.awardedBy}</div>}
-                        <div className="text-xs text-gray-400 mt-1">{a.month} · {a.year}</div>
-                      </div>
-                    </div>
-                    {a.description && <p className="text-xs text-gray-500 mt-2 line-clamp-2">{a.description}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-            {!loading && awards.length === 0 && (
-              <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-8 text-center text-gray-400">
-                <Award size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Awards will appear here once added from the admin dashboard.</p>
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* ── Chartered Certificate ── */}
-        <section>
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-[#002147]">Official Charter</h2>
-            <p className="text-gray-500 text-sm mt-1">Officially established by Lions Clubs International District 325L · Club #172194</p>
-          </div>
-          <div className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-3xl overflow-hidden shadow-xl text-white">
-            <div className="p-8 md:p-10 flex flex-col md:flex-row gap-8 items-center">
-              <div className="flex-1 text-center md:text-left">
-                <div className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] rounded-full px-3 py-1 text-xs font-bold mb-4">
-                  <Award size={12} /> Officially Chartered
-                </div>
-                <h3 className="text-2xl font-bold mb-2">Leo Club of KUSMS</h3>
-                <p className="text-white/70 text-sm mb-4 leading-relaxed">
-                  Chartered by Lions Clubs International under District 325L · Club #172194.<br />
-                  Handover ceremony held on <span className="text-[#D4AF37] font-semibold">{CLUB_ESTABLISHED}</span>.
-                </p>
-                <div className="flex flex-wrap gap-3 justify-center md:justify-start text-sm">
-                  <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-                    <Calendar size={14} className="text-[#D4AF37]" /> <span>Established {CLUB_ESTABLISHED}</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-                    <Award size={14} className="text-[#D4AF37]" /> <span>District 325L · Club #{CLUB_ID}</span>
-                  </div>
-                </div>
-                <div className="flex gap-3 mt-5 justify-center md:justify-start">
-                  <a href={CLUB_FACEBOOK} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 bg-[#1877F2] hover:bg-[#1565c0] rounded-xl px-4 py-2 text-sm font-medium transition-colors">
-                    <Facebook size={14} /> Facebook
-                  </a>
-                  <a href={CLUB_TIKTOK} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 bg-black/50 hover:bg-black/70 border border-white/20 rounded-xl px-4 py-2 text-sm font-medium transition-colors">
-                    <ExternalLink size={14} /> TikTok
-                  </a>
-                </div>
-              </div>
-              <div className="shrink-0 flex flex-col items-center gap-3">
-                {clubSettings.charteredCertificateUrl ? (
-                  <div className="bg-white rounded-2xl p-2 shadow-lg">
-                    {clubSettings.charteredCertificateType === "pdf" ? (
-                      <a href={clubSettings.charteredCertificateUrl} target="_blank" rel="noopener noreferrer"
-                        className="flex flex-col items-center gap-2 text-[#002147] p-6 hover:text-[#D4AF37] transition-colors">
-                        <Award size={40} />
-                        <span className="text-sm font-semibold">View Certificate (PDF)</span>
-                        <ExternalLink size={14} />
-                      </a>
-                    ) : (
-                      <img src={clubSettings.charteredCertificateUrl} alt="Chartered Certificate"
-                        className="max-w-[220px] max-h-[280px] rounded-xl object-contain" />
-                    )}
-                  </div>
-                ) : (
-                  <div className="bg-white/10 border-2 border-dashed border-white/30 rounded-2xl p-8 flex flex-col items-center gap-3 text-white/50 text-center min-w-[180px]">
-                    <Award size={36} className="text-[#D4AF37]/50" />
-                    <p className="text-xs leading-relaxed">Chartered certificate will appear here.<br />Upload from Admin → Club Settings.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Become a Leo ── */}
+        {/* ═══ 8. BECOME A LEO ═══ */}
         <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2">
             <div className="p-8 md:p-10">
@@ -1184,18 +748,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── Leo Analytics ── */}
-        {!loading && members.length > 0 && activities.length > 0 && (
-          <LeoAnalytics
-            members={members}
-            activities={activities}
-            awards={awards}
-            serviceImpact={serviceImpact}
-            currentLeoYear={currentLeoYear}
-          />
-        )}
-
-        {/* ── Donate Now ── */}
+        {/* ═══ 9. DONATE NOW ═══ */}
         <section id="donate" className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2">
             <div className="p-8 md:p-10 flex flex-col justify-center">
@@ -1255,20 +808,31 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── CTA ── */}
-        <section className="bg-gradient-to-r from-[#002147] to-[#003575] text-white rounded-3xl p-10 text-center shadow-xl">
-          <div className="w-14 h-14 rounded-2xl bg-[#D4AF37] flex items-center justify-center mx-auto mb-5">
-            <Shield size={26} className="text-[#002147]" />
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Verify a Member</h2>
-          <p className="text-white/60 mb-6">Scan a QR code or enter a Member ID to verify credentials</p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link href="/members" className="flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-6 py-3 rounded-xl font-semibold hover:bg-[#c9a432] transition-colors">
-              <Users size={18} /> Member Directory
-            </Link>
-            <Link href="/about" className="flex items-center gap-2 border border-white/30 px-6 py-3 rounded-xl font-semibold hover:bg-white/10 transition-colors">
-              <Info size={18} /> About Us
-            </Link>
+        {/* ═══ FOOTER CTA — Compact links ═══ */}
+        <section className="bg-gradient-to-r from-[#002147] to-[#003575] text-white rounded-3xl p-8 md:p-10 shadow-xl">
+          <div className="text-center max-w-2xl mx-auto">
+            <div className="w-14 h-14 rounded-2xl bg-[#D4AF37] flex items-center justify-center mx-auto mb-5">
+              <Shield size={26} className="text-[#002147]" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Explore More</h2>
+            <p className="text-white/60 mb-6">Dive deeper into our club — member directory, activities, awards, and more.</p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Link href="/members" className="flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-5 py-2.5 rounded-xl font-semibold hover:bg-[#c9a432] transition-colors text-sm">
+                <Users size={16} /> Member Directory
+              </Link>
+              <Link href="/archive" className="flex items-center gap-2 border border-white/30 px-5 py-2.5 rounded-xl font-semibold hover:bg-white/10 transition-colors text-sm">
+                <Calendar size={16} /> Activity Archive
+              </Link>
+              <Link href="/awards" className="flex items-center gap-2 border border-white/30 px-5 py-2.5 rounded-xl font-semibold hover:bg-white/10 transition-colors text-sm">
+                <Trophy size={16} /> Awards
+              </Link>
+              <Link href="/stats" className="flex items-center gap-2 border border-white/30 px-5 py-2.5 rounded-xl font-semibold hover:bg-white/10 transition-colors text-sm">
+                <BarChart3 size={16} /> Statistics
+              </Link>
+              <Link href="/about" className="flex items-center gap-2 border border-white/30 px-5 py-2.5 rounded-xl font-semibold hover:bg-white/10 transition-colors text-sm">
+                <Info size={16} /> About Us
+              </Link>
+            </div>
           </div>
         </section>
       </div>

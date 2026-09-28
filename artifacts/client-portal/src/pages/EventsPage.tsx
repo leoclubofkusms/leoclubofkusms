@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { getClubEvents } from "@/lib/firestore";
 import type { ClubEvent } from "@/lib/types";
-import { CalendarDays, MapPin, Clock, ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight, LayoutList, Calendar, Users, QrCode, Pin } from "lucide-react";
+import { CalendarDays, MapPin, Clock, ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight, LayoutList, Calendar, Users, QrCode, Pin, Share2 } from "lucide-react";
 import { Link } from "wouter";
 import ApplicationFormModal from "@/components/ApplicationFormModal";
+import ShareButton from "@/components/ShareButton";
 
 const STATUS_CONFIG = {
   planned: { label: "Upcoming", color: "bg-blue-100 text-blue-700", icon: Clock },
@@ -26,19 +27,17 @@ function formatEventDate(ev: ClubEvent): string {
 function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: ClubEvent) => void }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth()); // 0-indexed
+  const [month, setMonth] = useState(now.getMonth());
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Map date string "YYYY-MM-DD" to events — expand multi-day events to cover every day
   const eventsMap: Record<string, ClubEvent[]> = {};
   for (const ev of events) {
     const startStr = ev.date?.slice(0, 10);
     if (!startStr) continue;
     const endStr = (ev.endDate && ev.endDate >= ev.date) ? ev.endDate.slice(0, 10) : startStr;
 
-    // Iterate each day between start and end (inclusive)
     const cursor = new Date(startStr + "T00:00:00");
     const end = new Date(endStr + "T00:00:00");
     while (cursor <= end) {
@@ -82,7 +81,6 @@ function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: 
 
   return (
     <div>
-      {/* Month navigator */}
       <div className="flex items-center justify-between mb-5">
         <button onClick={prevMonth} className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
           <ChevronLeft size={16} />
@@ -93,14 +91,12 @@ function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: 
         </button>
       </div>
 
-      {/* Day names */}
       <div className="grid grid-cols-7 mb-2">
         {DAY_NAMES.map((d) => (
           <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1">{d}</div>
         ))}
       </div>
 
-      {/* Cells */}
       <div className="grid grid-cols-7 gap-1">
         {cells.map((day, idx) => {
           if (day === null) return <div key={`e-${idx}`} />;
@@ -137,7 +133,6 @@ function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: 
         })}
       </div>
 
-      {/* Selected day events */}
       {selected && (
         <div className="mt-5 border-t border-gray-100 pt-5">
           <h4 className="font-semibold text-[#002147] mb-3">
@@ -150,6 +145,7 @@ function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: 
               {selectedEvents.map((ev) => {
                 const cfg = STATUS_CONFIG[ev.status];
                 const StatusIcon = cfg.icon;
+                const evUrl = `${window.location.origin}${import.meta.env.BASE_URL}event/${ev.id}`;
                 return (
                   <div key={ev.id} className="bg-[#F8FAFC] rounded-xl border border-gray-100 p-4">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -163,7 +159,9 @@ function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: 
                         </span>
                       )}
                     </div>
-                    <h5 className="font-bold text-[#002147]">{ev.title}</h5>
+                    <Link href={`/event/${ev.id}`} className="hover:text-[#003575] transition-colors">
+                      <h5 className="font-bold text-[#002147]">{ev.title}</h5>
+                    </Link>
                     {ev.endDate && ev.endDate !== ev.date && (
                       <p className="text-xs text-gray-500 mt-1">
                         Runs {formatEventDate(ev)}
@@ -172,25 +170,33 @@ function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: 
                     {ev.description && <p className="text-sm text-gray-500 mt-1">{ev.description}</p>}
                     {ev.location && <p className="flex items-center gap-1.5 text-xs text-gray-400 mt-2"><MapPin size={11} className="text-[#D4AF37]" /> {ev.location}</p>}
 
-                    {/* Application section in calendar */}
-                    {ev.applicationsEnabled && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        {ev.applicationPrompt && (
-                          <p className="text-xs text-gray-600 italic mb-2">{ev.applicationPrompt}</p>
-                        )}
-                        {canApply(ev) ? (
-                          <button
-                            onClick={() => onApply(ev)}
-                            className="w-full flex items-center justify-center gap-2 bg-[#002147] hover:bg-[#003575] text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
-                          >
-                            <Users size={14} />
-                            Apply as {ev.applicationType || "Applicant"}
-                          </button>
-                        ) : (
-                          <div className="text-xs text-center text-gray-400 bg-gray-100 rounded-lg py-2">
-                            Applications closed
-                          </div>
-                        )}
+                    {/* Actions row */}
+                    <div className="flex items-center gap-2 mt-3">
+                      <Link href={`/event/${ev.id}`} className="flex-1 flex items-center justify-center gap-2 bg-[#002147] hover:bg-[#003575] text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
+                        View Full Event
+                      </Link>
+                      <ShareButton
+                        url={evUrl}
+                        title={ev.title}
+                        description={ev.description}
+                        meta={formatEventDate(ev) + (ev.location ? ` · ${ev.location}` : "")}
+                        variant="icon"
+                      />
+                    </div>
+
+                    {/* Apply (inline) */}
+                    {ev.applicationsEnabled && canApply(ev) && (
+                      <button
+                        onClick={() => onApply(ev)}
+                        className="w-full flex items-center justify-center gap-2 bg-[#D4AF37] hover:bg-[#c9a432] text-[#002147] text-sm font-bold py-2.5 rounded-xl transition-colors mt-2"
+                      >
+                        <Users size={14} />
+                        Apply as {ev.applicationType || "Applicant"}
+                      </button>
+                    )}
+                    {ev.applicationsEnabled && !canApply(ev) && (
+                      <div className="text-xs text-center text-gray-400 bg-gray-100 rounded-lg py-2 mt-2">
+                        Applications closed
                       </div>
                     )}
                   </div>
@@ -201,7 +207,6 @@ function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: 
         </div>
       )}
 
-      {/* Legend */}
       <div className="mt-5 flex flex-wrap gap-4 text-xs text-gray-500 border-t border-gray-100 pt-4">
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> Upcoming</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Completed</span>
@@ -241,7 +246,6 @@ export default function EventsPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Hero */}
       <div className="bg-[#002147] text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <Link href="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-6 transition-colors">
@@ -269,7 +273,6 @@ export default function EventsPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Controls row */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
           <div className="flex gap-1 bg-white border border-gray-100 rounded-2xl p-1.5 shadow-sm">
             {(["upcoming", "past", "all"] as const).map((f) => (
@@ -313,12 +316,26 @@ export default function EventsPage() {
               const dateStr = formatEventDate(ev);
               const isPast = (ev.endDate || ev.date) < today;
               const canApplyNow = canApply(ev);
-              const feeShown = ev.feeLeo || ev.feeNonLeo;
+              const feeShown = (ev.feeLeo || ev.feeNonLeo || 0) > 0;
               const isMultiDay = ev.endDate && ev.endDate !== ev.date;
+              const evUrl = `${window.location.origin}${import.meta.env.BASE_URL}event/${ev.id}`;
               return (
-                <div key={ev.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col ${isPast ? "border-gray-100 opacity-80" : "border-[#D4AF37]/20"}`}>
+                <div key={ev.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col relative ${isPast ? "border-gray-100 opacity-80" : "border-[#D4AF37]/20"}`}>
+                  {/* Share icon — top-right floating */}
+                  <div className="absolute top-3 right-3 z-10">
+                    <ShareButton
+                      url={evUrl}
+                      title={ev.title}
+                      description={ev.description}
+                      meta={dateStr + (ev.location ? ` · ${ev.location}` : "")}
+                      variant="icon"
+                      className="!bg-[#002147]/80 backdrop-blur-sm hover:!bg-[#002147]"
+                    />
+                  </div>
                   {ev.photoUrl && (
-                    <img src={ev.photoUrl} alt={ev.title} className="w-full h-40 object-cover" />
+                    <Link href={`/event/${ev.id}`}>
+                      <img src={ev.photoUrl} alt={ev.title} className="w-full h-40 object-cover hover:opacity-95 transition-opacity" />
+                    </Link>
                   )}
                   <div className="p-5 flex-1 flex flex-col">
                     <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -338,57 +355,61 @@ export default function EventsPage() {
                           Multi-day
                         </span>
                       )}
-                      {ev.applicationsEnabled && (
-                        <span className="text-xs bg-[#D4AF37]/20 text-[#002147] px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
-                          <Users size={10} /> {ev.applicationType || "Applications open"}
-                        </span>
-                      )}
                     </div>
-                    <h3 className="font-bold text-[#002147] text-lg mb-2">{ev.title}</h3>
+                    <Link href={`/event/${ev.id}`} className="group">
+                      <h3 className="font-bold text-[#002147] text-lg mb-2 group-hover:text-[#003575] transition-colors">{ev.title}</h3>
+                    </Link>
                     {ev.description && <p className="text-sm text-gray-500 mb-3 line-clamp-2">{ev.description}</p>}
                     <div className="flex flex-col gap-1.5 text-sm text-gray-400">
                       <span className="flex items-center gap-2"><Clock size={13} className="text-[#D4AF37]" /> {dateStr}</span>
                       {ev.location && <span className="flex items-center gap-2"><MapPin size={13} className="text-[#D4AF37]" /> {ev.location}</span>}
                     </div>
 
-                    {/* Applications section */}
-                    {ev.applicationsEnabled && (
-                      <div className="mt-4 pt-4 border-t border-gray-100 mt-auto">
-                        {ev.applicationPrompt && (
-                          <p className="text-xs text-gray-600 italic mb-3 leading-relaxed">{ev.applicationPrompt}</p>
-                        )}
+                    {/* Actions */}
+                    <div className="mt-4 pt-4 border-t border-gray-100 mt-auto space-y-2">
+                      <Link
+                        href={`/event/${ev.id}`}
+                        className="w-full flex items-center justify-center gap-2 border border-[#002147]/20 hover:bg-[#002147] hover:text-white text-[#002147] text-sm font-bold py-2.5 rounded-xl transition-colors"
+                      >
+                        View Full Event
+                      </Link>
 
-                        {canApplyNow ? (
-                          <button
-                            onClick={() => setApplyingEvent(ev)}
-                            className="w-full flex items-center justify-center gap-2 bg-[#002147] hover:bg-[#003575] text-white text-sm font-bold py-3 rounded-xl transition-colors"
-                          >
-                            <Users size={15} />
-                            Apply as {ev.applicationType || "Applicant"}
-                          </button>
-                        ) : (
-                          <div className="text-xs text-center text-gray-400 bg-gray-100 rounded-xl py-2.5">
-                            {ev.applicationDeadline && ev.applicationDeadline < today
-                              ? "Applications closed"
-                              : "Applications unavailable"}
-                          </div>
-                        )}
+                      {ev.applicationsEnabled && (
+                        <>
+                          {ev.applicationPrompt && (
+                            <p className="text-xs text-gray-600 italic leading-relaxed">{ev.applicationPrompt}</p>
+                          )}
+                          {canApplyNow ? (
+                            <button
+                              onClick={() => setApplyingEvent(ev)}
+                              className="w-full flex items-center justify-center gap-2 bg-[#002147] hover:bg-[#003575] text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
+                            >
+                              <Users size={15} />
+                              Apply as {ev.applicationType || "Applicant"}
+                            </button>
+                          ) : (
+                            <div className="text-xs text-center text-gray-400 bg-gray-100 rounded-xl py-2">
+                              {ev.applicationDeadline && ev.applicationDeadline < today
+                                ? "Applications closed"
+                                : "Applications unavailable"}
+                            </div>
+                          )}
 
-                        {/* Payment info chip */}
-                        {feeShown > 0 && canApplyNow && (
-                          <div className="mt-2 text-xs text-gray-500 text-center flex items-center justify-center gap-1.5">
-                            <QrCode size={11} className="text-[#D4AF37]" />
-                            {ev.feeLeo === ev.feeNonLeo
-                              ? `Fee: NPR ${ev.feeLeo}`
-                              : ev.feeLeo === 0
-                              ? `Free for Leo · NPR ${ev.feeNonLeo} for Non-Leo`
-                              : ev.feeNonLeo === 0
-                              ? `NPR ${ev.feeLeo} for Leo · Free for Non-Leo`
-                              : `NPR ${ev.feeLeo} (Leo) · NPR ${ev.feeNonLeo} (Non-Leo)`}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          {feeShown && canApplyNow && (
+                            <div className="text-xs text-gray-500 text-center flex items-center justify-center gap-1.5">
+                              <QrCode size={11} className="text-[#D4AF37]" />
+                              {ev.feeLeo === ev.feeNonLeo
+                                ? `Fee: NPR ${ev.feeLeo}`
+                                : ev.feeLeo === 0
+                                ? `Free for Leo · NPR ${ev.feeNonLeo} for Non-Leo`
+                                : ev.feeNonLeo === 0
+                                ? `NPR ${ev.feeLeo} for Leo · Free for Non-Leo`
+                                : `NPR ${ev.feeLeo} (Leo) · NPR ${ev.feeNonLeo} (Non-Leo)`}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -397,7 +418,6 @@ export default function EventsPage() {
         )}
       </div>
 
-      {/* Application modal */}
       {applyingEvent && (
         <ApplicationFormModal
           event={applyingEvent}

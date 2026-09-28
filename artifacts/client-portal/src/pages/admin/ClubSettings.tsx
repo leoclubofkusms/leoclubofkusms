@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import { getClubSettings, updateClubSettings } from "@/lib/firestore";
 import type { ClubSettings } from "@/lib/types";
-import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, getCurrentLeoYear, getCurrentLeoYearLabel } from "@/lib/types";
+import {
+  CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK,
+  getCurrentLeoYear, getCurrentLeoYearLabel, DEFAULT_USD_TO_NPR_RATE,
+} from "@/lib/types";
 import {
   Upload, Link as LinkIcon, Check, Loader2, X, ExternalLink,
-  Facebook, Settings, Calendar, Award, Quote, ShieldCheck, Heart, Image,
+  Facebook, Settings, Calendar, Award, Quote, ShieldCheck, Heart, Image, DollarSign,
 } from "lucide-react";
 
 export default function ClubSettingsPanel() {
@@ -14,12 +17,14 @@ export default function ClubSettingsPanel() {
   const [sloganSaving, setSloganSaving] = useState(false);
   const [sloganPhotoSaving, setSloganPhotoSaving] = useState(false);
   const [donationSaving, setDonationSaving] = useState(false);
+  const [rateSaving, setRateSaving] = useState(false);
   const [uploading, setUploading] = useState<"cert" | "sloganPhoto" | "donationQr" | null>(null);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [mode, setMode] = useState<"upload" | "url">("url");
   const [sloganInput, setSloganInput] = useState("");
+  const [rateInput, setRateInput] = useState<string>(String(DEFAULT_USD_TO_NPR_RATE));
   const [presidentContact, setPresidentContact] = useState({
     presidentWhatsApp: "",
     presidentWhatsAppMessage: "",
@@ -47,6 +52,7 @@ export default function ClubSettingsPanel() {
         setSettings(safe);
         setUrlInput(safe.charteredCertificateUrl ?? "");
         setSloganInput(safe.presidentSlogan ?? "");
+        setRateInput(String(safe.usdToNprRate ?? DEFAULT_USD_TO_NPR_RATE));
         setPresidentContact({
           presidentWhatsApp: safe.presidentWhatsApp ?? "",
           presidentWhatsAppMessage: safe.presidentWhatsAppMessage ?? "",
@@ -123,6 +129,38 @@ export default function ClubSettingsPanel() {
       setError(err instanceof Error ? err.message : "Failed to remove.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveRate() {
+    const n = Number(rateInput);
+    if (!isFinite(n) || n <= 0) {
+      setError("Please enter a valid exchange rate greater than 0.");
+      return;
+    }
+    setRateSaving(true); setError("");
+    try {
+      await updateClubSettings({ usdToNprRate: n });
+      setSettings((s) => ({ ...s, usdToNprRate: n }));
+      showSuccess(`Exchange rate saved — 1 USD = ${n} NPR.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save rate.");
+    } finally {
+      setRateSaving(false);
+    }
+  }
+
+  async function handleResetRate() {
+    setRateSaving(true); setError("");
+    try {
+      await updateClubSettings({ usdToNprRate: DEFAULT_USD_TO_NPR_RATE });
+      setSettings((s) => ({ ...s, usdToNprRate: DEFAULT_USD_TO_NPR_RATE }));
+      setRateInput(String(DEFAULT_USD_TO_NPR_RATE));
+      showSuccess(`Exchange rate reset to default (${DEFAULT_USD_TO_NPR_RATE}).`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reset rate.");
+    } finally {
+      setRateSaving(false);
     }
   }
 
@@ -244,6 +282,56 @@ export default function ClubSettingsPanel() {
       )}
       {error && <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
 
+      {/* Currency / Exchange Rate */}
+      <div className="bg-[#F8FAFC] border border-gray-100 rounded-2xl p-6">
+        <h4 className="font-semibold text-[#002147] flex items-center gap-2 mb-1">
+          <DollarSign size={16} className="text-[#D4AF37]" /> Currency &amp; Exchange Rate
+        </h4>
+        <p className="text-sm text-gray-500 mb-5">
+          Used on the Service Impact page to auto-convert between NPR and USD.
+          Set the current rate — you can update it any time without a code change.
+        </p>
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="flex-1 min-w-[220px]">
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              1 USD =
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={rateInput}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (/^\d*\.?\d*$/.test(v)) setRateInput(v);
+                }}
+                placeholder={String(DEFAULT_USD_TO_NPR_RATE)}
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-[#002147]"
+              />
+              <span className="text-sm font-semibold text-[#002147]">NPR</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Example: 133 means 1 USD = 133 NPR. Currently saved:{" "}
+              <strong>{settings.usdToNprRate ?? DEFAULT_USD_TO_NPR_RATE}</strong>
+            </p>
+          </div>
+          <button
+            onClick={handleSaveRate}
+            disabled={rateSaving}
+            className="bg-[#002147] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors disabled:opacity-60 flex items-center gap-2"
+          >
+            {rateSaving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <><Check size={14} /> Save Rate</>}
+          </button>
+          <button
+            onClick={handleResetRate}
+            disabled={rateSaving}
+            className="border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-white transition-colors disabled:opacity-60"
+          >
+            Reset to {DEFAULT_USD_TO_NPR_RATE}
+          </button>
+        </div>
+      </div>
+
       {/* President's Slogan */}
       <div className="bg-[#F8FAFC] border border-gray-100 rounded-2xl p-6">
         <h4 className="font-semibold text-[#002147] flex items-center gap-2 mb-1">
@@ -264,7 +352,7 @@ export default function ClubSettingsPanel() {
             type="text"
             value={sloganInput}
             onChange={(e) => setSloganInput(e.target.value)}
-             placeholder="e.g. Architect The Legacy"
+            placeholder="e.g. Architect The Legacy"
             className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
           />
           <button
@@ -308,11 +396,11 @@ export default function ClubSettingsPanel() {
               className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
             />
             <button
-                onClick={handleSaveSloganPhoto}
-                disabled={sloganPhotoSaving}
-                className="bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60"
+              onClick={handleSaveSloganPhoto}
+              disabled={sloganPhotoSaving}
+              className="bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60"
             >
-                {sloganPhotoSaving ? "Saving…" : "Save URL"}
+              {sloganPhotoSaving ? "Saving…" : "Save URL"}
             </button>
           </div>
         </div>

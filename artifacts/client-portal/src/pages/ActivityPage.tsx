@@ -5,8 +5,9 @@ import type { Activity, Member } from "@/lib/types";
 import { QRCodeSVG } from "qrcode.react";
 import {
   ArrowLeft, Calendar, Users, Image as ImageIcon, QrCode,
-  Download, Share2, Pin, X, ChevronLeft, ChevronRight,
+  Download, Pin, X, ChevronLeft, ChevronRight,
 } from "lucide-react";
+import ShareButton from "@/components/ShareButton";
 
 function PhotoLightbox({
   photos, initial, onClose,
@@ -116,7 +117,7 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
       {/* QR Modal */}
       {showQR && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowQR(false)}>
-          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full text-center" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full text-center relative" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setShowQR(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
             <div className="w-10 h-10 bg-[#002147] rounded-xl flex items-center justify-center mx-auto mb-4">
               <QrCode size={20} className="text-[#D4AF37]" />
@@ -135,12 +136,6 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
                 className="flex-1 flex items-center justify-center gap-2 bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors"
               >
                 <Download size={14} /> Download SVG
-              </button>
-              <button
-                onClick={() => { navigator.clipboard.writeText(pageUrl); }}
-                className="flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
-              >
-                <Share2 size={14} /> Copy Link
               </button>
             </div>
           </div>
@@ -167,7 +162,7 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
           </div>
 
           <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <span className="bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
                   <Calendar size={11} /> {activity.month} · {activity.year}
@@ -181,7 +176,7 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
               <h1 className="text-3xl md:text-4xl font-bold mb-3 leading-tight">{activity.title}</h1>
               <p className="text-white/70 text-lg leading-relaxed max-w-2xl">{activity.description}</p>
 
-              <div className="flex items-center gap-6 mt-5 text-sm text-white/50">
+              <div className="flex items-center gap-6 mt-5 text-sm text-white/50 flex-wrap">
                 <span className="flex items-center gap-1.5"><Users size={14} className="text-[#D4AF37]" /> {activity.participants.length} participant{activity.participants.length !== 1 ? "s" : ""}</span>
                 {activity.photos.length > 0 && (
                   <span className="flex items-center gap-1.5"><ImageIcon size={14} className="text-[#D4AF37]" /> {activity.photos.length} photo{activity.photos.length !== 1 ? "s" : ""}</span>
@@ -189,12 +184,22 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
               </div>
             </div>
 
-            <button
-              onClick={() => setShowQR(true)}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shrink-0"
-            >
-              <QrCode size={16} /> Activity QR
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+              <ShareButton
+                url={pageUrl}
+                title={activity.title}
+                description={activity.description}
+                meta={`${activity.month} · Leo Year ${activity.year}`}
+                variant="full"
+                label="Share Activity"
+              />
+              <button
+                onClick={() => setShowQR(true)}
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+              >
+                <QrCode size={16} /> Activity QR
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -263,20 +268,31 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
           </section>
         )}
 
-        {/* QR section at bottom — for certificate attachment */}
+        {/* Share + QR section */}
         <section className="bg-white border border-gray-100 rounded-2xl p-6">
           <div className="flex items-center gap-6 flex-wrap">
-            <div className="flex-1">
-              <h3 className="font-bold text-[#002147] text-lg mb-1">Certificate QR Code</h3>
+            <div className="flex-1 min-w-[220px]">
+              <h3 className="font-bold text-[#002147] text-lg mb-1">Share this activity</h3>
               <p className="text-sm text-gray-500 mb-3">
-                Attach this QR to participation certificates. Scanning it opens this activity page directly.
+                Send it to friends, or download the QR code to attach to participation certificates.
               </p>
-              <button
-                onClick={() => setShowQR(true)}
-                className="inline-flex items-center gap-2 bg-[#002147] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors"
-              >
-                <Download size={14} /> Get QR Code
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <ShareButton
+                  url={pageUrl}
+                  title={activity.title}
+                  description={activity.description}
+                  meta={`${activity.month} · Leo Year ${activity.year}`}
+                  variant="full"
+                  label="Share Activity"
+                  className="!bg-[#002147] !border-[#002147] hover:!bg-[#003575]"
+                />
+                <button
+                  onClick={() => setShowQR(true)}
+                  className="inline-flex items-center gap-2 border border-[#002147]/20 hover:bg-[#002147]/5 text-[#002147] px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  <Download size={14} /> Get QR Code
+                </button>
+              </div>
             </div>
             <div className="shrink-0 p-3 border-2 border-[#002147]/10 rounded-xl">
               <QRCodeSVG value={pageUrl} size={96} fgColor="#002147" />

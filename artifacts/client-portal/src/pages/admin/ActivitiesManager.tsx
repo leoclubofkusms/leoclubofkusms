@@ -66,6 +66,15 @@ export default function ActivitiesManager() {
   const countForMonth = (month: string) =>
     activitiesInYear.filter((a) => a.month === month).length;
 
+  // Count only Leo Years that actually have data, PLUS always include the
+  // current Leo Year (so the count is honest — no empty future years).
+  const leoYearsWithData = new Set<string>();
+  activities.forEach((a) => {
+    if (a.year) leoYearsWithData.add(a.year);
+  });
+  leoYearsWithData.add(getCurrentLeoYear());
+  const totalLeoYears = leoYearsWithData.size;
+
   const activitiesInSelectedMonth = selectedMonth
     ? activities
         .filter((a) => a.year === selectedYear && a.month === selectedMonth)
@@ -581,7 +590,8 @@ export default function ActivitiesManager() {
         <div>
           <h3 className="text-lg font-bold text-[#002147]">Activities</h3>
           <p className="text-sm text-gray-500">
-            {activities.length} total activities across {LEO_YEARS.length} Leo Years
+            {activities.length} total activit{activities.length === 1 ? "y" : "ies"} across{" "}
+            {totalLeoYears} Leo Year{totalLeoYears === 1 ? "" : "s"}
           </p>
         </div>
       </div>
