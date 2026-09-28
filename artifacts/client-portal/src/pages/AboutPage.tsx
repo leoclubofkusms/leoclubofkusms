@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { getBodMembers, getLeaderQuotes, getPastLeaders, getClubSettings } from "@/lib/firestore";
 import type { BodMember, LeaderQuote, PastLeader, ClubSettings } from "@/lib/types";
-import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK } from "@/lib/types";
+import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ID } from "@/lib/types";
 import { Mail, Phone, ArrowLeft, Award, Heart, Target, Users, Calendar, Facebook, ExternalLink, Quote, Crown, Play, Pause } from "lucide-react";
 
 export default function AboutPage() {
@@ -281,6 +281,58 @@ export default function AboutPage() {
             )}
           </section>
         )}
+
+        {/* ── Official Charter ── */}
+        <section>
+          <div className="mb-6 text-center">
+            <h2 className="text-2xl font-bold text-[#002147]">Official Charter</h2>
+            <p className="text-gray-500 text-sm mt-1">Officially established by Lions Clubs International District 325L · Club #{CLUB_ID}</p>
+          </div>
+          <div className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-3xl overflow-hidden shadow-xl text-white">
+            <div className="p-8 md:p-10 flex flex-col md:flex-row gap-8 items-center">
+              <div className="flex-1 text-center md:text-left">
+                <div className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] rounded-full px-3 py-1 text-xs font-bold mb-4">
+                  <Award size={12} /> Officially Chartered
+                </div>
+                <h3 className="text-2xl font-bold mb-2">Leo Club of KUSMS</h3>
+                <p className="text-white/70 text-sm mb-4 leading-relaxed">
+                  Chartered by Lions Clubs International under District 325L · Club #172194.<br />
+                  Handover ceremony held on <span className="text-[#D4AF37] font-semibold">{CLUB_ESTABLISHED}</span>.
+                </p>
+                <div className="flex flex-wrap gap-3 justify-center md:justify-start text-sm">
+                  <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+                    <Calendar size={14} className="text-[#D4AF37]" /> <span>Established {CLUB_ESTABLISHED}</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+                    <Award size={14} className="text-[#D4AF37]" /> <span>District 325L · Club #{CLUB_ID}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="shrink-0 flex flex-col items-center gap-3">
+                {clubSettings.charteredCertificateUrl ? (
+                  <div className="bg-white rounded-2xl p-2 shadow-lg">
+                    {clubSettings.charteredCertificateType === "pdf" ? (
+                      <a href={clubSettings.charteredCertificateUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex flex-col items-center gap-2 text-[#002147] p-6 hover:text-[#D4AF37] transition-colors">
+                        <Award size={40} />
+                        <span className="text-sm font-semibold">View Certificate (PDF)</span>
+                        <ExternalLink size={14} />
+                      </a>
+                    ) : (
+                      <img src={clubSettings.charteredCertificateUrl} alt="Chartered Certificate"
+                        className="max-w-[220px] max-h-[280px] rounded-xl object-contain" />
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-white/10 border-2 border-dashed border-white/30 rounded-2xl p-8 flex flex-col items-center gap-3 text-white/50 text-center min-w-[180px]">
+                    <Award size={36} className="text-[#D4AF37]/50" />
+                    <p className="text-xs leading-relaxed">Chartered certificate will appear here.<br />Upload from Admin → Club Settings.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
 
         <section>
           <h2 className="text-2xl font-bold text-[#002147] mb-6 text-center">Follow Us</h2>
