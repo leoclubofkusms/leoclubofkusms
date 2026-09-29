@@ -118,6 +118,7 @@ export interface ClubSettings {
   donationAccountName?: string;
   donationAccountNumber?: string;
   donationNote?: string;
+  usdToNprRate?: number;
 }
 
 export interface LeaderQuote {
@@ -199,13 +200,9 @@ export interface EventApplication {
   feeAmount?: number;
   customAnswers?: { question: string; answer: string }[];
   submittedAt: string;
-  // ── Membership verification (set at submit time) ──
-  // "verified"   → the typed membershipId matched a real member in the members collection
-  // "unverified" → the applicant claimed Leo membership but the ID was not found
-  // "non-leo"    → applicant selected Non-Leo, no verification needed
   membershipStatus?: "verified" | "unverified" | "non-leo";
-  matchedMemberId?: string;    // real member ID if matched
-  matchedMemberName?: string;  // real member name if matched
+  matchedMemberId?: string;
+  matchedMemberName?: string;
 }
 
 export interface ConstitutionSection {
@@ -236,25 +233,35 @@ export interface Announcement {
   expiresAt?: string;
 }
 
-// ── Service Impact (Lions Portal style) ──────────────────────────────────────
-// One record per Leo Year. `volunteers` is auto-calculated from activities at
-// display time — it is NOT stored (kept in sync with real activity data).
 export interface ServiceImpact {
-  leoYear: string;              // "2026/27" — used as document ID in Firestore
-  peopleServed: number;         // manual
-  volunteerHours: number;       // manual
-  fundsDonatedUsd?: number;     // manual — optional
-  fundsDonatedNpr?: number;     // manual — optional
-  fundsRaisedUsd?: number;      // manual — optional
-  fundsRaisedNpr?: number;      // manual — optional
-  note?: string;                // optional admin note
-  updatedAt: string;            // ISO timestamp
+  leoYear: string;
+  peopleServed: number;
+  volunteerHours: number;
+  fundsDonatedUsd?: number;
+  fundsDonatedNpr?: number;
+  fundsRaisedUsd?: number;
+  fundsRaisedNpr?: number;
+  note?: string;
+  updatedAt: string;
 }
 
 export const CLUB_ID = "172194";
 export const CLUB_ESTABLISHED = "June 11, 2024";
 export const CLUB_FACEBOOK = "https://www.facebook.com/share/1B5inBvASe/?mibextid=wwXIfr";
 export const CLUB_TIKTOK = "https://www.tiktok.com/@leoclub.kusms";
+
+// ── Currency / Exchange Rate ─────────────────────────────────────────────────
+export const DEFAULT_USD_TO_NPR_RATE = 133;
+
+export function convertUsdToNpr(usd: number, rate?: number): number {
+  const r = rate && rate > 0 ? rate : DEFAULT_USD_TO_NPR_RATE;
+  return Math.round(usd * r * 100) / 100;
+}
+
+export function convertNprToUsd(npr: number, rate?: number): number {
+  const r = rate && rate > 0 ? rate : DEFAULT_USD_TO_NPR_RATE;
+  return Math.round((npr / r) * 100) / 100;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 export function activitySortKey(year: string, month: string): number {
@@ -307,14 +314,43 @@ export function isAnnouncementExpired(a: Announcement): boolean {
 /** Format a number with thousand separators, handling decimals. */
 export function formatImpactNumber(n: number): string {
   if (!isFinite(n)) return "0";
-  return Number.isInteger(n)
-    ? n.toLocaleString("en-US")
-    : n.toLocaleString("en-US", { maximumFractionDigits: 1 });
+  if (n === 0) return "0";
+  const abs = Math.abs(n);
+  if (Number.isInteger(n)) {
+    if (abs >= 1_000_000) {
+      const m = n / 1_000_000;
+      return `${Number.isInteger(m) ? m : m.toFixed(1)}M`;
+    }
+    if (abs >= 10_000) {
+      const k = n / 1000;
+      return `${Number.isInteger(k) ? k : k.toFixed(1)}k`;
+    }
+    return n.toLocaleString("en-US");
+  }
+  if (abs < 100) {
+    return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  }
+  return n.toLocaleString("en-US", { maximumFractionDigits: 1 });
 }
 
 /** Format a currency value. */
 export function formatCurrency(n: number, currency: "USD" | "NPR"): string {
-  if (!isFinite(n)) return currency === "USD" ? "$0" : "Rs. 0";
-  const formatted = n.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  return currency === "USD" ? `$${formatted}` : `Rs. ${formatted}`;
+  const prefix = currency === "USD" ? "$" : "Rs. ";
+  if (!isFinite(n)) return `${prefix}0`;
+  if (n === 0) return `${prefix}0`;
+  const abs = Math.abs(n);
+
+  if (abs >= 1_000_000) {
+    const m = n / 1_000_000;
+    return `${prefix}${Number.isInteger(m) ? m : m.toFixed(1)}M`;
+  }
+  if (abs >= 100_000) {
+    const k = n / 1000;
+    return `${prefix}${Number.isInteger(k) ? k : k.toFixed(1)}k`;
+  }
+
+  const formatted = Number.isInteger(n)
+    ? n.toLocaleString("en-US")
+    : n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return `${prefix}${formatted}`;
 }
