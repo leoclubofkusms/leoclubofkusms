@@ -96,10 +96,21 @@ export default function ApplicationFormModal({
         payload.transactionId = form.transactionId.trim();
       }
 
+      // DIAGNOSTIC: log payload before send (remove after debugging)
+      console.log("[APPLY] Submitting payload:", payload);
+
       await submitEventApplication(payload);
       setSuccess(true);
       setTimeout(() => onClose(), 2500);
     } catch (e: unknown) {
+      // DIAGNOSTIC: log full error object to console for inspection
+      console.error("[APPLY] Full error object:", e);
+      if (e && typeof e === "object") {
+        const errObj = e as Record<string, unknown>;
+        console.error("[APPLY] Error code:", errObj.code);
+        console.error("[APPLY] Error message:", errObj.message);
+        console.error("[APPLY] Error stack:", errObj.stack);
+      }
       setError(e instanceof Error ? e.message : "Failed to submit. Please try again.");
     } finally {
       setSubmitting(false);
