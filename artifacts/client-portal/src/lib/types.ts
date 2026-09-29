@@ -199,6 +199,13 @@ export interface EventApplication {
   feeAmount?: number;
   customAnswers?: { question: string; answer: string }[];
   submittedAt: string;
+  // ── Membership verification (set at submit time) ──
+  // "verified"   → the typed membershipId matched a real member in the members collection
+  // "unverified" → the applicant claimed Leo membership but the ID was not found
+  // "non-leo"    → applicant selected Non-Leo, no verification needed
+  membershipStatus?: "verified" | "unverified" | "non-leo";
+  matchedMemberId?: string;    // real member ID if matched
+  matchedMemberName?: string;  // real member name if matched
 }
 
 export interface ConstitutionSection {
@@ -300,7 +307,6 @@ export function isAnnouncementExpired(a: Announcement): boolean {
 /** Format a number with thousand separators, handling decimals. */
 export function formatImpactNumber(n: number): string {
   if (!isFinite(n)) return "0";
-  // If integer, no decimals; else 1 decimal max
   return Number.isInteger(n)
     ? n.toLocaleString("en-US")
     : n.toLocaleString("en-US", { maximumFractionDigits: 1 });

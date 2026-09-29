@@ -544,7 +544,10 @@ export async function submitEventApplication(data: Omit<EventApplication, "id">)
 
   const clean = stripUndefined(data);
   const ref = await addDoc(collection(db, "eventApplications"), clean);
-  await updateDoc(ref, { id: ref.id });
+  // NOTE: we intentionally do NOT call updateDoc(ref, { id: ref.id }) here.
+  // Public users are allowed to CREATE event applications but not UPDATE them
+  // (see Firestore rules: allow create: if true; allow read, update, delete: if isOperatorOrAdmin()).
+  // The document id is available as `d.id` on read — no need to store it.
   return ref.id;
 }
 
@@ -566,6 +569,28 @@ export async function getAllEventApplications(): Promise<EventApplication[]> {
 
 export async function deleteEventApplication(id: string): Promise<void> {
   await deleteDoc(doc(db, "eventApplications", id));
+}
+
+/**
+ * Looks up a member by their public Membership ID.
+ * Used to validate Leo Membership IDs at application submission time.
+ * Returns the member document, or null if not found.
+ */
+export async function findMemberByMembershipId(membershipId: string): Promise<Member | null> {
+  const trimmed = membershipId.trim();
+  if (!trimmed) return null;
+  // Try direct doc read first (fastest if IDs are the doc ids)
+  try {
+    const direct = await getDoc(doc(db, "members", trimmed));
+    if (direct.exists()) return direct.data() as Member;
+  } catch {
+    // ignore, fall through to query
+  }
+  // Fallback: query by memberId field
+  const q = query(collection(db, "members"), where("memberId", "==", trimmed));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return snap.docs[0].data() as Member;
 }
 
 // ── Service Impact ────────────────────────────────────────────────────────────
