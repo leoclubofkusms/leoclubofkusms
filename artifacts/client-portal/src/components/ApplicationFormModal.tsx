@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { submitEventApplication } from "@/lib/firestore";
+import { submitEventApplication, findMemberByMembershipId } from "@/lib/firestore";
 import type { ClubEvent } from "@/lib/types";
 import { X, Loader2, Check, QrCode } from "lucide-react";
 
@@ -89,11 +89,31 @@ export default function ApplicationFormModal({
         customAnswers: form.custom.filter((c) => c.answer.trim()),
         submittedAt: new Date().toISOString(),
       };
-      if (isLeo && form.membershipId.trim()) {
-        payload.membershipId = form.membershipId.trim();
-      }
       if (requiresPayment && form.transactionId.trim()) {
         payload.transactionId = form.transactionId.trim();
+      }
+
+      // ── Membership ID verification ──
+      if (isLeo) {
+        const typedId = form.membershipId.trim();
+        payload.membershipId = typedId;
+        // Look up the ID against the real members collection.
+        // If it matches → verified. If not → unverified (still allowed, admin will review).
+        let matched = null;
+        try {
+          matched = await findMemberByMembershipId(typedId);
+        } catch {
+          matched = null;
+        }
+        if (matched) {
+          payload.membershipStatus = "verified";
+          payload.matchedMemberId = matched.memberId;
+          payload.matchedMemberName = matched.name;
+        } else {
+          payload.membershipStatus = "unverified";
+        }
+      } else {
+        payload.membershipStatus = "non-leo";
       }
 
       await submitEventApplication(payload);
@@ -229,6 +249,9 @@ export default function ApplicationFormModal({
                   required
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
                 />
+                <p className="text-xs text-gray-400 mt-1">
+                  Enter the exact ID shown on your Leo Club ID card.
+                </p>
               </div>
             )}
 
