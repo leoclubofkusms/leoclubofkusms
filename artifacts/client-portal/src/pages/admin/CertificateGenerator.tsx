@@ -50,14 +50,26 @@ const PALETTE: Record<Template, { frame: string; paper: string; ink: string; sub
   gold:    { frame: "#17110a", paper: "#f8f1dd", ink: "#1b1408", sub: "#5c4f33", band: 22 },
 };
 
-// ── Safe image ────────────────────────────────────────────────────────────────
-function Img({ src, style }: { src?: string; style: React.CSSProperties }) {
+// ── Safe image — with explicit dimensions so the browser renders at full quality ──
+function Img({
+  src,
+  style,
+  width,
+  height,
+}: {
+  src?: string;
+  style: React.CSSProperties;
+  width?: number;
+  height?: number;
+}) {
   if (!src) return null;
   return (
     <img
       src={src}
       alt=""
-      style={style}
+      width={width}
+      height={height}
+      style={{ imageRendering: "auto", ...style }}
       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
     />
   );
@@ -216,11 +228,26 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
       }}>
         {/* Top row — bigger logos */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: s(16), width: "100%" }}>
-          <Img src={ASSET.leo} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
+          <Img
+            src={ASSET.leo}
+            width={Math.round(s(56))}
+            height={Math.round(s(56))}
+            style={{ objectFit: "contain" }}
+          />
           <div style={{ width: s(60), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})` }} />
-          <Img src={ASSET.logo} style={{ height: s(72), width: s(72), objectFit: "contain" }} />
+          <Img
+            src={ASSET.logo}
+            width={Math.round(s(72))}
+            height={Math.round(s(72))}
+            style={{ objectFit: "contain" }}
+          />
           <div style={{ width: s(60), height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})` }} />
-          <Img src={ASSET.lion} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
+          <Img
+            src={ASSET.lion}
+            width={Math.round(s(56))}
+            height={Math.round(s(56))}
+            style={{ objectFit: "contain" }}
+          />
         </div>
 
         <div style={{ fontFamily: DISPLAY, fontSize: s(10.5), fontWeight: 700, color: ink, letterSpacing: s(2), marginTop: s(6) }}>
@@ -293,7 +320,6 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         <div style={{ fontSize: s(7.5), color: sub, marginTop: s(3), letterSpacing: s(0.5) }}>Scan to verify</div>
       </div>
 
-      {/* Center stack: slogan photo + slogan text */}
       {(hasSloganPhoto || hasSloganText) && (
         <div style={{
           position: "absolute", left: "50%", bottom: s(40), transform: "translateX(-50%)",
@@ -321,7 +347,6 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         </div>
       )}
 
-      {/* President signature block */}
       <div style={{
         position: "absolute", right: s(70), bottom: s(40),
         display: "flex", flexDirection: "column", alignItems: "center", width: s(190),
@@ -421,6 +446,7 @@ export default function CertificateGenerator() {
   const [customMessage, setCustomMessage] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [batchDownloading, setBatchDownloading] = useState(false);
+  const [batchRenderReady, setBatchRenderReady] = useState(false);
   const [batchProgress, setBatchProgress] = useState(0);
   const [showPreview, setShowPreview] = useState(true);
 
@@ -515,6 +541,9 @@ export default function CertificateGenerator() {
   async function downloadBatchForActivity() {
     if (!selectedActivity) return;
     setBatchDownloading(true);
+    setBatchRenderReady(true);
+    // Wait for the hidden batch divs to mount and images to load
+    await new Promise((r) => setTimeout(r, 400));
     try {
       const { default: jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
@@ -533,6 +562,7 @@ export default function CertificateGenerator() {
     } finally {
       setBatchDownloading(false);
       setBatchProgress(0);
+      setBatchRenderReady(false);
     }
   }
 
@@ -735,7 +765,7 @@ export default function CertificateGenerator() {
       {/* Hidden full-size copies used for export */}
       <div style={{ position: "fixed", left: "-9999px", top: 0, pointerEvents: "none" }} aria-hidden>
         {certData && <div id="cert-export-single"><CertificateCanvas data={certData} scale={1} /></div>}
-        {certType === "participation" && selectedActivity && activityParticipants.map((m) => (
+        {batchRenderReady && selectedActivity && activityParticipants.map((m) => (
           <div key={m.memberId} id={`batch-cert-${m.memberId}`}>
             <CertificateCanvas data={buildCertData(m)} scale={1} />
           </div>
