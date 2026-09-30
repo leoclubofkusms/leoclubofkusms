@@ -33,6 +33,7 @@ interface CertData {
   presidentName?: string;
   leoAsset: string;
   lionAsset: string;
+  lionMarkAsset: string;
   logoAsset: string;
 }
 
@@ -41,6 +42,8 @@ const NAVY = "#002147";
 const GOLD = "#C9A227";
 const GOLD_LIGHT = "#F0D77A";
 const GOLD_DEEP = "#9C7A14";
+
+const EXPORT_SCALE = 3;
 
 const PALETTE: Record<Template, { frame: string; paper: string; ink: string; sub: string; band: number }> = {
   classic: { frame: NAVY,      paper: "#fcfaf3", ink: NAVY,      sub: "#55524a", band: 16 },
@@ -55,6 +58,7 @@ function Img({ src, style }: { src?: string; style: React.CSSProperties }) {
     <img
       src={src}
       alt=""
+      decoding="sync"
       style={{ display: "block", imageRendering: "auto", flexShrink: 0, ...style }}
       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
     />
@@ -89,18 +93,20 @@ function Artwork({ template, W, H }: { template: Template; W: number; H: number 
   return (
     <svg width={W} height={H} viewBox="0 0 794 562" style={{ position: "absolute", inset: 0 }} xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id={`${id}-gold`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={GOLD} />
-          <stop offset="50%" stopColor={GOLD_LIGHT} />
-          <stop offset="100%" stopColor={GOLD} />
+        <linearGradient id={`${id}-gold`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="794" y2="562">
+          <stop offset="0%" stopColor="#A98314" />
+          <stop offset="22%" stopColor={GOLD_LIGHT} />
+          <stop offset="50%" stopColor={GOLD} />
+          <stop offset="78%" stopColor={GOLD_LIGHT} />
+          <stop offset="100%" stopColor="#A98314" />
         </linearGradient>
         <radialGradient id={`${id}-glow`} cx="50%" cy="46%" r="62%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
         </radialGradient>
         <radialGradient id={`${id}-vig`} cx="50%" cy="50%" r="75%">
-          <stop offset="70%" stopColor={GOLD} stopOpacity="0" />
-          <stop offset="100%" stopColor={GOLD} stopOpacity="0.16" />
+          <stop offset="68%" stopColor={GOLD} stopOpacity="0" />
+          <stop offset="100%" stopColor={GOLD} stopOpacity="0.2" />
         </radialGradient>
         <pattern id={`${id}-dia`} width="12" height="12" patternUnits="userSpaceOnUse">
           <path d="M6 0 L12 6 L6 12 L0 6Z" fill="none" stroke={GOLD} strokeWidth="0.7" opacity="0.55" />
@@ -115,18 +121,20 @@ function Artwork({ template, W, H }: { template: Template; W: number; H: number 
       <rect width="794" height="562" fill={`url(#${id}-glow)`} />
       <rect width="794" height="562" fill={`url(#${id}-vig)`} />
 
-      <g fill="none" stroke={frame} strokeWidth="0.5" opacity="0.07">
+      <g fill="none" stroke={frame} strokeWidth="0.5" opacity="0.075">
         {rings.map((r) => <ellipse key={`a${r}`} cx="397" cy="281" rx={r * 1.7} ry={r * 0.62} />)}
         {rings.map((r) => <ellipse key={`b${r}`} cx="397" cy="281" rx={r * 0.62} ry={r * 1.7} />)}
       </g>
 
       <path d={bandPath} fillRule="evenodd" fill={frame} />
       {template === "modern" && <path d={bandPath} fillRule="evenodd" fill={`url(#${id}-dia)`} />}
-      {template === "gold" && <path d={bandPath} fillRule="evenodd" fill={`url(#${id}-gold)`} opacity="0.12" />}
+      {template === "gold" && <path d={bandPath} fillRule="evenodd" fill={`url(#${id}-gold)`} opacity="0.14" />}
 
-      <rect x={band} y={band} width={794 - band * 2} height={562 - band * 2} fill="none" stroke={`url(#${id}-gold)`} strokeWidth="3" />
-      <rect x={band + 7} y={band + 7} width={794 - (band + 7) * 2} height={562 - (band + 7) * 2} fill="none" stroke={GOLD} strokeWidth="0.9" />
-      <rect x={band + 11} y={band + 11} width={794 - (band + 11) * 2} height={562 - (band + 11) * 2} fill="none" stroke={GOLD} strokeWidth="0.5" strokeDasharray="1.5 3" opacity="0.8" />
+      <rect x={band - 2.5} y={band - 2.5} width={794 - (band - 2.5) * 2} height={562 - (band - 2.5) * 2} fill="none" stroke="#000000" strokeOpacity="0.35" strokeWidth="0.8" />
+      <rect x={band} y={band} width={794 - band * 2} height={562 - band * 2} fill="none" stroke={`url(#${id}-gold)`} strokeWidth="3.2" />
+      <rect x={band + 2.8} y={band + 2.8} width={794 - (band + 2.8) * 2} height={562 - (band + 2.8) * 2} fill="none" stroke="#ffffff" strokeOpacity="0.55" strokeWidth="0.6" />
+      <rect x={band + 7} y={band + 7} width={794 - (band + 7) * 2} height={562 - (band + 7) * 2} fill="none" stroke={`url(#${id}-gold)`} strokeWidth="1" />
+      <rect x={band + 11.5} y={band + 11.5} width={794 - (band + 11.5) * 2} height={562 - (band + 11.5) * 2} fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeDasharray="0.01 4.6" opacity="0.9" />
 
       <CornerFlourish x={o} y={o} rot={0} color={GOLD} />
       <CornerFlourish x={794 - o} y={o} rot={90} color={GOLD} />
@@ -146,10 +154,11 @@ function QrCode({ value, size }: { value: string; size: number }) {
       borderRadius: size * 0.08,
       lineHeight: 0,
       display: "inline-block",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
     }}>
       <QRCodeCanvas
         value={value}
-        size={size}
+        size={size * 2}
         fgColor={NAVY}
         bgColor="#ffffff"
         level="M"
@@ -183,7 +192,7 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
   };
   const subject =
     data.certType === "participation" ? data.activityTitle || ""
-    : data.certType === "service" ? `Leo Club of KUSMS${data.serviceYears ? `  ·  ${data.serviceYears}` : ""}`
+    : data.certType === "service" ? `Leo Club of Kathmandu University School of Medical Sciences${data.serviceYears ? `  ·  ${data.serviceYears}` : ""}`
     : data.certType === "award" ? data.awardTitle || ""
     : "Leo Club of Kathmandu University School of Medical Sciences";
 
@@ -208,7 +217,7 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
     <div style={{ width: W, height: H, position: "relative", overflow: "hidden", fontFamily: SERIF, flexShrink: 0 }}>
       <Artwork template={data.template} W={W} H={H} />
 
-      <Img src={data.lionAsset} style={{
+      <Img src={data.lionMarkAsset} style={{
         position: "absolute", left: "50%", top: "47%", width: s(290), height: s(290),
         transform: "translate(-50%,-50%)", objectFit: "contain", opacity: 0.06,
       }} />
@@ -217,6 +226,7 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         position: "absolute", left: s(64), right: s(64), top: s(46), bottom: s(128),
         display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
       }}>
+        {/* Logos */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "center",
           gap: s(16), width: "100%", flexShrink: 0,
@@ -235,6 +245,7 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
           Lions Clubs International · District 325L Nepal · Club No. 172194
         </div>
 
+        {/* Month chip */}
         {hasMonthChip && (
           <div style={{
             marginTop: s(5),
@@ -244,7 +255,7 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
             padding: `${s(2)}px ${s(10)}px`,
             borderRadius: s(20),
             border: `${s(0.8)}px solid ${GOLD}`,
-            background: "rgba(201,162,39,0.08)",
+            background: "linear-gradient(180deg, rgba(240,215,122,0.22), rgba(201,162,39,0.08))",
           }}>
             <span style={{ width: s(4), height: s(4), background: GOLD, transform: "rotate(45deg)", flexShrink: 0 }} />
             <span style={{ fontFamily: DISPLAY, fontSize: s(8.5), color: GOLD_DEEP, letterSpacing: s(1.6), fontWeight: 700, whiteSpace: "nowrap" }}>
@@ -256,16 +267,22 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
 
         <div style={{ marginTop: s(6) }}>{rule(300)}</div>
 
-        <div style={{ fontFamily: DISPLAY, fontSize: s(23), fontWeight: 700, color: GOLD_DEEP, letterSpacing: s(4.5), marginTop: s(7), textTransform: "uppercase" }}>
+        <div style={{
+          fontFamily: DISPLAY, fontSize: s(23), fontWeight: 700, color: GOLD_DEEP, letterSpacing: s(4.5),
+          marginTop: s(7), textTransform: "uppercase",
+          textShadow: `0 ${s(1)}px 0 rgba(255,255,255,0.9), 0 ${s(-0.6)}px 0 rgba(120,90,10,0.25)`,
+        }}>
           {titles[data.certType]}
         </div>
         <div style={{ fontSize: s(11.5), color: sub, fontStyle: "italic", marginTop: s(4) }}>
           This certificate is proudly presented to
         </div>
 
+        {/* Recipient */}
         <div style={{
           fontFamily: SCRIPT, fontSize: s(46), color: ink, lineHeight: 1.15,
           marginTop: s(1), maxWidth: s(640), paddingBottom: s(2),
+          textShadow: `0 ${s(1)}px ${s(1.5)}px rgba(0,0,0,0.14)`,
         }}>
           {data.recipientName}
         </div>
@@ -306,11 +323,13 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         )}
       </div>
 
+      {/* Bottom-left: QR */}
       <div style={{ position: "absolute", left: s(76), bottom: s(40), display: "flex", flexDirection: "column", alignItems: "center" }}>
         <QrCode value={data.verifyUrl} size={Math.round(s(58))} />
         <div style={{ fontSize: s(7.5), color: sub, marginTop: s(3), letterSpacing: s(0.5) }}>Scan to verify</div>
       </div>
 
+      {/* Bottom-centre: slogan photo + text */}
       {(hasSloganPhoto || hasSloganText) && (
         <div style={{
           position: "absolute", left: "50%", bottom: s(40), transform: "translateX(-50%)",
@@ -338,9 +357,10 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         </div>
       )}
 
+      {/* Bottom-right: President */}
       <div style={{
         position: "absolute", right: s(70), bottom: s(40),
-        display: "flex", flexDirection: "column", alignItems: "center", width: s(190),
+        display: "flex", flexDirection: "column", alignItems: "center", width: s(180),
       }}>
         <div style={{ height: s(48), width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", marginBottom: s(2) }}>
           {hasSignature && (
@@ -357,8 +377,11 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
             {data.presidentName}
           </div>
         )}
-        <div style={{ fontSize: s(8.5), color: sub, letterSpacing: s(0.6), fontStyle: "italic", marginTop: data.presidentName ? s(1) : s(2) }}>
-          Leo Club of KUSMS
+        <div style={{
+          fontSize: s(8), color: sub, letterSpacing: s(0.3), fontStyle: "italic",
+          lineHeight: 1.25, textAlign: "center", marginTop: data.presidentName ? s(1) : s(2),
+        }}>
+          Leo Club of Kathmandu University<br />School of Medical Sciences
         </div>
       </div>
     </div>
@@ -374,6 +397,7 @@ async function ensureFontsReady() {
         anyDoc.fonts.load('700 16px "Cinzel"'),
         anyDoc.fonts.load('500 16px "Cormorant Garamond"'),
         anyDoc.fonts.load('700 16px "Cormorant Garamond"'),
+        anyDoc.fonts.load('italic 600 16px "Cormorant Garamond"'),
         anyDoc.fonts.load('46px "Alex Brush"'),
       ]).catch(() => {});
       await anyDoc.fonts.ready;
@@ -383,20 +407,37 @@ async function ensureFontsReady() {
 
 async function ensureImagesReady(el: HTMLElement) {
   const imgs = Array.from(el.querySelectorAll("img"));
-  await Promise.all(imgs.map((img) =>
-    img.complete ? Promise.resolve() : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); })
-  ));
+  await Promise.all(imgs.map(async (img) => {
+    if (!img.complete) {
+      await new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); });
+    }
+    try { await img.decode(); } catch { /* ignore */ }
+  }));
   await new Promise((r) => setTimeout(r, 80));
 }
 
+const nextFrames = (n = 2) =>
+  new Promise<void>((resolve) => {
+    const step = (k: number) => (k <= 0 ? resolve() : requestAnimationFrame(() => step(k - 1)));
+    step(n);
+  });
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 type H2C = (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
-async function capture(id: string, scale = 3): Promise<HTMLCanvasElement | null> {
+async function capture(id: string, scale = EXPORT_SCALE): Promise<HTMLCanvasElement | null> {
   const { default: html2canvas } = (await import("html2canvas")) as { default: H2C };
   const el = document.getElementById(id);
   if (!el) return null;
   await ensureFontsReady();
   await ensureImagesReady(el);
-  return html2canvas(el, { scale, backgroundColor: null, useCORS: true, allowTaint: true });
+  return html2canvas(el, {
+    scale,
+    backgroundColor: null,
+    useCORS: true,
+    allowTaint: true,
+    logging: false,
+    imageTimeout: 30000,
+  });
 }
 
 async function downloadPng(id: string, filename: string) {
@@ -417,7 +458,7 @@ async function downloadPdf(id: string, filename: string) {
   pdf.save(filename);
 }
 
-// ── Fetch an image and convert it to base64 ───────────────────────────────────
+// ── Asset pipeline ────────────────────────────────────────────────────────────
 async function urlToDataUrl(url: string): Promise<string> {
   if (!url) return "";
   if (url.startsWith("data:")) return url;
@@ -436,6 +477,53 @@ async function urlToDataUrl(url: string): Promise<string> {
   }
 }
 
+// Pre-size an image to the exact pixels it will occupy in the export
+// (CSS box × export scale), using stepped high-quality downscaling.
+// This is the fix for bulk blur: html2canvas downsizes big images with a fast
+// low-quality resampler — pre-sizing means the draw is 1:1, so bulk output
+// matches single output. Transparency is preserved (signature stays clear).
+async function fitImage(src: string, boxW: number, boxH: number, factor = EXPORT_SCALE): Promise<string> {
+  if (!src) return "";
+  try {
+    const img = new Image();
+    if (!src.startsWith("data:")) img.crossOrigin = "anonymous";
+    img.src = src;
+    await img.decode();
+    const nw = img.naturalWidth, nh = img.naturalHeight;
+    if (!nw || !nh) return src;
+
+    const ratio = Math.min((boxW * factor) / nw, (boxH * factor) / nh);
+    if (ratio >= 1) return src; // already small enough — never upscale
+
+    const tw = Math.max(1, Math.round(nw * ratio));
+    const th = Math.max(1, Math.round(nh * ratio));
+
+    let cur: CanvasImageSource = img;
+    let cw = nw, ch = nh;
+    while (cw / 2 > tw) {
+      const stepW = Math.round(cw / 2), stepH = Math.round(ch / 2);
+      const c = document.createElement("canvas");
+      c.width = stepW; c.height = stepH;
+      const ctx = c.getContext("2d");
+      if (!ctx) return src;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(cur, 0, 0, stepW, stepH);
+      cur = c; cw = stepW; ch = stepH;
+    }
+    const out = document.createElement("canvas");
+    out.width = tw; out.height = th;
+    const octx = out.getContext("2d");
+    if (!octx) return src;
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = "high";
+    octx.drawImage(cur, 0, 0, tw, th);
+    return out.toDataURL("image/png");
+  } catch {
+    return src;
+  }
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function CertificateGenerator() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -444,8 +532,9 @@ export default function CertificateGenerator() {
   const [sloganText, setSloganText] = useState("");
   const [presidentName, setPresidentName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [assetsReady, setAssetsReady] = useState(false);
   const [assets, setAssets] = useState({
-    leo: "", lion: "", logo: "",
+    leo: "", lion: "", lionMark: "", logo: "",
     sloganPhoto: "", signature: "",
   });
 
@@ -461,8 +550,9 @@ export default function CertificateGenerator() {
   const [batchProgress, setBatchProgress] = useState(0);
   const [showPreview, setShowPreview] = useState(true);
 
-  // The single certificate currently being rendered for batch export.
-  // Only ONE is mounted at a time — this is what guarantees pristine quality.
+  // The certificate currently mounted for batch export. The node stays mounted
+  // for the whole batch (only its data changes) so images stay decoded — the
+  // exact condition that makes single export sharp.
   const [batchCurrent, setBatchCurrent] = useState<Member | null>(null);
 
   useEffect(() => {
@@ -474,27 +564,44 @@ export default function CertificateGenerator() {
     document.head.appendChild(l);
   }, []);
 
+  // Load + pre-size every image once.
   useEffect(() => {
-    Promise.all([
-      urlToDataUrl(`${BASE}leo.png`),
-      urlToDataUrl(`${BASE}lion.png`),
-      urlToDataUrl(`${BASE}logo.png`),
-      getClubSettings().catch(() => ({} as ClubSettings)),
-    ]).then(async ([leo, lion, logo, st]) => {
-      const cfg = st as ClubSettings;
-      const sloganRaw = cfg.presidentSloganPhotoUrl ?? "";
-      const signatureRaw = cfg.presidentSignatureUrl ?? "";
+    let cancelled = false;
+    (async () => {
+      try {
+        const st = await getClubSettings().catch(() => ({} as ClubSettings));
+        const cfg = st as ClubSettings;
+        if (!cancelled) {
+          setSloganText(cfg.presidentSlogan ?? "");
+          setPresidentName(cfg.presidentSloganName ?? "");
+        }
 
-      setSloganText(cfg.presidentSlogan ?? "");
-      setPresidentName(cfg.presidentSloganName ?? "");
+        const [leoRaw, lionRaw, logoRaw, sloganRaw, sigRaw] = await Promise.all([
+          urlToDataUrl(`${BASE}leo.png`),
+          urlToDataUrl(`${BASE}lion.png`),
+          urlToDataUrl(`${BASE}logo.png`),
+          urlToDataUrl(cfg.presidentSloganPhotoUrl ?? ""),
+          urlToDataUrl(cfg.presidentSignatureUrl ?? ""),
+        ]);
 
-      const [sloganPhoto, signature] = await Promise.all([
-        urlToDataUrl(sloganRaw),
-        urlToDataUrl(signatureRaw),
-      ]);
+        // Box sizes below = the CSS boxes used in CertificateCanvas at scale 1
+        const [leo, lion, lionMark, logo, sloganPhoto, signature] = await Promise.all([
+          fitImage(leoRaw, 56, 56),
+          fitImage(lionRaw, 56, 56),
+          fitImage(lionRaw, 290, 290),
+          fitImage(logoRaw, 72, 72),
+          fitImage(sloganRaw, 300, 58),
+          fitImage(sigRaw, 160, 48),
+        ]);
 
-      setAssets({ leo, lion, logo, sloganPhoto, signature });
-    }).catch(console.error);
+        if (!cancelled) setAssets({ leo, lion, lionMark, logo, sloganPhoto, signature });
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setAssetsReady(true);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -534,6 +641,7 @@ export default function CertificateGenerator() {
       verifyUrl: verifyUrl(member.memberId),
       leoAsset: assets.leo,
       lionAsset: assets.lion,
+      lionMarkAsset: assets.lionMark,
       logoAsset: assets.logo,
     };
     if (certType === "participation" && selectedActivity) {
@@ -573,11 +681,11 @@ export default function CertificateGenerator() {
     }
   }
 
-  // ── BATCH DOWNLOAD — sequential rendering (one certificate at a time) ───────
-  // This guarantees each certificate is rendered in isolation, so html2canvas
-  // never reuses a cached render. Result: bulk quality = single quality.
+  // ── BATCH DOWNLOAD ──────────────────────────────────────────────────────────
+  // Same render path as single: one full-size node, EXPORT_SCALE, lossless PNG.
+  // Node stays mounted between certs so images don't have to re-decode.
   async function downloadBatchForActivity() {
-    if (!selectedActivity || activityParticipants.length === 0) return;
+    if (!selectedActivity || activityParticipants.length === 0 || !assetsReady) return;
     setBatchDownloading(true);
     setBatchProgress(0);
 
@@ -588,27 +696,26 @@ export default function CertificateGenerator() {
       const ph = pdf.internal.pageSize.getHeight();
       let page = 0;
 
+      // Mount the first cert, let everything settle before capturing
+      setBatchCurrent(activityParticipants[0]);
+      await nextFrames(3);
+      await wait(600);
+
       for (let i = 0; i < activityParticipants.length; i++) {
         const member = activityParticipants[i];
-        setBatchProgress(Math.round(((i + 1) / activityParticipants.length) * 100));
-
-        // 1. Mount the certificate
         setBatchCurrent(member);
-        // 2. Wait for React to commit + images to load
-        await new Promise((r) => setTimeout(r, 450));
+        await nextFrames(2);
+        await wait(300);
 
-        // 3. Capture
-        const c = await capture("batch-cert-single", 3);
-
-        // 4. Unmount (clean slate for the next one)
-        setBatchCurrent(null);
-        await new Promise((r) => setTimeout(r, 120));
-
+        const c = await capture("batch-cert-single", EXPORT_SCALE);
+        setBatchProgress(Math.round(((i + 1) / activityParticipants.length) * 100));
         if (!c) continue;
+
         if (page > 0) pdf.addPage();
-        // Lossless PNG — no JPEG artifacts on logos/text
         pdf.addImage(c.toDataURL("image/png"), "PNG", 0, 0, pw, ph);
         page++;
+
+        c.width = 0; c.height = 0; // release canvas memory between pages
       }
 
       pdf.save(`${selectedActivity.title.replace(/\s+/g, "-")}-certificates.pdf`);
@@ -643,7 +750,7 @@ export default function CertificateGenerator() {
         </p>
       </div>
 
-      {loading ? (
+      {loading || !assetsReady ? (
         <div className="flex items-center justify-center h-48">
           <div className="w-8 h-8 border-2 border-[#002147] border-t-transparent rounded-full animate-spin" />
         </div>
@@ -697,7 +804,7 @@ export default function CertificateGenerator() {
                 {selectedActivity && activityParticipants.length > 0 && (
                   <div className="mt-3 p-3 bg-[#002147]/5 rounded-xl">
                     <div className="text-xs text-gray-500 mb-2">{activityParticipants.length} participants — batch download:</div>
-                    <button onClick={downloadBatchForActivity} disabled={batchDownloading}
+                    <button onClick={downloadBatchForActivity} disabled={batchDownloading || !assetsReady}
                       className="w-full inline-flex items-center justify-center gap-2 bg-[#002147] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors disabled:opacity-60">
                       {batchDownloading
                         ? <><Loader2 size={14} className="animate-spin" /> Generating… {batchProgress}%</>
@@ -705,7 +812,7 @@ export default function CertificateGenerator() {
                     </button>
                     {batchDownloading && (
                       <p className="text-[10px] text-gray-400 mt-2 text-center">
-                        Rendering each certificate individually for maximum quality…
+                        Rendering each certificate at full quality — please keep this tab open…
                       </p>
                     )}
                   </div>
@@ -775,11 +882,11 @@ export default function CertificateGenerator() {
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <button onClick={() => downloadSingle("pdf")} disabled={downloading}
+                  <button onClick={() => downloadSingle("pdf")} disabled={downloading || !assetsReady}
                     className="inline-flex items-center gap-2 bg-[#002147] text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#003575] transition-colors disabled:opacity-60">
                     {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download PDF
                   </button>
-                  <button onClick={() => downloadSingle("png")} disabled={downloading}
+                  <button onClick={() => downloadSingle("png")} disabled={downloading || !assetsReady}
                     className="inline-flex items-center gap-2 bg-white border border-[#002147]/20 text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#002147] hover:text-white transition-colors disabled:opacity-60">
                     {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download PNG
                   </button>
@@ -823,7 +930,6 @@ export default function CertificateGenerator() {
       {/* Hidden full-size copies used for export */}
       <div style={{ position: "fixed", left: "-9999px", top: 0, pointerEvents: "none" }} aria-hidden>
         {certData && <div id="cert-export-single"><CertificateCanvas data={certData} scale={1} /></div>}
-        {/* Batch export renders ONE certificate at a time — no cache reuse, no blur */}
         {batchCurrent && (
           <div id="batch-cert-single">
             <CertificateCanvas data={buildCertData(batchCurrent)} scale={1} />
