@@ -31,14 +31,12 @@ interface CertData {
   sloganText?: string;
   signatureUrl?: string;
   presidentName?: string;
+  leoAsset: string;
+  lionAsset: string;
+  logoAsset: string;
 }
 
 const BASE = import.meta.env.BASE_URL ?? "/";
-const ASSET = {
-  leo: `${BASE}leo.png`,
-  lion: `${BASE}lion.png`,
-  logo: `${BASE}logo.png`,
-};
 const NAVY = "#002147";
 const GOLD = "#C9A227";
 const GOLD_LIGHT = "#F0D77A";
@@ -50,25 +48,14 @@ const PALETTE: Record<Template, { frame: string; paper: string; ink: string; sub
   gold:    { frame: "#17110a", paper: "#f8f1dd", ink: "#1b1408", sub: "#5c4f33", band: 22 },
 };
 
-// ── Safe image (CSS-only sizing so the browser never upscales a fixed pixel size) ──
-function Img({
-  src,
-  style,
-}: {
-  src?: string;
-  style: React.CSSProperties;
-}) {
+// ── Safe image ────────────────────────────────────────────────────────────────
+function Img({ src, style }: { src?: string; style: React.CSSProperties }) {
   if (!src) return null;
   return (
     <img
       src={src}
       alt=""
-      style={{
-        display: "block",
-        imageRendering: "auto",
-        flexShrink: 0,
-        ...style,
-      }}
+      style={{ display: "block", imageRendering: "auto", flexShrink: 0, ...style }}
       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
     />
   );
@@ -213,7 +200,6 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
   const hasSignature = !!data.signatureUrl;
   const hasMonthChip = data.certType === "participation" && !!data.activityMonth && !!data.activityYear;
 
-  // Compute calendar year for the activity month within its Leo Year
   const calendarYear = hasMonthChip && data.activityMonth && data.activityYear
     ? leoMonthToCalendarYear(data.activityYear, data.activityMonth)
     : null;
@@ -222,7 +208,7 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
     <div style={{ width: W, height: H, position: "relative", overflow: "hidden", fontFamily: SERIF, flexShrink: 0 }}>
       <Artwork template={data.template} W={W} H={H} />
 
-      <Img src={ASSET.lion} style={{
+      <Img src={data.lionAsset} style={{
         position: "absolute", left: "50%", top: "47%", width: s(290), height: s(290),
         transform: "translate(-50%,-50%)", objectFit: "contain", opacity: 0.06,
       }} />
@@ -231,16 +217,15 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         position: "absolute", left: s(64), right: s(64), top: s(46), bottom: s(128),
         display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
       }}>
-        {/* Top row — logos with flexShrink:0 so long titles never squeeze them */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "center",
           gap: s(16), width: "100%", flexShrink: 0,
         }}>
-          <Img src={ASSET.leo} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
+          <Img src={data.leoAsset} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
           <div style={{ width: s(60), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})`, flexShrink: 0 }} />
-          <Img src={ASSET.logo} style={{ height: s(72), width: s(72), objectFit: "contain" }} />
+          <Img src={data.logoAsset} style={{ height: s(72), width: s(72), objectFit: "contain" }} />
           <div style={{ width: s(60), height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})`, flexShrink: 0 }} />
-          <Img src={ASSET.lion} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
+          <Img src={data.lionAsset} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
         </div>
 
         <div style={{ fontFamily: DISPLAY, fontSize: s(10.5), fontWeight: 700, color: ink, letterSpacing: s(2), marginTop: s(6) }}>
@@ -250,7 +235,6 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
           Lions Clubs International · District 325L Nepal · Club No. 172194
         </div>
 
-        {/* Leo Year chip — participation only */}
         {hasMonthChip && (
           <div style={{
             marginTop: s(5),
@@ -303,8 +287,6 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
           &ldquo;{subject}&rdquo;
         </div>
 
-        {/* NOTE: month/year line removed from middle — now shown in top chip */}
-
         {data.certType === "service" && (
           <div style={{ display: "flex", gap: s(24), marginTop: s(4) }}>
             {!!data.activitiesCount && (
@@ -324,7 +306,6 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         )}
       </div>
 
-      {/* Bottom row: QR (left) · Slogan photo + slogan text (center) · President (right) */}
       <div style={{ position: "absolute", left: s(76), bottom: s(40), display: "flex", flexDirection: "column", alignItems: "center" }}>
         <QrCode value={data.verifyUrl} size={Math.round(s(58))} />
         <div style={{ fontSize: s(7.5), color: sub, marginTop: s(3), letterSpacing: s(0.5) }}>Scan to verify</div>
@@ -405,7 +386,7 @@ async function ensureImagesReady(el: HTMLElement) {
   await Promise.all(imgs.map((img) =>
     img.complete ? Promise.resolve() : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); })
   ));
-  await new Promise((r) => setTimeout(r, 60));
+  await new Promise((r) => setTimeout(r, 80));
 }
 
 type H2C = (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
@@ -436,16 +417,38 @@ async function downloadPdf(id: string, filename: string) {
   pdf.save(filename);
 }
 
+// ── Fetch an image and convert it to base64 (crisp with html2canvas) ──────────
+// Falls back to the original URL if fetching fails (e.g. host blocks CORS)
+async function urlToDataUrl(url: string): Promise<string> {
+  if (!url) return "";
+  if (url.startsWith("data:")) return url;
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url; // graceful fallback
+  }
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function CertificateGenerator() {
   const [members, setMembers] = useState<Member[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [awards, setAwards] = useState<Award[]>([]);
-  const [sloganPhotoUrl, setSloganPhotoUrl] = useState("");
   const [sloganText, setSloganText] = useState("");
-  const [signatureUrl, setSignatureUrl] = useState("");
   const [presidentName, setPresidentName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [assets, setAssets] = useState({
+    leo: "", lion: "", logo: "",
+    sloganPhoto: "", signature: "",
+  });
 
   const [certType, setCertType] = useState<CertType>("participation");
   const [template, setTemplate] = useState<Template>("classic");
@@ -469,22 +472,41 @@ export default function CertificateGenerator() {
     document.head.appendChild(l);
   }, []);
 
+  // Load logos (same-origin) + user-uploaded images as base64 for crisp html2canvas output
+  useEffect(() => {
+    Promise.all([
+      urlToDataUrl(`${BASE}leo.png`),
+      urlToDataUrl(`${BASE}lion.png`),
+      urlToDataUrl(`${BASE}logo.png`),
+      getClubSettings().catch(() => ({} as ClubSettings)),
+    ]).then(async ([leo, lion, logo, st]) => {
+      const cfg = st as ClubSettings;
+      const sloganRaw = cfg.presidentSloganPhotoUrl ?? "";
+      const signatureRaw = cfg.presidentSignatureUrl ?? "";
+
+      setSloganText(cfg.presidentSlogan ?? "");
+      setPresidentName(cfg.presidentSloganName ?? "");
+
+      // Attempt to base64 the user-uploaded images; fall back to raw URL if CORS blocks
+      const [sloganPhoto, signature] = await Promise.all([
+        urlToDataUrl(sloganRaw),
+        urlToDataUrl(signatureRaw),
+      ]);
+
+      setAssets({ leo, lion, logo, sloganPhoto, signature });
+    }).catch(console.error);
+  }, []);
+
   useEffect(() => {
     Promise.all([
       getMembers().catch(() => [] as Member[]),
       getActivities().catch(() => [] as Activity[]),
       getAwards().catch(() => [] as Award[]),
-      getClubSettings().catch(() => ({} as ClubSettings)),
     ])
-      .then(([m, a, aw, st]) => {
+      .then(([m, a, aw]) => {
         setMembers(m.sort((x, y) => x.name.localeCompare(y.name)));
         setActivities(a.sort((x, y) => activitySortKey(y.year, y.month) - activitySortKey(x.year, x.month)));
         setAwards(aw);
-        const cfg = st as ClubSettings;
-        setSloganPhotoUrl(cfg.presidentSloganPhotoUrl ?? "");
-        setSloganText(cfg.presidentSlogan ?? "");
-        setSignatureUrl(cfg.presidentSignatureUrl ?? "");
-        setPresidentName(cfg.presidentSloganName ?? "");
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -505,11 +527,14 @@ export default function CertificateGenerator() {
       recipientRole: member.currentRole || "Leo Member",
       recipientId: member.memberId,
       certType, template, customMessage,
-      sloganPhotoUrl,
+      sloganPhotoUrl: assets.sloganPhoto,
       sloganText,
-      signatureUrl,
+      signatureUrl: assets.signature,
       presidentName,
       verifyUrl: verifyUrl(member.memberId),
+      leoAsset: assets.leo,
+      lionAsset: assets.lion,
+      logoAsset: assets.logo,
     };
     if (certType === "participation" && selectedActivity) {
       base.activityTitle = selectedActivity.title;
@@ -552,7 +577,7 @@ export default function CertificateGenerator() {
     if (!selectedActivity) return;
     setBatchDownloading(true);
     setBatchRenderReady(true);
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 500));
     try {
       const { default: jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
