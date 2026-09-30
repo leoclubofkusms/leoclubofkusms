@@ -28,6 +28,7 @@ interface CertData {
   customMessage?: string;
   verifyUrl: string;
   sloganPhotoUrl?: string;
+  sloganText?: string;
   signatureUrl?: string;
   presidentName?: string;
 }
@@ -196,7 +197,8 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
     </div>
   );
 
-  const hasSlogan = !!data.sloganPhotoUrl;
+  const hasSloganPhoto = !!data.sloganPhotoUrl;
+  const hasSloganText = !!data.sloganText;
   const hasSignature = !!data.signatureUrl;
 
   return (
@@ -212,15 +214,16 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         position: "absolute", left: s(64), right: s(64), top: s(46), bottom: s(128),
         display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
       }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: s(14), width: "100%" }}>
-          <Img src={ASSET.leo} style={{ height: s(38), width: s(38), objectFit: "contain" }} />
-          <div style={{ width: s(54), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})` }} />
-          <Img src={ASSET.logo} style={{ height: s(48), width: s(48), objectFit: "contain" }} />
-          <div style={{ width: s(54), height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})` }} />
-          <Img src={ASSET.lion} style={{ height: s(38), width: s(38), objectFit: "contain" }} />
+        {/* Top row — bigger logos */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: s(16), width: "100%" }}>
+          <Img src={ASSET.leo} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
+          <div style={{ width: s(60), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})` }} />
+          <Img src={ASSET.logo} style={{ height: s(72), width: s(72), objectFit: "contain" }} />
+          <div style={{ width: s(60), height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})` }} />
+          <Img src={ASSET.lion} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
         </div>
 
-        <div style={{ fontFamily: DISPLAY, fontSize: s(10.5), fontWeight: 700, color: ink, letterSpacing: s(2), marginTop: s(5) }}>
+        <div style={{ fontFamily: DISPLAY, fontSize: s(10.5), fontWeight: 700, color: ink, letterSpacing: s(2), marginTop: s(6) }}>
           LEO CLUB OF KATHMANDU UNIVERSITY SCHOOL OF MEDICAL SCIENCES
         </div>
         <div style={{ fontSize: s(9), color: GOLD_DEEP, letterSpacing: s(1.2), marginTop: s(2), fontStyle: "italic", fontWeight: 700 }}>
@@ -284,18 +287,37 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         )}
       </div>
 
-      {/* Bottom row: QR · slogan · President */}
+      {/* Bottom row: QR (left) · Slogan photo + slogan text (center) · President (right) */}
       <div style={{ position: "absolute", left: s(76), bottom: s(40), display: "flex", flexDirection: "column", alignItems: "center" }}>
         <QrCode value={data.verifyUrl} size={Math.round(s(58))} />
         <div style={{ fontSize: s(7.5), color: sub, marginTop: s(3), letterSpacing: s(0.5) }}>Scan to verify</div>
       </div>
 
-      {hasSlogan && (
+      {/* Center stack: slogan photo + slogan text */}
+      {(hasSloganPhoto || hasSloganText) && (
         <div style={{
-          position: "absolute", left: "50%", bottom: s(44), transform: "translateX(-50%)",
-          display: "flex", justifyContent: "center", alignItems: "flex-end", width: s(300),
+          position: "absolute", left: "50%", bottom: s(40), transform: "translateX(-50%)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end",
+          width: s(300), gap: s(4),
         }}>
-          <Img src={data.sloganPhotoUrl} style={{ maxHeight: s(58), maxWidth: s(300), objectFit: "contain" }} />
+          {hasSloganPhoto && (
+            <Img src={data.sloganPhotoUrl} style={{ maxHeight: s(58), maxWidth: s(300), objectFit: "contain" }} />
+          )}
+          {hasSloganText && (
+            <div style={{
+              fontFamily: SERIF,
+              fontStyle: "italic",
+              fontSize: s(11),
+              color: GOLD_DEEP,
+              letterSpacing: s(0.6),
+              textAlign: "center",
+              fontWeight: 600,
+              lineHeight: 1.25,
+              maxWidth: s(280),
+            }}>
+              &ldquo;{data.sloganText}&rdquo;
+            </div>
+          )}
         </div>
       )}
 
@@ -385,6 +407,7 @@ export default function CertificateGenerator() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [awards, setAwards] = useState<Award[]>([]);
   const [sloganPhotoUrl, setSloganPhotoUrl] = useState("");
+  const [sloganText, setSloganText] = useState("");
   const [signatureUrl, setSignatureUrl] = useState("");
   const [presidentName, setPresidentName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -423,6 +446,7 @@ export default function CertificateGenerator() {
         setAwards(aw);
         const cfg = st as ClubSettings;
         setSloganPhotoUrl(cfg.presidentSloganPhotoUrl ?? "");
+        setSloganText(cfg.presidentSlogan ?? "");
         setSignatureUrl(cfg.presidentSignatureUrl ?? "");
         setPresidentName(cfg.presidentSloganName ?? "");
       })
@@ -446,6 +470,7 @@ export default function CertificateGenerator() {
       recipientId: member.memberId,
       certType, template, customMessage,
       sloganPhotoUrl,
+      sloganText,
       signatureUrl,
       presidentName,
       verifyUrl: verifyUrl(member.memberId),
