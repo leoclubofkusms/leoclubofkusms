@@ -60,13 +60,9 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      getActivity(activityId),
-      getMembers(),
-    ]).then(([act, mems]) => {
-      setActivity(act);
-      setMembers(mems);
-    }).catch(console.error)
+    Promise.all([getActivity(activityId), getMembers()])
+      .then(([act, mems]) => { setActivity(act); setMembers(mems); })
+      .catch(console.error)
       .finally(() => setLoading(false));
   }, [activityId]);
 
@@ -114,7 +110,6 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
         <PhotoLightbox photos={activity.photos} initial={lightbox} onClose={() => setLightbox(null)} />
       )}
 
-      {/* QR Modal */}
       {showQR && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowQR(false)}>
           <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full text-center relative" onClick={(e) => e.stopPropagation()}>
@@ -130,14 +125,12 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
               </div>
             </div>
             <p className="text-xs text-gray-400 break-all mb-5">{pageUrl}</p>
-            <div className="flex gap-2">
-              <button
-                onClick={downloadQR}
-                className="flex-1 flex items-center justify-center gap-2 bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors"
-              >
-                <Download size={14} /> Download SVG
-              </button>
-            </div>
+            <button
+              onClick={downloadQR}
+              className="w-full flex items-center justify-center gap-2 bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors"
+            >
+              <Download size={14} /> Download SVG
+            </button>
           </div>
         </div>
       )}
@@ -146,17 +139,11 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
       <div className="bg-[#002147] text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="flex items-center gap-3 mb-6 flex-wrap">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm transition-colors"
-            >
+            <Link href="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm transition-colors">
               <ArrowLeft size={14} /> Home
             </Link>
             <span className="text-white/30">/</span>
-            <Link
-              href={archiveHref}
-              className="text-white/60 hover:text-white text-sm transition-colors"
-            >
+            <Link href={archiveHref} className="text-white/60 hover:text-white text-sm transition-colors">
               {activity.month} {activity.year}
             </Link>
           </div>
@@ -175,7 +162,6 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
               </div>
               <h1 className="text-3xl md:text-4xl font-bold mb-3 leading-tight">{activity.title}</h1>
               <p className="text-white/70 text-lg leading-relaxed max-w-2xl">{activity.description}</p>
-
               <div className="flex items-center gap-6 mt-5 text-sm text-white/50 flex-wrap">
                 <span className="flex items-center gap-1.5"><Users size={14} className="text-[#D4AF37]" /> {activity.participants.length} participant{activity.participants.length !== 1 ? "s" : ""}</span>
                 {activity.photos.length > 0 && (
@@ -206,7 +192,6 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
 
-        {/* Photo Gallery */}
         {activity.photos.length > 0 && (
           <section>
             <h2 className="text-xl font-bold text-[#002147] mb-4 flex items-center gap-2">
@@ -219,11 +204,7 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
                   onClick={() => setLightbox(i)}
                   className="group relative overflow-hidden rounded-2xl bg-gray-100 aspect-video focus:outline-none"
                 >
-                  <img
-                    src={url}
-                    alt={`Photo ${i + 1}`}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
+                  <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                 </button>
               ))}
@@ -231,7 +212,6 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
           </section>
         )}
 
-        {/* Participants */}
         {activity.participants.length > 0 && (
           <section>
             <h2 className="text-xl font-bold text-[#002147] mb-4 flex items-center gap-2">
@@ -300,7 +280,6 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
           </div>
         </section>
 
-        {/* Back link */}
         <div className="pt-4 border-t border-gray-100">
           <Link href={archiveHref} className="inline-flex items-center gap-2 text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors text-sm">
             <ArrowLeft size={14} /> View all activities in {activity.month} {activity.year}
