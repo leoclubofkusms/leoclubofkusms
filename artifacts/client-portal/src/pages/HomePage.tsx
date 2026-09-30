@@ -9,6 +9,7 @@ import {
   Star, Heart, TrendingUp, MessageCircle,
   Zap, Trophy, Flame, BarChart3, Megaphone, X as XIcon, Clock, DollarSign,
 } from "lucide-react";
+import ShareButton from "@/components/ShareButton";
 
 // ── Animated counter hook — preserves 1 decimal for non-integers ──────────────
 function useCountUp(target: number, duration = 1800, start = false) {
