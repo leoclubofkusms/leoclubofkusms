@@ -45,6 +45,16 @@ const GOLD_DEEP = "#9C7A14";
 
 const EXPORT_SCALE = 3;
 
+// Logo box sizes (CSS px at scale 1) — larger, more premium
+const LOGO_LEO = 72;
+const LOGO_LION = 72;
+const LOGO_MAIN = 92;
+const LOGO_WATERMARK = 290;
+const SLOGAN_MAX_H = 96;
+const SLOGAN_MAX_W = 380;
+const SIG_MAX_H = 52;
+const SIG_MAX_W = 170;
+
 const PALETTE: Record<Template, { frame: string; paper: string; ink: string; sub: string; band: number }> = {
   classic: { frame: NAVY,      paper: "#fcfaf3", ink: NAVY,      sub: "#55524a", band: 16 },
   modern:  { frame: "#0a1a33", paper: "#fbf9f2", ink: "#0a1a33", sub: "#4f5563", band: 30 },
@@ -218,27 +228,27 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
       <Artwork template={data.template} W={W} H={H} />
 
       <Img src={data.lionMarkAsset} style={{
-        position: "absolute", left: "50%", top: "47%", width: s(290), height: s(290),
+        position: "absolute", left: "50%", top: "47%", width: s(LOGO_WATERMARK), height: s(LOGO_WATERMARK),
         transform: "translate(-50%,-50%)", objectFit: "contain", opacity: 0.06,
       }} />
 
       <div style={{
-        position: "absolute", left: s(64), right: s(64), top: s(46), bottom: s(128),
+        position: "absolute", left: s(64), right: s(64), top: s(42), bottom: s(128),
         display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
       }}>
-        {/* Logos */}
+        {/* Logos — enlarged */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "center",
-          gap: s(16), width: "100%", flexShrink: 0,
+          gap: s(18), width: "100%", flexShrink: 0,
         }}>
-          <Img src={data.leoAsset} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
-          <div style={{ width: s(60), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})`, flexShrink: 0 }} />
-          <Img src={data.logoAsset} style={{ height: s(72), width: s(72), objectFit: "contain" }} />
-          <div style={{ width: s(60), height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})`, flexShrink: 0 }} />
-          <Img src={data.lionAsset} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
+          <Img src={data.leoAsset} style={{ height: s(LOGO_LEO), width: s(LOGO_LEO), objectFit: "contain" }} />
+          <div style={{ width: s(56), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})`, flexShrink: 0 }} />
+          <Img src={data.logoAsset} style={{ height: s(LOGO_MAIN), width: s(LOGO_MAIN), objectFit: "contain" }} />
+          <div style={{ width: s(56), height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})`, flexShrink: 0 }} />
+          <Img src={data.lionAsset} style={{ height: s(LOGO_LION), width: s(LOGO_LION), objectFit: "contain" }} />
         </div>
 
-        <div style={{ fontFamily: DISPLAY, fontSize: s(10.5), fontWeight: 700, color: ink, letterSpacing: s(2), marginTop: s(6) }}>
+        <div style={{ fontFamily: DISPLAY, fontSize: s(10.5), fontWeight: 700, color: ink, letterSpacing: s(2), marginTop: s(8) }}>
           LEO CLUB OF KATHMANDU UNIVERSITY SCHOOL OF MEDICAL SCIENCES
         </div>
         <div style={{ fontSize: s(9), color: GOLD_DEEP, letterSpacing: s(1.2), marginTop: s(2), fontStyle: "italic", fontWeight: 700 }}>
@@ -265,36 +275,39 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
           </div>
         )}
 
-        <div style={{ marginTop: s(6) }}>{rule(300)}</div>
+        <div style={{ marginTop: s(5) }}>{rule(300)}</div>
 
         <div style={{
           fontFamily: DISPLAY, fontSize: s(23), fontWeight: 700, color: GOLD_DEEP, letterSpacing: s(4.5),
-          marginTop: s(7), textTransform: "uppercase",
+          marginTop: s(6), textTransform: "uppercase",
           textShadow: `0 ${s(1)}px 0 rgba(255,255,255,0.9), 0 ${s(-0.6)}px 0 rgba(120,90,10,0.25)`,
         }}>
           {titles[data.certType]}
         </div>
-        <div style={{ fontSize: s(11.5), color: sub, fontStyle: "italic", marginTop: s(4) }}>
+        <div style={{ fontSize: s(11.5), color: sub, fontStyle: "italic", marginTop: s(3) }}>
           This certificate is proudly presented to
         </div>
 
-        {/* Recipient */}
+        {/* Recipient — fixed baseline alignment */}
         <div style={{
-          fontFamily: SCRIPT, fontSize: s(46), color: ink, lineHeight: 1.15,
-          marginTop: s(1), maxWidth: s(640), paddingBottom: s(2),
+          fontFamily: SCRIPT, fontSize: s(46), color: ink,
+          lineHeight: 1.15,
+          marginTop: s(2),
+          maxWidth: s(640),
+          paddingBottom: s(6),
           textShadow: `0 ${s(1)}px ${s(1.5)}px rgba(0,0,0,0.14)`,
         }}>
           {data.recipientName}
         </div>
-        <div style={{ width: s(360), height: s(1.2), background: `linear-gradient(90deg,transparent,${GOLD},transparent)` }} />
+        <div style={{ width: s(360), height: s(1.2), background: `linear-gradient(90deg,transparent,${GOLD},transparent)`, marginTop: s(-2) }} />
 
         {data.recipientRole && (
-          <div style={{ fontFamily: DISPLAY, fontSize: s(8.5), color: GOLD_DEEP, letterSpacing: s(2.2), fontWeight: 700, marginTop: s(5) }}>
+          <div style={{ fontFamily: DISPLAY, fontSize: s(8.5), color: GOLD_DEEP, letterSpacing: s(2.2), fontWeight: 700, marginTop: s(6) }}>
             {data.recipientRole.toUpperCase()}  ·  ID {data.recipientId}
           </div>
         )}
 
-        <div style={{ fontSize: s(11.5), color: sub, lineHeight: 1.42, maxWidth: s(540), marginTop: s(6), fontWeight: 500 }}>
+        <div style={{ fontSize: s(11.5), color: sub, lineHeight: 1.42, maxWidth: s(540), marginTop: s(5), fontWeight: 500 }}>
           {bodies[data.certType]}
         </div>
         <div style={{
@@ -329,27 +342,27 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         <div style={{ fontSize: s(7.5), color: sub, marginTop: s(3), letterSpacing: s(0.5) }}>Scan to verify</div>
       </div>
 
-      {/* Bottom-centre: slogan photo + text */}
+      {/* Bottom-centre: slogan photo (larger) + text */}
       {(hasSloganPhoto || hasSloganText) && (
         <div style={{
-          position: "absolute", left: "50%", bottom: s(40), transform: "translateX(-50%)",
+          position: "absolute", left: "50%", bottom: s(36), transform: "translateX(-50%)",
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end",
-          width: s(300), gap: s(4),
+          width: s(SLOGAN_MAX_W), gap: s(4),
         }}>
           {hasSloganPhoto && (
-            <Img src={data.sloganPhotoUrl} style={{ maxHeight: s(58), maxWidth: s(300), objectFit: "contain" }} />
+            <Img src={data.sloganPhotoUrl} style={{ maxHeight: s(SLOGAN_MAX_H), maxWidth: s(SLOGAN_MAX_W), objectFit: "contain" }} />
           )}
           {hasSloganText && (
             <div style={{
               fontFamily: SERIF,
               fontStyle: "italic",
-              fontSize: s(11),
+              fontSize: s(10.5),
               color: GOLD_DEEP,
-              letterSpacing: s(0.6),
+              letterSpacing: s(0.5),
               textAlign: "center",
               fontWeight: 600,
-              lineHeight: 1.25,
-              maxWidth: s(280),
+              lineHeight: 1.22,
+              maxWidth: s(SLOGAN_MAX_W - 20),
             }}>
               &ldquo;{data.sloganText}&rdquo;
             </div>
@@ -360,17 +373,17 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
       {/* Bottom-right: President */}
       <div style={{
         position: "absolute", right: s(70), bottom: s(40),
-        display: "flex", flexDirection: "column", alignItems: "center", width: s(180),
+        display: "flex", flexDirection: "column", alignItems: "center", width: s(190),
       }}>
-        <div style={{ height: s(48), width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", marginBottom: s(2) }}>
+        <div style={{ height: s(SIG_MAX_H), width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", marginBottom: s(2) }}>
           {hasSignature && (
             <Img
               src={data.signatureUrl}
-              style={{ maxHeight: "100%", maxWidth: s(160), objectFit: "contain", background: "transparent" }}
+              style={{ maxHeight: "100%", maxWidth: s(SIG_MAX_W), objectFit: "contain", background: "transparent" }}
             />
           )}
         </div>
-        <div style={{ width: s(160), height: s(1.4), background: `linear-gradient(90deg,transparent,${GOLD},transparent)`, marginBottom: s(4) }} />
+        <div style={{ width: s(170), height: s(1.4), background: `linear-gradient(90deg,transparent,${GOLD},transparent)`, marginBottom: s(4) }} />
         <div style={{ fontFamily: DISPLAY, fontSize: s(10), color: ink, fontWeight: 700, letterSpacing: s(2.4) }}>PRESIDENT</div>
         {data.presidentName && (
           <div style={{ fontSize: s(9.5), color: ink, letterSpacing: s(0.8), marginTop: s(2), fontStyle: "italic", fontWeight: 600 }}>
@@ -389,31 +402,44 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
 }
 
 // ── Export helpers ────────────────────────────────────────────────────────────
-async function ensureFontsReady() {
+
+// Scale-aware font loader — matches the actual pixel sizes html2canvas will render.
+// This fixes the "recipient name sits too low in the PDF" issue (font race).
+async function ensureFontsReady(scale: number = EXPORT_SCALE) {
   try {
     const anyDoc = document as unknown as { fonts?: { load: (f: string) => Promise<unknown>; ready: Promise<unknown> } };
-    if (anyDoc.fonts) {
-      await Promise.all([
-        anyDoc.fonts.load('700 16px "Cinzel"'),
-        anyDoc.fonts.load('500 16px "Cormorant Garamond"'),
-        anyDoc.fonts.load('700 16px "Cormorant Garamond"'),
-        anyDoc.fonts.load('italic 600 16px "Cormorant Garamond"'),
-        anyDoc.fonts.load('46px "Alex Brush"'),
-      ]).catch(() => {});
-      await anyDoc.fonts.ready;
-    }
+    if (!anyDoc.fonts) return;
+    const px = (n: number) => `${Math.round(n * scale)}px`;
+    await Promise.all([
+      anyDoc.fonts.load(`700 ${px(10.5)} "Cinzel"`),
+      anyDoc.fonts.load(`700 ${px(23)} "Cinzel"`),
+      anyDoc.fonts.load(`500 ${px(11.5)} "Cormorant Garamond"`),
+      anyDoc.fonts.load(`700 ${px(16.5)} "Cormorant Garamond"`),
+      anyDoc.fonts.load(`italic 600 ${px(10.5)} "Cormorant Garamond"`),
+      anyDoc.fonts.load(`italic 600 ${px(11.5)} "Cormorant Garamond"`),
+      anyDoc.fonts.load(`${px(46)} "Alex Brush"`),
+    ]).catch(() => {});
+    await anyDoc.fonts.ready;
+    // Give the browser a beat to re-layout with the freshly-loaded metrics
+    await new Promise((r) => setTimeout(r, 140));
   } catch { /* ignore */ }
 }
 
 async function ensureImagesReady(el: HTMLElement) {
   const imgs = Array.from(el.querySelectorAll("img"));
   await Promise.all(imgs.map(async (img) => {
-    if (!img.complete) {
-      await new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); });
+    if (!img.complete || img.naturalWidth === 0) {
+      await new Promise<void>((r) => {
+        const done = () => r();
+        img.addEventListener("load", done, { once: true });
+        img.addEventListener("error", done, { once: true });
+        // safety timeout
+        setTimeout(done, 4000);
+      });
     }
     try { await img.decode(); } catch { /* ignore */ }
   }));
-  await new Promise((r) => setTimeout(r, 80));
+  await new Promise((r) => setTimeout(r, 90));
 }
 
 const nextFrames = (n = 2) =>
@@ -428,7 +454,7 @@ async function capture(id: string, scale = EXPORT_SCALE): Promise<HTMLCanvasElem
   const { default: html2canvas } = (await import("html2canvas")) as { default: H2C };
   const el = document.getElementById(id);
   if (!el) return null;
-  await ensureFontsReady();
+  await ensureFontsReady(scale);
   await ensureImagesReady(el);
   return html2canvas(el, {
     scale,
@@ -477,53 +503,6 @@ async function urlToDataUrl(url: string): Promise<string> {
   }
 }
 
-// Pre-size an image to the exact pixels it will occupy in the export
-// (CSS box × export scale), using stepped high-quality downscaling.
-// This is the fix for bulk blur: html2canvas downsizes big images with a fast
-// low-quality resampler — pre-sizing means the draw is 1:1, so bulk output
-// matches single output. Transparency is preserved (signature stays clear).
-async function fitImage(src: string, boxW: number, boxH: number, factor = EXPORT_SCALE): Promise<string> {
-  if (!src) return "";
-  try {
-    const img = new Image();
-    if (!src.startsWith("data:")) img.crossOrigin = "anonymous";
-    img.src = src;
-    await img.decode();
-    const nw = img.naturalWidth, nh = img.naturalHeight;
-    if (!nw || !nh) return src;
-
-    const ratio = Math.min((boxW * factor) / nw, (boxH * factor) / nh);
-    if (ratio >= 1) return src; // already small enough — never upscale
-
-    const tw = Math.max(1, Math.round(nw * ratio));
-    const th = Math.max(1, Math.round(nh * ratio));
-
-    let cur: CanvasImageSource = img;
-    let cw = nw, ch = nh;
-    while (cw / 2 > tw) {
-      const stepW = Math.round(cw / 2), stepH = Math.round(ch / 2);
-      const c = document.createElement("canvas");
-      c.width = stepW; c.height = stepH;
-      const ctx = c.getContext("2d");
-      if (!ctx) return src;
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(cur, 0, 0, stepW, stepH);
-      cur = c; cw = stepW; ch = stepH;
-    }
-    const out = document.createElement("canvas");
-    out.width = tw; out.height = th;
-    const octx = out.getContext("2d");
-    if (!octx) return src;
-    octx.imageSmoothingEnabled = true;
-    octx.imageSmoothingQuality = "high";
-    octx.drawImage(cur, 0, 0, tw, th);
-    return out.toDataURL("image/png");
-  } catch {
-    return src;
-  }
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 export default function CertificateGenerator() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -550,9 +529,9 @@ export default function CertificateGenerator() {
   const [batchProgress, setBatchProgress] = useState(0);
   const [showPreview, setShowPreview] = useState(true);
 
-  // The certificate currently mounted for batch export. The node stays mounted
-  // for the whole batch (only its data changes) so images stay decoded — the
-  // exact condition that makes single export sharp.
+  // Certificate currently mounted for batch export. Keyed by member id below
+  // so React remounts the entire canvas (fresh <img> tags) each iteration —
+  // this is what keeps bulk output as sharp as single output.
   const [batchCurrent, setBatchCurrent] = useState<Member | null>(null);
 
   useEffect(() => {
@@ -564,7 +543,8 @@ export default function CertificateGenerator() {
     document.head.appendChild(l);
   }, []);
 
-  // Load + pre-size every image once.
+  // Load raw data URLs for every image — no pre-sizing (pre-sizing was causing
+  // double-resample blur at EXPORT_SCALE). Let html2canvas do a single resample.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -576,7 +556,7 @@ export default function CertificateGenerator() {
           setPresidentName(cfg.presidentSloganName ?? "");
         }
 
-        const [leoRaw, lionRaw, logoRaw, sloganRaw, sigRaw] = await Promise.all([
+        const [leo, lion, logo, sloganPhoto, signature] = await Promise.all([
           urlToDataUrl(`${BASE}leo.png`),
           urlToDataUrl(`${BASE}lion.png`),
           urlToDataUrl(`${BASE}logo.png`),
@@ -584,17 +564,16 @@ export default function CertificateGenerator() {
           urlToDataUrl(cfg.presidentSignatureUrl ?? ""),
         ]);
 
-        // Box sizes below = the CSS boxes used in CertificateCanvas at scale 1
-        const [leo, lion, lionMark, logo, sloganPhoto, signature] = await Promise.all([
-          fitImage(leoRaw, 56, 56),
-          fitImage(lionRaw, 56, 56),
-          fitImage(lionRaw, 290, 290),
-          fitImage(logoRaw, 72, 72),
-          fitImage(sloganRaw, 300, 58),
-          fitImage(sigRaw, 160, 48),
-        ]);
-
-        if (!cancelled) setAssets({ leo, lion, lionMark, logo, sloganPhoto, signature });
+        if (!cancelled) {
+          setAssets({
+            leo,
+            lion,
+            lionMark: lion,   // watermark reuses same source
+            logo,
+            sloganPhoto,
+            signature,
+          });
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -682,8 +661,8 @@ export default function CertificateGenerator() {
   }
 
   // ── BATCH DOWNLOAD ──────────────────────────────────────────────────────────
-  // Same render path as single: one full-size node, EXPORT_SCALE, lossless PNG.
-  // Node stays mounted between certs so images don't have to re-decode.
+  // Each iteration: fresh React mount via key change → fonts loaded at the
+  // right scale → images explicitly decoded → then capture. Slow but sharp.
   async function downloadBatchForActivity() {
     if (!selectedActivity || activityParticipants.length === 0 || !assetsReady) return;
     setBatchDownloading(true);
@@ -696,16 +675,17 @@ export default function CertificateGenerator() {
       const ph = pdf.internal.pageSize.getHeight();
       let page = 0;
 
-      // Mount the first cert, let everything settle before capturing
+      // Mount the first cert, let fonts + images settle before capturing
       setBatchCurrent(activityParticipants[0]);
       await nextFrames(3);
-      await wait(600);
+      await ensureFontsReady(EXPORT_SCALE);
+      await wait(500);
 
       for (let i = 0; i < activityParticipants.length; i++) {
         const member = activityParticipants[i];
         setBatchCurrent(member);
-        await nextFrames(2);
-        await wait(300);
+        await nextFrames(3);
+        await wait(420); // extra settle for remount
 
         const c = await capture("batch-cert-single", EXPORT_SCALE);
         setBatchProgress(Math.round(((i + 1) / activityParticipants.length) * 100));
@@ -890,7 +870,7 @@ export default function CertificateGenerator() {
                     className="inline-flex items-center gap-2 bg-white border border-[#002147]/20 text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#002147] hover:text-white transition-colors disabled:opacity-60">
                     {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download PNG
                   </button>
-                  <button onClick={() => setShowPreview((v) => !v)}
+                  <.button onClick={() => setShowPreview((v) => !v)}
                     className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#002147] px-3 py-2.5 rounded-xl border border-gray-200 hover:border-[#002147]/30 transition-colors ml-auto">
                     <Eye size={14} /> {showPreview ? "Hide" : "Show"} Preview
                   </button>
@@ -931,7 +911,7 @@ export default function CertificateGenerator() {
       <div style={{ position: "fixed", left: "-9999px", top: 0, pointerEvents: "none" }} aria-hidden>
         {certData && <div id="cert-export-single"><CertificateCanvas data={certData} scale={1} /></div>}
         {batchCurrent && (
-          <div id="batch-cert-single">
+          <div id="batch-cert-single" key={batchCurrent.memberId}>
             <CertificateCanvas data={buildCertData(batchCurrent)} scale={1} />
           </div>
         )}
