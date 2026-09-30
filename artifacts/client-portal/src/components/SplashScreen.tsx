@@ -139,7 +139,7 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
             <img
               src="/logo.png"
               alt="Leo Club of KUSMS"
-              className="h-10 w-10 sm:h-12 sm:w-12 object-contain drop-shadow-[0_4px_14px_rgba(212,175,55,0.4)]"
+              className="h-12 w-12 sm:h-14 sm:w-14 object-contain drop-shadow-[0_4px_14px_rgba(212,175,55,0.4)]"
             />
             <div className="text-left">
               <p className="text-sm sm:text-base font-bold tracking-tight text-white leading-tight">
@@ -197,11 +197,11 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                 >
                   {settings.presidentSloganPhotoUrl && (
                     <div className="relative shrink-0">
-                      <div className="absolute -inset-3 rounded-full bg-[#d4af37]/25 blur-2xl" />
+                      <div className="absolute -inset-3 rounded-3xl bg-[#d4af37]/25 blur-2xl" />
                       <img
                         src={settings.presidentSloganPhotoUrl}
                         alt={presidentName}
-                        className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-full object-cover border-2 border-[#d4af37] shadow-[0_0_40px_rgba(212,175,55,0.4)]"
+                        className="relative h-32 w-32 sm:h-40 sm:w-40 rounded-2xl object-contain bg-white p-2 border-2 border-[#d4af37] shadow-[0_0_40px_rgba(212,175,55,0.4)]"
                       />
                     </div>
                   )}

@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from "react";
-import { getMembers, getActivities, getAwards } from "@/lib/firestore";
-import type { Member, Activity, Award } from "@/lib/types";
-import { LEO_YEARS, MONTHS, activitySortKey } from "@/lib/types";
-import { QRCodeSVG } from "qrcode.react";
+import { useState, useEffect } from "react";
+import { getMembers, getActivities, getAwards, getClubSettings } from "@/lib/firestore";
+import type { Member, Activity, Award, ClubSettings } from "@/lib/types";
+import { activitySortKey, leoMonthToCalendarYear } from "@/lib/types";
+import { QRCodeCanvas } from "qrcode.react";
 import {
-  Award as AwardIcon, FileText, Users, Star, Download, Loader2,
-  Search, ChevronDown, CheckCircle, Eye, Layers, Sparkles,
+  Award as AwardIcon, FileText, Download, Loader2, Star,
+  Search, CheckCircle, Eye, Layers, Sparkles,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -25,340 +25,429 @@ interface CertData {
   serviceYears?: string;
   activitiesCount?: number;
   joinedYear?: string;
-  leftYear?: string;
   customMessage?: string;
   verifyUrl: string;
-  issuedDate: string;
+  sloganPhotoUrl?: string;
+  sloganText?: string;
+  signatureUrl?: string;
+  presidentName?: string;
+  leoAsset: string;
+  lionAsset: string;
+  logoAsset: string;
 }
 
-// ── Certificate Canvas ─────────────────────────────────────────────────────────
+const BASE = import.meta.env.BASE_URL ?? "/";
+const NAVY = "#002147";
+const GOLD = "#C9A227";
+const GOLD_LIGHT = "#F0D77A";
+const GOLD_DEEP = "#9C7A14";
+
+const PALETTE: Record<Template, { frame: string; paper: string; ink: string; sub: string; band: number }> = {
+  classic: { frame: NAVY,      paper: "#fcfaf3", ink: NAVY,      sub: "#55524a", band: 16 },
+  modern:  { frame: "#0a1a33", paper: "#fbf9f2", ink: "#0a1a33", sub: "#4f5563", band: 30 },
+  gold:    { frame: "#17110a", paper: "#f8f1dd", ink: "#1b1408", sub: "#5c4f33", band: 22 },
+};
+
+// ── Safe image ────────────────────────────────────────────────────────────────
+function Img({ src, style }: { src?: string; style: React.CSSProperties }) {
+  if (!src) return null;
+  return (
+    <img
+      src={src}
+      alt=""
+      style={{ display: "block", imageRendering: "auto", flexShrink: 0, ...style }}
+      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+    />
+  );
+}
+
+// ── Ornament geometry ─────────────────────────────────────────────────────────
+function CornerFlourish({ x, y, rot, color }: { x: number; y: number; rot: number; color: string }) {
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${rot})`} fill="none" stroke={color} strokeWidth="1.3">
+      <path d="M0 0 H50 M0 0 V50" strokeWidth="2.2" />
+      <path d="M8 8 H36 M8 8 V36" />
+      <path d="M15 15 Q33 15 33 33" />
+      <path d="M0 0 Q28 4 28 28 Q4 28 0 0Z" strokeWidth="0.9" opacity="0.7" />
+      <circle cx="40" cy="8" r="1.6" fill={color} stroke="none" />
+      <circle cx="8" cy="40" r="1.6" fill={color} stroke="none" />
+      <rect x="-4.5" y="-4.5" width="9" height="9" transform="rotate(45)" fill={color} stroke="none" />
+    </g>
+  );
+}
+
+// ── Background artwork ────────────────────────────────────────────────────────
+function Artwork({ template, W, H }: { template: Template; W: number; H: number }) {
+  const { frame, paper, band } = PALETTE[template];
+  const id = `art-${template}`;
+  const rings = Array.from({ length: 12 }, (_, i) => 50 + i * 18);
+  const outer = `M0 0H794V562H0Z`;
+  const inner = `M${band} ${band}V${562 - band}H${794 - band}V${band}Z`;
+  const bandPath = `${outer} ${inner}`;
+  const o = band + 14;
+
+  return (
+    <svg width={W} height={H} viewBox="0 0 794 562" style={{ position: "absolute", inset: 0 }} xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id={`${id}-gold`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={GOLD} />
+          <stop offset="50%" stopColor={GOLD_LIGHT} />
+          <stop offset="100%" stopColor={GOLD} />
+        </linearGradient>
+        <radialGradient id={`${id}-glow`} cx="50%" cy="46%" r="62%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={`${id}-vig`} cx="50%" cy="50%" r="75%">
+          <stop offset="70%" stopColor={GOLD} stopOpacity="0" />
+          <stop offset="100%" stopColor={GOLD} stopOpacity="0.16" />
+        </radialGradient>
+        <pattern id={`${id}-dia`} width="12" height="12" patternUnits="userSpaceOnUse">
+          <path d="M6 0 L12 6 L6 12 L0 6Z" fill="none" stroke={GOLD} strokeWidth="0.7" opacity="0.55" />
+        </pattern>
+        <pattern id={`${id}-lat`} width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <path d="M0 0 H10 M0 0 V10" stroke={frame} strokeWidth="0.25" opacity="0.07" fill="none" />
+        </pattern>
+      </defs>
+
+      <rect width="794" height="562" fill={paper} />
+      <rect width="794" height="562" fill={`url(#${id}-lat)`} />
+      <rect width="794" height="562" fill={`url(#${id}-glow)`} />
+      <rect width="794" height="562" fill={`url(#${id}-vig)`} />
+
+      <g fill="none" stroke={frame} strokeWidth="0.5" opacity="0.07">
+        {rings.map((r) => <ellipse key={`a${r}`} cx="397" cy="281" rx={r * 1.7} ry={r * 0.62} />)}
+        {rings.map((r) => <ellipse key={`b${r}`} cx="397" cy="281" rx={r * 0.62} ry={r * 1.7} />)}
+      </g>
+
+      <path d={bandPath} fillRule="evenodd" fill={frame} />
+      {template === "modern" && <path d={bandPath} fillRule="evenodd" fill={`url(#${id}-dia)`} />}
+      {template === "gold" && <path d={bandPath} fillRule="evenodd" fill={`url(#${id}-gold)`} opacity="0.12" />}
+
+      <rect x={band} y={band} width={794 - band * 2} height={562 - band * 2} fill="none" stroke={`url(#${id}-gold)`} strokeWidth="3" />
+      <rect x={band + 7} y={band + 7} width={794 - (band + 7) * 2} height={562 - (band + 7) * 2} fill="none" stroke={GOLD} strokeWidth="0.9" />
+      <rect x={band + 11} y={band + 11} width={794 - (band + 11) * 2} height={562 - (band + 11) * 2} fill="none" stroke={GOLD} strokeWidth="0.5" strokeDasharray="1.5 3" opacity="0.8" />
+
+      <CornerFlourish x={o} y={o} rot={0} color={GOLD} />
+      <CornerFlourish x={794 - o} y={o} rot={90} color={GOLD} />
+      <CornerFlourish x={794 - o} y={562 - o} rot={180} color={GOLD} />
+      <CornerFlourish x={o} y={562 - o} rot={270} color={GOLD} />
+    </svg>
+  );
+}
+
+// ── QR code ───────────────────────────────────────────────────────────────────
+function QrCode({ value, size }: { value: string; size: number }) {
+  return (
+    <div style={{
+      padding: Math.max(3, size * 0.08),
+      background: "#ffffff",
+      border: `1.5px solid ${GOLD}`,
+      borderRadius: size * 0.08,
+      lineHeight: 0,
+      display: "inline-block",
+    }}>
+      <QRCodeCanvas
+        value={value}
+        size={size}
+        fgColor={NAVY}
+        bgColor="#ffffff"
+        level="M"
+        style={{ display: "block", width: size, height: size }}
+      />
+    </div>
+  );
+}
+
+// ── Certificate ───────────────────────────────────────────────────────────────
 function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number }) {
   const W = 794 * scale;
   const H = 562 * scale;
   const s = (n: number) => n * scale;
+  const { ink, sub } = PALETTE[data.template];
+  const SERIF = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
+  const DISPLAY = "Cinzel, Georgia, serif";
+  const SCRIPT = "'Alex Brush', 'Brush Script MT', cursive";
 
-  const isClassic = data.template === "classic";
-  const isModern = data.template === "modern";
-  const isGold = data.template === "gold";
+  const titles: Record<CertType, string> = {
+    participation: "Certificate of Participation",
+    service: "Certificate of Service",
+    award: "Certificate of Recognition",
+    appreciation: "Certificate of Appreciation",
+  };
+  const bodies: Record<CertType, string> = {
+    participation: "in grateful recognition of their active participation, commitment and spirit of service in",
+    service: "in sincere recognition of their dedicated and selfless service, leadership and commitment to",
+    award: "in honour of exceptional excellence in service and leadership, and is proudly conferred with the",
+    appreciation: "in heartfelt appreciation of their outstanding contributions and unwavering support to",
+  };
+  const subject =
+    data.certType === "participation" ? data.activityTitle || ""
+    : data.certType === "service" ? `Leo Club of KUSMS${data.serviceYears ? `  ·  ${data.serviceYears}` : ""}`
+    : data.certType === "award" ? data.awardTitle || ""
+    : "Leo Club of Kathmandu University School of Medical Sciences";
 
-  const bg = isGold ? "#1a1200" : isModern ? "#0d1f3c" : "#fff";
-  const accentColor = "#D4AF37";
-  const textMain = isGold || isModern ? "#fff" : "#002147";
-  const textSub = isGold || isModern ? "rgba(255,255,255,0.65)" : "#555";
-  const borderColor = isGold ? "#D4AF37" : isModern ? "rgba(212,175,55,0.4)" : "#002147";
+  const rule = (w: number) => (
+    <div style={{ display: "flex", alignItems: "center", gap: s(8), width: s(w) }}>
+      <div style={{ flex: 1, height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})` }} />
+      <div style={{ width: s(6), height: s(6), background: GOLD, transform: "rotate(45deg)" }} />
+      <div style={{ flex: 1, height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})` }} />
+    </div>
+  );
 
-  function certTitle() {
-    switch (data.certType) {
-      case "participation": return "Certificate of Participation";
-      case "service": return "Certificate of Service";
-      case "award": return "Certificate of Recognition";
-      case "appreciation": return "Certificate of Appreciation";
-    }
-  }
+  const hasSloganPhoto = !!data.sloganPhotoUrl;
+  const hasSloganText = !!data.sloganText;
+  const hasSignature = !!data.signatureUrl;
+  const hasMonthChip = data.certType === "participation" && !!data.activityMonth && !!data.activityYear;
 
-  function bodyText() {
-    switch (data.certType) {
-      case "participation":
-        return `is hereby awarded this certificate in recognition of their active participation in`;
-      case "service":
-        return `is hereby awarded this certificate in recognition of their dedicated service to`;
-      case "award":
-        return `is hereby recognized and honored for excellence in service, receiving the`;
-      case "appreciation":
-        return `is hereby presented this certificate in appreciation of their outstanding contributions to`;
-    }
-  }
-
-  function subjectText() {
-    switch (data.certType) {
-      case "participation":
-        return data.activityTitle || "";
-      case "service":
-        return `Leo Club of KUSMS${data.serviceYears ? ` · ${data.serviceYears}` : ""}`;
-      case "award":
-        return data.awardTitle || "";
-      case "appreciation":
-        return "Leo Club of Kathmandu University School of Medical Sciences (KUSMS)";
-    }
-  }
+  const calendarYear = hasMonthChip && data.activityMonth && data.activityYear
+    ? leoMonthToCalendarYear(data.activityYear, data.activityMonth)
+    : null;
 
   return (
-    <div
-      style={{
-        width: `${W}px`,
-        height: `${H}px`,
-        background: bg,
-        position: "relative",
-        overflow: "hidden",
-        fontFamily: "Georgia, 'Times New Roman', serif",
-        flexShrink: 0,
-      }}
-    >
-      {/* Background decorative elements */}
-      {isClassic && (
-        <>
-          <div style={{ position: "absolute", inset: `${s(18)}px`, border: `${s(3)}px solid #002147`, pointerEvents: "none" }} />
-          <div style={{ position: "absolute", inset: `${s(26)}px`, border: `${s(1)}px solid #D4AF37`, pointerEvents: "none" }} />
-          {/* Corner ornaments */}
-          {[
-            { top: s(14), left: s(14) },
-            { top: s(14), right: s(14) },
-            { bottom: s(14), left: s(14) },
-            { bottom: s(14), right: s(14) },
-          ].map((pos, i) => (
-            <div key={i} style={{
-              position: "absolute", ...pos,
-              width: s(24), height: s(24),
-              background: "#D4AF37",
-              clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
-            }} />
-          ))}
-        </>
-      )}
+    <div style={{ width: W, height: H, position: "relative", overflow: "hidden", fontFamily: SERIF, flexShrink: 0 }}>
+      <Artwork template={data.template} W={W} H={H} />
 
-      {isModern && (
-        <>
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: `${s(8)}px`, background: "linear-gradient(90deg,#D4AF37,#f0d060,#D4AF37)" }} />
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${s(8)}px`, background: "linear-gradient(90deg,#D4AF37,#f0d060,#D4AF37)" }} />
-          <div style={{ position: "absolute", top: 0, left: 0, width: `${s(8)}px`, bottom: 0, background: "linear-gradient(180deg,#D4AF37,#f0d060,#D4AF37)" }} />
-          <div style={{ position: "absolute", top: 0, right: 0, width: `${s(8)}px`, bottom: 0, background: "linear-gradient(180deg,#D4AF37,#f0d060,#D4AF37)" }} />
-          <div style={{ position: "absolute", top: s(48), right: -s(60), width: s(220), height: s(220), borderRadius: "50%", border: `${s(2)}px solid rgba(212,175,55,0.15)` }} />
-          <div style={{ position: "absolute", bottom: s(20), left: -s(40), width: s(180), height: s(180), borderRadius: "50%", border: `${s(2)}px solid rgba(212,175,55,0.1)` }} />
-        </>
-      )}
+      <Img src={data.lionAsset} style={{
+        position: "absolute", left: "50%", top: "47%", width: s(290), height: s(290),
+        transform: "translate(-50%,-50%)", objectFit: "contain", opacity: 0.06,
+      }} />
 
-      {isGold && (
-        <>
-          <div style={{ position: "absolute", inset: `${s(20)}px`, border: `${s(2)}px solid rgba(212,175,55,0.5)` }} />
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: `${s(6)}px`, background: "#D4AF37" }} />
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${s(6)}px`, background: "#D4AF37" }} />
-          <div style={{ position: "absolute", top: s(60), left: -s(80), width: s(300), height: s(300), borderRadius: "50%", background: "radial-gradient(circle,rgba(212,175,55,0.08) 0%,transparent 70%)" }} />
-          <div style={{ position: "absolute", bottom: s(20), right: -s(60), width: s(260), height: s(260), borderRadius: "50%", background: "radial-gradient(circle,rgba(212,175,55,0.08) 0%,transparent 70%)" }} />
-        </>
-      )}
-
-      {/* Main content */}
       <div style={{
-        position: "relative",
-        zIndex: 1,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100%",
-        padding: `${s(isModern ? 28 : 50)}px ${s(60)}px ${s(isModern ? 28 : 50)}px`,
-        textAlign: "center",
-        gap: s(8),
+        position: "absolute", left: s(64), right: s(64), top: s(46), bottom: s(128),
+        display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
       }}>
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: s(10), marginBottom: s(6) }}>
-          <div style={{
-            position: "relative", width: s(36), height: s(36), borderRadius: s(9), background: "#D4AF37",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: "900", fontSize: `${s(11)}px`, color: "#002147", flexShrink: 0, overflow: "hidden",
-          }}>
-            <span>LEO</span>
-            <img
-              src="/logo.png"
-              alt=""
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-              onError={(event) => { event.currentTarget.style.display = "none"; }}
-            />
-          </div>
-          <div style={{ textAlign: "left" }}>
-            <div style={{ color: textMain, fontWeight: "700", fontSize: `${s(11)}px`, fontFamily: "system-ui,sans-serif" }}>
-              Leo Club of KUSMS
-            </div>
-            <div style={{ color: accentColor, fontSize: `${s(8)}px`, letterSpacing: `${s(1.2)}px`, fontFamily: "system-ui,sans-serif", marginTop: `${s(1)}px` }}>
-              LIONS CLUBS INTERNATIONAL · DISTRICT 325L · CLUB #172194
-            </div>
-          </div>
-        </div>
-
-        {/* Gold divider */}
-        <div style={{ display: "flex", alignItems: "center", gap: s(8), width: "60%", marginBottom: s(4) }}>
-          <div style={{ flex: 1, height: `${s(1)}px`, background: accentColor, opacity: 0.5 }} />
-          <div style={{ width: s(6), height: s(6), background: accentColor, transform: "rotate(45deg)" }} />
-          <div style={{ flex: 1, height: `${s(1)}px`, background: accentColor, opacity: 0.5 }} />
-        </div>
-
-        {/* Certificate title */}
         <div style={{
-          fontSize: `${s(isModern ? 13 : 15)}px`,
-          letterSpacing: `${s(4)}px`,
-          color: accentColor,
-          textTransform: "uppercase",
-          fontFamily: "system-ui,sans-serif",
-          fontWeight: "600",
-          marginBottom: s(2),
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: s(16), width: "100%", flexShrink: 0,
         }}>
-          {certTitle()}
+          <Img src={data.leoAsset} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
+          <div style={{ width: s(60), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})`, flexShrink: 0 }} />
+          <Img src={data.logoAsset} style={{ height: s(72), width: s(72), objectFit: "contain" }} />
+          <div style={{ width: s(60), height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})`, flexShrink: 0 }} />
+          <Img src={data.lionAsset} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
         </div>
 
-        {/* "This certifies that" */}
-        <div style={{ fontSize: `${s(10)}px`, color: textSub, fontFamily: "system-ui,sans-serif", marginBottom: s(4) }}>
-          This is to certify that
+        <div style={{ fontFamily: DISPLAY, fontSize: s(10.5), fontWeight: 700, color: ink, letterSpacing: s(2), marginTop: s(6) }}>
+          LEO CLUB OF KATHMANDU UNIVERSITY SCHOOL OF MEDICAL SCIENCES
+        </div>
+        <div style={{ fontSize: s(9), color: GOLD_DEEP, letterSpacing: s(1.2), marginTop: s(2), fontStyle: "italic", fontWeight: 700 }}>
+          Lions Clubs International · District 325L Nepal · Club No. 172194
         </div>
 
-        {/* Recipient name */}
+        {hasMonthChip && (
+          <div style={{
+            marginTop: s(5),
+            display: "inline-flex",
+            alignItems: "center",
+            gap: s(6),
+            padding: `${s(2)}px ${s(10)}px`,
+            borderRadius: s(20),
+            border: `${s(0.8)}px solid ${GOLD}`,
+            background: "rgba(201,162,39,0.08)",
+          }}>
+            <span style={{ width: s(4), height: s(4), background: GOLD, transform: "rotate(45deg)", flexShrink: 0 }} />
+            <span style={{ fontFamily: DISPLAY, fontSize: s(8.5), color: GOLD_DEEP, letterSpacing: s(1.6), fontWeight: 700, whiteSpace: "nowrap" }}>
+              {data.activityMonth!.toUpperCase()} {calendarYear}  ·  LEO YEAR {data.activityYear}
+            </span>
+            <span style={{ width: s(4), height: s(4), background: GOLD, transform: "rotate(45deg)", flexShrink: 0 }} />
+          </div>
+        )}
+
+        <div style={{ marginTop: s(6) }}>{rule(300)}</div>
+
+        <div style={{ fontFamily: DISPLAY, fontSize: s(23), fontWeight: 700, color: GOLD_DEEP, letterSpacing: s(4.5), marginTop: s(7), textTransform: "uppercase" }}>
+          {titles[data.certType]}
+        </div>
+        <div style={{ fontSize: s(11.5), color: sub, fontStyle: "italic", marginTop: s(4) }}>
+          This certificate is proudly presented to
+        </div>
+
         <div style={{
-          fontSize: `${s(28)}px`,
-          fontWeight: "700",
-          color: textMain,
-          lineHeight: 1.15,
-          marginBottom: s(4),
-          maxWidth: `${s(580)}px`,
+          fontFamily: SCRIPT, fontSize: s(46), color: ink, lineHeight: 1.15,
+          marginTop: s(1), maxWidth: s(640), paddingBottom: s(2),
         }}>
           {data.recipientName}
         </div>
+        <div style={{ width: s(360), height: s(1.2), background: `linear-gradient(90deg,transparent,${GOLD},transparent)` }} />
 
-        {/* Role */}
         {data.recipientRole && (
-          <div style={{
-            fontSize: `${s(10)}px`, color: accentColor, fontFamily: "system-ui,sans-serif",
-            fontWeight: "700", letterSpacing: `${s(1.5)}px`, marginBottom: s(8),
-          }}>
-            {data.recipientRole.toUpperCase()}
+          <div style={{ fontFamily: DISPLAY, fontSize: s(8.5), color: GOLD_DEEP, letterSpacing: s(2.2), fontWeight: 700, marginTop: s(5) }}>
+            {data.recipientRole.toUpperCase()}  ·  ID {data.recipientId}
           </div>
         )}
 
-        {/* Body text */}
-        <div style={{ fontSize: `${s(10.5)}px`, color: textSub, fontFamily: "system-ui,sans-serif", maxWidth: `${s(520)}px`, lineHeight: 1.7, marginBottom: s(6) }}>
-          {bodyText()}
+        <div style={{ fontSize: s(11.5), color: sub, lineHeight: 1.42, maxWidth: s(540), marginTop: s(6), fontWeight: 500 }}>
+          {bodies[data.certType]}
         </div>
-
-        {/* Subject highlight */}
         <div style={{
-          fontSize: `${s(13.5)}px`,
-          fontWeight: "700",
-          color: textMain,
+          fontSize: s(16.5), fontWeight: 700, color: ink, lineHeight: 1.22, maxWidth: s(600), marginTop: s(3),
           fontStyle: data.certType === "participation" ? "italic" : "normal",
-          maxWidth: `${s(560)}px`,
-          lineHeight: 1.3,
-          marginBottom: s(8),
         }}>
-          "{subjectText()}"
+          &ldquo;{subject}&rdquo;
         </div>
 
-        {/* Extra detail for participation */}
-        {data.certType === "participation" && data.activityMonth && data.activityYear && (
-          <div style={{
-            fontSize: `${s(9.5)}px`, color: textSub, fontFamily: "system-ui,sans-serif",
-            marginBottom: s(4), letterSpacing: `${s(0.5)}px`,
-          }}>
-            {data.activityMonth}, Leo Year {data.activityYear}
-          </div>
-        )}
-
-        {/* Extra detail for service */}
-        {data.certType === "service" && data.activitiesCount !== undefined && (
-          <div style={{
-            display: "flex", gap: s(16), justifyContent: "center",
-            marginBottom: s(8),
-          }}>
-            {data.activitiesCount > 0 && (
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: `${s(20)}px`, fontWeight: "700", color: accentColor }}>{data.activitiesCount}</div>
-                <div style={{ fontSize: `${s(8.5)}px`, color: textSub, fontFamily: "system-ui,sans-serif" }}>Activities</div>
-              </div>
+        {data.certType === "service" && (
+          <div style={{ display: "flex", gap: s(24), marginTop: s(4) }}>
+            {!!data.activitiesCount && (
+              <div><span style={{ fontFamily: DISPLAY, fontSize: s(15), fontWeight: 700, color: GOLD_DEEP }}>{data.activitiesCount}</span>
+                <span style={{ fontSize: s(10), color: sub }}> activities served</span></div>
             )}
             {data.joinedYear && (
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: `${s(20)}px`, fontWeight: "700", color: accentColor }}>{data.joinedYear}</div>
-                <div style={{ fontSize: `${s(8.5)}px`, color: textSub, fontFamily: "system-ui,sans-serif" }}>Joined</div>
-              </div>
+              <div><span style={{ fontSize: s(10), color: sub }}>member since </span>
+                <span style={{ fontFamily: DISPLAY, fontSize: s(12), fontWeight: 700, color: GOLD_DEEP }}>{data.joinedYear}</span></div>
             )}
           </div>
         )}
-
-        {/* Custom message */}
         {data.customMessage && (
-          <div style={{
-            fontSize: `${s(10)}px`, color: textSub, fontFamily: "system-ui,sans-serif",
-            fontStyle: "italic", maxWidth: `${s(500)}px`, lineHeight: 1.6, marginBottom: s(4),
-          }}>
+          <div style={{ fontSize: s(10.5), color: sub, fontStyle: "italic", maxWidth: s(520), lineHeight: 1.35, marginTop: s(3) }}>
             {data.customMessage}
           </div>
         )}
+      </div>
 
-        {/* Gold divider */}
-        <div style={{ display: "flex", alignItems: "center", gap: s(8), width: "50%", margin: `${s(4)}px 0` }}>
-          <div style={{ flex: 1, height: `${s(1)}px`, background: accentColor, opacity: 0.4 }} />
-          <div style={{ width: s(5), height: s(5), background: accentColor, transform: "rotate(45deg)", opacity: 0.7 }} />
-          <div style={{ flex: 1, height: `${s(1)}px`, background: accentColor, opacity: 0.4 }} />
-        </div>
+      <div style={{ position: "absolute", left: s(76), bottom: s(40), display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <QrCode value={data.verifyUrl} size={Math.round(s(58))} />
+        <div style={{ fontSize: s(7.5), color: sub, marginTop: s(3), letterSpacing: s(0.5) }}>Scan to verify</div>
+      </div>
 
-        {/* Footer row */}
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", width: "100%", marginTop: s(6) }}>
-          {/* Issued date + ID */}
-          <div style={{ textAlign: "left" }}>
-            <div style={{ fontSize: `${s(8.5)}px`, color: textSub, fontFamily: "system-ui,sans-serif" }}>Issued: {data.issuedDate}</div>
-            {data.recipientId && (
-              <div style={{ fontSize: `${s(8)}px`, color: textSub, fontFamily: "monospace", marginTop: `${s(1)}px` }}>
-                Member ID: {data.recipientId}
-              </div>
-            )}
-          </div>
-
-          {/* President signature line */}
-          <div style={{ textAlign: "center" }}>
-            <div style={{ width: s(100), borderTop: `${s(1)}px solid ${borderColor}`, marginBottom: s(4) }} />
-            <div style={{ fontSize: `${s(8.5)}px`, color: textSub, fontFamily: "system-ui,sans-serif" }}>President</div>
-            <div style={{ fontSize: `${s(7.5)}px`, color: textSub, fontFamily: "system-ui,sans-serif", opacity: 0.7 }}>Leo Club of KUSMS</div>
-          </div>
-
-          {/* QR code */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: s(3) }}>
+      {(hasSloganPhoto || hasSloganText) && (
+        <div style={{
+          position: "absolute", left: "50%", bottom: s(40), transform: "translateX(-50%)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end",
+          width: s(300), gap: s(4),
+        }}>
+          {hasSloganPhoto && (
+            <Img src={data.sloganPhotoUrl} style={{ maxHeight: s(58), maxWidth: s(300), objectFit: "contain" }} />
+          )}
+          {hasSloganText && (
             <div style={{
-              padding: s(5), background: "#fff", borderRadius: s(6),
-              border: `${s(1.5)}px solid ${isClassic ? "#002147" : "rgba(212,175,55,0.6)"}`,
+              fontFamily: SERIF,
+              fontStyle: "italic",
+              fontSize: s(11),
+              color: GOLD_DEEP,
+              letterSpacing: s(0.6),
+              textAlign: "center",
+              fontWeight: 600,
+              lineHeight: 1.25,
+              maxWidth: s(280),
             }}>
-              <QRCodeSVG value={data.verifyUrl} size={s(48)} fgColor="#002147" level="M" />
+              &ldquo;{data.sloganText}&rdquo;
             </div>
-            <div style={{ fontSize: `${s(7)}px`, color: textSub, fontFamily: "system-ui,sans-serif" }}>Scan to verify</div>
+          )}
+        </div>
+      )}
+
+      <div style={{
+        position: "absolute", right: s(70), bottom: s(40),
+        display: "flex", flexDirection: "column", alignItems: "center", width: s(190),
+      }}>
+        <div style={{ height: s(48), width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", marginBottom: s(2) }}>
+          {hasSignature && (
+            <Img
+              src={data.signatureUrl}
+              style={{ maxHeight: "100%", maxWidth: s(160), objectFit: "contain", background: "transparent" }}
+            />
+          )}
+        </div>
+        <div style={{ width: s(160), height: s(1.4), background: `linear-gradient(90deg,transparent,${GOLD},transparent)`, marginBottom: s(4) }} />
+        <div style={{ fontFamily: DISPLAY, fontSize: s(10), color: ink, fontWeight: 700, letterSpacing: s(2.4) }}>PRESIDENT</div>
+        {data.presidentName && (
+          <div style={{ fontSize: s(9.5), color: ink, letterSpacing: s(0.8), marginTop: s(2), fontStyle: "italic", fontWeight: 600 }}>
+            {data.presidentName}
           </div>
+        )}
+        <div style={{ fontSize: s(8.5), color: sub, letterSpacing: s(0.6), fontStyle: "italic", marginTop: data.presidentName ? s(1) : s(2) }}>
+          Leo Club of KUSMS
         </div>
       </div>
     </div>
   );
 }
 
-// ── Download helper ────────────────────────────────────────────────────────────
-async function downloadCertAsPng(elementId: string, filename: string) {
-  const { default: html2canvas } = await import("html2canvas") as {
-    default: (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
-  };
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  const canvas = await html2canvas(el, { scale: 2, backgroundColor: null, useCORS: true, allowTaint: true });
-  const link = document.createElement("a");
-  link.download = filename;
-  link.href = canvas.toDataURL("image/png");
-  link.click();
+// ── Export helpers ────────────────────────────────────────────────────────────
+async function ensureFontsReady() {
+  try {
+    const anyDoc = document as unknown as { fonts?: { load: (f: string) => Promise<unknown>; ready: Promise<unknown> } };
+    if (anyDoc.fonts) {
+      await Promise.all([
+        anyDoc.fonts.load('700 16px "Cinzel"'),
+        anyDoc.fonts.load('500 16px "Cormorant Garamond"'),
+        anyDoc.fonts.load('700 16px "Cormorant Garamond"'),
+        anyDoc.fonts.load('46px "Alex Brush"'),
+      ]).catch(() => {});
+      await anyDoc.fonts.ready;
+    }
+  } catch { /* ignore */ }
 }
 
-async function downloadCertAsPdf(elementId: string, filename: string) {
-  const { default: html2canvas } = await import("html2canvas") as {
-    default: (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
-  };
+async function ensureImagesReady(el: HTMLElement) {
+  const imgs = Array.from(el.querySelectorAll("img"));
+  await Promise.all(imgs.map((img) =>
+    img.complete ? Promise.resolve() : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); })
+  ));
+  await new Promise((r) => setTimeout(r, 80));
+}
+
+type H2C = (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
+async function capture(id: string, scale = 3): Promise<HTMLCanvasElement | null> {
+  const { default: html2canvas } = (await import("html2canvas")) as { default: H2C };
+  const el = document.getElementById(id);
+  if (!el) return null;
+  await ensureFontsReady();
+  await ensureImagesReady(el);
+  return html2canvas(el, { scale, backgroundColor: null, useCORS: true, allowTaint: true });
+}
+
+async function downloadPng(id: string, filename: string) {
+  const c = await capture(id);
+  if (!c) return;
+  const a = document.createElement("a");
+  a.download = filename;
+  a.href = c.toDataURL("image/png");
+  a.click();
+}
+
+async function downloadPdf(id: string, filename: string) {
   const { default: jsPDF } = await import("jspdf");
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: true });
-  const imgData = canvas.toDataURL("image/png");
+  const c = await capture(id);
+  if (!c) return;
   const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  const pw = pdf.internal.pageSize.getWidth();
-  const ph = pdf.internal.pageSize.getHeight();
-  pdf.addImage(imgData, "PNG", 0, 0, pw, ph);
+  pdf.addImage(c.toDataURL("image/png"), "PNG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
   pdf.save(filename);
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────────
+// ── Fetch an image and convert it to base64 ───────────────────────────────────
+async function urlToDataUrl(url: string): Promise<string> {
+  if (!url) return "";
+  if (url.startsWith("data:")) return url;
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url;
+  }
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function CertificateGenerator() {
   const [members, setMembers] = useState<Member[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [awards, setAwards] = useState<Award[]>([]);
+  const [sloganText, setSloganText] = useState("");
+  const [presidentName, setPresidentName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [assets, setAssets] = useState({
+    leo: "", lion: "", logo: "",
+    sloganPhoto: "", signature: "",
+  });
 
   const [certType, setCertType] = useState<CertType>("participation");
   const [template, setTemplate] = useState<Template>("classic");
@@ -372,10 +461,50 @@ export default function CertificateGenerator() {
   const [batchProgress, setBatchProgress] = useState(0);
   const [showPreview, setShowPreview] = useState(true);
 
+  // The single certificate currently being rendered for batch export.
+  // Only ONE is mounted at a time — this is what guarantees pristine quality.
+  const [batchCurrent, setBatchCurrent] = useState<Member | null>(null);
+
   useEffect(() => {
-    Promise.all([getMembers(), getActivities(), getAwards()])
+    if (document.getElementById("cert-fonts")) return;
+    const l = document.createElement("link");
+    l.id = "cert-fonts";
+    l.rel = "stylesheet";
+    l.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500;1,700&family=Alex+Brush&display=swap";
+    document.head.appendChild(l);
+  }, []);
+
+  useEffect(() => {
+    Promise.all([
+      urlToDataUrl(`${BASE}leo.png`),
+      urlToDataUrl(`${BASE}lion.png`),
+      urlToDataUrl(`${BASE}logo.png`),
+      getClubSettings().catch(() => ({} as ClubSettings)),
+    ]).then(async ([leo, lion, logo, st]) => {
+      const cfg = st as ClubSettings;
+      const sloganRaw = cfg.presidentSloganPhotoUrl ?? "";
+      const signatureRaw = cfg.presidentSignatureUrl ?? "";
+
+      setSloganText(cfg.presidentSlogan ?? "");
+      setPresidentName(cfg.presidentSloganName ?? "");
+
+      const [sloganPhoto, signature] = await Promise.all([
+        urlToDataUrl(sloganRaw),
+        urlToDataUrl(signatureRaw),
+      ]);
+
+      setAssets({ leo, lion, logo, sloganPhoto, signature });
+    }).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    Promise.all([
+      getMembers().catch(() => [] as Member[]),
+      getActivities().catch(() => [] as Activity[]),
+      getAwards().catch(() => [] as Award[]),
+    ])
       .then(([m, a, aw]) => {
-        setMembers(m.sort((a, b) => a.name.localeCompare(b.name)));
+        setMembers(m.sort((x, y) => x.name.localeCompare(y.name)));
         setActivities(a.sort((x, y) => activitySortKey(y.year, y.month) - activitySortKey(x.year, x.month)));
         setAwards(aw);
       })
@@ -383,62 +512,53 @@ export default function CertificateGenerator() {
       .finally(() => setLoading(false));
   }, []);
 
-  function verifyUrl(memberId: string) {
-    return `${window.location.origin}${import.meta.env.BASE_URL}verify/member/${memberId}`;
-  }
+  const verifyUrl = (id: string) => `${window.location.origin}${import.meta.env.BASE_URL}verify/member/${id}`;
 
-  function serviceYears(member: Member): string {
-    const j = member.joinedLeoYear ?? "";
-    const l = member.leftLeoYear ?? "";
-    if (j && l) return `${j} – ${l}`;
-    if (j) return `${j} – Present`;
-    return "";
+  function serviceYears(m: Member) {
+    const j = m.joinedLeoYear ?? "", l = m.leftLeoYear ?? "";
+    return j && l ? `${j} – ${l}` : j ? `${j} – Present` : "";
   }
-
-  function activitiesForMember(member: Member): number {
-    return activities.filter((a) => a.participants.some((p) => p.memberId === member.memberId)).length;
-  }
+  const activitiesForMember = (m: Member) =>
+    activities.filter((a) => a.participants.some((p) => p.memberId === m.memberId)).length;
 
   function buildCertData(member: Member): CertData {
     const base: CertData = {
       recipientName: member.name,
       recipientRole: member.currentRole || "Leo Member",
       recipientId: member.memberId,
-      certType,
-      template,
-      customMessage,
+      certType, template, customMessage,
+      sloganPhotoUrl: assets.sloganPhoto,
+      sloganText,
+      signatureUrl: assets.signature,
+      presidentName,
       verifyUrl: verifyUrl(member.memberId),
-      issuedDate: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+      leoAsset: assets.leo,
+      lionAsset: assets.lion,
+      logoAsset: assets.logo,
     };
     if (certType === "participation" && selectedActivity) {
       base.activityTitle = selectedActivity.title;
       base.activityMonth = selectedActivity.month;
       base.activityYear = selectedActivity.year;
-      const participant = selectedActivity.participants.find((p) => p.memberId === member.memberId);
-      if (participant?.awardTitle) base.recipientRole = participant.awardTitle;
+      const p = selectedActivity.participants.find((x) => x.memberId === member.memberId);
+      if (p?.awardTitle) base.recipientRole = p.awardTitle;
     }
     if (certType === "service") {
       base.serviceYears = serviceYears(member);
       base.activitiesCount = activitiesForMember(member);
       base.joinedYear = member.joinedLeoYear ?? "";
-      base.leftYear = member.leftLeoYear ?? "";
     }
-    if (certType === "award" && selectedAward) {
-      base.awardTitle = selectedAward.title;
-    }
+    if (certType === "award" && selectedAward) base.awardTitle = selectedAward.title;
     return base;
   }
 
   const filteredMembers = members.filter((m) => {
     const q = memberSearch.toLowerCase();
-    if (!q) return true;
-    return m.name.toLowerCase().includes(q) || m.memberId.toLowerCase().includes(q) || m.batch.toLowerCase().includes(q);
+    return !q || m.name.toLowerCase().includes(q) || m.memberId.toLowerCase().includes(q) || m.batch.toLowerCase().includes(q);
   });
-
   const activityParticipants = selectedActivity
     ? members.filter((m) => selectedActivity.participants.some((p) => p.memberId === m.memberId))
     : [];
-
   const certData = selectedMember ? buildCertData(selectedMember) : null;
 
   async function downloadSingle(fmt: "png" | "pdf") {
@@ -446,38 +566,57 @@ export default function CertificateGenerator() {
     setDownloading(true);
     try {
       const fn = `${selectedMember.memberId}-${certType}-certificate`;
-      if (fmt === "png") await downloadCertAsPng("cert-preview-capture", `${fn}.png`);
-      else await downloadCertAsPdf("cert-preview-capture", `${fn}.pdf`);
+      if (fmt === "png") await downloadPng("cert-export-single", `${fn}.png`);
+      else await downloadPdf("cert-export-single", `${fn}.pdf`);
     } finally {
       setDownloading(false);
     }
   }
 
+  // ── BATCH DOWNLOAD — sequential rendering (one certificate at a time) ───────
+  // This guarantees each certificate is rendered in isolation, so html2canvas
+  // never reuses a cached render. Result: bulk quality = single quality.
   async function downloadBatchForActivity() {
-    if (!selectedActivity) return;
+    if (!selectedActivity || activityParticipants.length === 0) return;
     setBatchDownloading(true);
-    const { default: jsPDF } = await import("jspdf");
-    const { default: html2canvas } = await import("html2canvas") as {
-      default: (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
-    };
-    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const pw = pdf.internal.pageSize.getWidth();
-    const ph = pdf.internal.pageSize.getHeight();
-
-    for (let i = 0; i < activityParticipants.length; i++) {
-      const m = activityParticipants[i];
-      setBatchProgress(Math.round(((i + 1) / activityParticipants.length) * 100));
-      const tempId = `batch-cert-${m.memberId}`;
-      const tempEl = document.getElementById(tempId);
-      if (!tempEl) continue;
-      const canvas = await html2canvas(tempEl, { scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: true });
-      const imgData = canvas.toDataURL("image/png");
-      if (i > 0) pdf.addPage([pw, ph], "landscape");
-      pdf.addImage(imgData, "PNG", 0, 0, pw, ph);
-    }
-    pdf.save(`${selectedActivity.title.replace(/\s+/g, "-")}-certificates.pdf`);
-    setBatchDownloading(false);
     setBatchProgress(0);
+
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = pdf.internal.pageSize.getHeight();
+      let page = 0;
+
+      for (let i = 0; i < activityParticipants.length; i++) {
+        const member = activityParticipants[i];
+        setBatchProgress(Math.round(((i + 1) / activityParticipants.length) * 100));
+
+        // 1. Mount the certificate
+        setBatchCurrent(member);
+        // 2. Wait for React to commit + images to load
+        await new Promise((r) => setTimeout(r, 450));
+
+        // 3. Capture
+        const c = await capture("batch-cert-single", 3);
+
+        // 4. Unmount (clean slate for the next one)
+        setBatchCurrent(null);
+        await new Promise((r) => setTimeout(r, 120));
+
+        if (!c) continue;
+        if (page > 0) pdf.addPage();
+        // Lossless PNG — no JPEG artifacts on logos/text
+        pdf.addImage(c.toDataURL("image/png"), "PNG", 0, 0, pw, ph);
+        page++;
+      }
+
+      pdf.save(`${selectedActivity.title.replace(/\s+/g, "-")}-certificates.pdf`);
+    } finally {
+      setBatchCurrent(null);
+      setBatchDownloading(false);
+      setBatchProgress(0);
+    }
   }
 
   const CERT_TYPES: { id: CertType; label: string; icon: typeof AwardIcon; desc: string }[] = [
@@ -486,20 +625,21 @@ export default function CertificateGenerator() {
     { id: "award", label: "Recognition", icon: AwardIcon, desc: "For an award received" },
     { id: "appreciation", label: "Appreciation", icon: Sparkles, desc: "General appreciation" },
   ];
-
   const TEMPLATES: { id: Template; label: string; bg: string; desc: string }[] = [
-    { id: "classic", label: "Classic", bg: "from-white to-gray-50", desc: "White with navy & gold border" },
-    { id: "modern", label: "Modern", bg: "from-[#0d1f3c] to-[#002147]", desc: "Dark navy with gold accents" },
-    { id: "gold", label: "Prestige", bg: "from-[#1a1200] to-[#2a1f00]", desc: "Deep gold luxury style" },
+    { id: "classic", label: "Classic", bg: "from-[#fcfaf3] via-[#fcfaf3] to-[#002147]", desc: "Ivory paper, navy frame, gold rules" },
+    { id: "modern", label: "Royal", bg: "from-[#fbf9f2] via-[#fbf9f2] to-[#0a1a33]", desc: "Wide navy lattice border" },
+    { id: "gold", label: "Prestige", bg: "from-[#f8f1dd] via-[#f8f1dd] to-[#17110a]", desc: "Champagne paper, black-gold frame" },
   ];
+
+  const stepLabel = certType === "participation" || certType === "award" ? "4" : "3";
 
   return (
     <div>
       <div className="mb-6">
         <h3 className="text-lg font-bold text-[#002147]">Certificate Generator</h3>
         <p className="text-sm text-gray-500">
-          Generate professional certificates — participation, service, recognition, and appreciation.
-          Download individually or batch-export an entire activity's participants as one PDF.
+          Generate certificates with club logos, the President&apos;s signature, name and slogan — all pulled from Club Settings.
+          Download individually or batch-export an activity as one PDF.
         </p>
       </div>
 
@@ -509,19 +649,14 @@ export default function CertificateGenerator() {
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-          {/* ── Left panel ── */}
           <div className="xl:col-span-2 space-y-5">
-
-            {/* Step 1: Certificate Type */}
             <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
               <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Step 1 · Certificate Type</div>
               <div className="grid grid-cols-2 gap-2">
                 {CERT_TYPES.map(({ id, label, icon: Icon, desc }) => (
-                  <button
-                    key={id}
+                  <button key={id}
                     onClick={() => { setCertType(id); setSelectedActivity(null); setSelectedAward(null); }}
-                    className={`text-left p-3 rounded-xl border transition-all ${certType === id ? "border-[#002147] bg-[#002147] text-white" : "border-gray-200 hover:border-[#002147]/30 hover:bg-gray-50"}`}
-                  >
+                    className={`text-left p-3 rounded-xl border transition-all ${certType === id ? "border-[#002147] bg-[#002147] text-white" : "border-gray-200 hover:border-[#002147]/30 hover:bg-gray-50"}`}>
                     <Icon size={15} className={certType === id ? "text-[#D4AF37]" : "text-gray-400"} />
                     <div className={`text-sm font-semibold mt-1.5 ${certType === id ? "text-white" : "text-[#002147]"}`}>{label}</div>
                     <div className={`text-xs mt-0.5 ${certType === id ? "text-white/60" : "text-gray-400"}`}>{desc}</div>
@@ -530,17 +665,13 @@ export default function CertificateGenerator() {
               </div>
             </div>
 
-            {/* Step 2: Template */}
             <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
               <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Step 2 · Design Template</div>
               <div className="space-y-2">
                 {TEMPLATES.map(({ id, label, bg, desc }) => (
-                  <button
-                    key={id}
-                    onClick={() => setTemplate(id)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${template === id ? "border-[#D4AF37] bg-[#D4AF37]/5" : "border-gray-200 hover:border-gray-300"}`}
-                  >
-                    <div className={`w-10 h-7 rounded-lg bg-gradient-to-br ${bg} border border-gray-200 shrink-0`} />
+                  <button key={id} onClick={() => setTemplate(id)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${template === id ? "border-[#D4AF37] bg-[#D4AF37]/5" : "border-gray-200 hover:border-gray-300"}`}>
+                    <div className={`w-10 h-7 rounded-lg bg-gradient-to-br ${bg} border border-[#D4AF37]/50 shrink-0`} />
                     <div className="text-left flex-1">
                       <div className="text-sm font-semibold text-[#002147]">{label}</div>
                       <div className="text-xs text-gray-400">{desc}</div>
@@ -551,54 +682,44 @@ export default function CertificateGenerator() {
               </div>
             </div>
 
-            {/* Step 3: Select Activity (for participation/batch) */}
             {certType === "participation" && (
               <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                 <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Step 3 · Select Activity</div>
                 <select
                   value={selectedActivity?.id ?? ""}
-                  onChange={(e) => {
-                    const act = activities.find((a) => a.id === e.target.value) ?? null;
-                    setSelectedActivity(act);
-                    setSelectedMember(null);
-                  }}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
-                >
+                  onChange={(e) => { setSelectedActivity(activities.find((a) => a.id === e.target.value) ?? null); setSelectedMember(null); }}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]">
                   <option value="">— Choose an activity —</option>
                   {activities.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.title} · {a.month} {a.year} ({a.participants.length} participants)
-                    </option>
+                    <option key={a.id} value={a.id}>{a.title} · {a.month} {a.year} ({a.participants.length} participants)</option>
                   ))}
                 </select>
-
                 {selectedActivity && activityParticipants.length > 0 && (
                   <div className="mt-3 p-3 bg-[#002147]/5 rounded-xl">
                     <div className="text-xs text-gray-500 mb-2">{activityParticipants.length} participants — batch download:</div>
-                    <button
-                      onClick={downloadBatchForActivity}
-                      disabled={batchDownloading}
-                      className="w-full inline-flex items-center justify-center gap-2 bg-[#002147] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors disabled:opacity-60"
-                    >
+                    <button onClick={downloadBatchForActivity} disabled={batchDownloading}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-[#002147] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors disabled:opacity-60">
                       {batchDownloading
                         ? <><Loader2 size={14} className="animate-spin" /> Generating… {batchProgress}%</>
-                        : <><Layers size={14} /> Download All {activityParticipants.length} Certificates PDF</>
-                      }
+                        : <><Layers size={14} /> Download All {activityParticipants.length} Certificates PDF</>}
                     </button>
+                    {batchDownloading && (
+                      <p className="text-[10px] text-gray-400 mt-2 text-center">
+                        Rendering each certificate individually for maximum quality…
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
             )}
 
-            {/* Step 3: Select Award */}
             {certType === "award" && (
               <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                 <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Step 3 · Select Award</div>
                 <select
                   value={selectedAward?.id ?? ""}
                   onChange={(e) => setSelectedAward(awards.find((a) => a.id === e.target.value) ?? null)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
-                >
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]">
                   <option value="">— Choose an award —</option>
                   {awards.filter((a) => a.type === "member").map((a) => (
                     <option key={a.id} value={a.id}>{a.title} · {a.recipientName}</option>
@@ -607,59 +728,44 @@ export default function CertificateGenerator() {
               </div>
             )}
 
-            {/* Step 4: Select Member */}
             <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-              <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-                Step {certType === "participation" || certType === "award" ? "4" : "3"} · Select Member
-              </div>
+              <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Step {stepLabel} · Select Member</div>
               <div className="relative mb-3">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
-                  placeholder="Search members…"
-                  className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#002147]"
-                />
+                <input type="text" value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} placeholder="Search members…"
+                  className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#002147]" />
               </div>
               <div className="max-h-52 overflow-y-auto space-y-1">
                 {(certType === "participation" && selectedActivity
                   ? filteredMembers.filter((m) => selectedActivity.participants.some((p) => p.memberId === m.memberId))
                   : filteredMembers
-                ).map((m) => (
-                  <button
-                    key={m.memberId}
-                    onClick={() => setSelectedMember(m)}
-                    className={`w-full flex items-center gap-2 p-2.5 rounded-xl text-left transition-all ${selectedMember?.memberId === m.memberId ? "bg-[#002147] text-white" : "hover:bg-gray-50 text-[#002147]"}`}
-                  >
-                    {m.photoUrl
-                      ? <img src={m.photoUrl} alt={m.name} className="w-7 h-7 rounded-lg object-cover shrink-0 border border-white/20" />
-                      : <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${selectedMember?.memberId === m.memberId ? "bg-white/20 text-white" : "bg-[#002147] text-white"}`}>{m.name[0]}</div>
-                    }
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold truncate">{m.name}</div>
-                      <div className={`text-xs ${selectedMember?.memberId === m.memberId ? "text-white/50" : "text-gray-400"}`}>{m.memberId} · {m.batch}</div>
-                    </div>
-                    {selectedMember?.memberId === m.memberId && <CheckCircle size={14} className="text-[#D4AF37] shrink-0" />}
-                  </button>
-                ))}
+                ).map((m) => {
+                  const on = selectedMember?.memberId === m.memberId;
+                  return (
+                    <button key={m.memberId} onClick={() => setSelectedMember(m)}
+                      className={`w-full flex items-center gap-2 p-2.5 rounded-xl text-left transition-all ${on ? "bg-[#002147] text-white" : "hover:bg-gray-50 text-[#002147]"}`}>
+                      {m.photoUrl
+                        ? <img src={m.photoUrl} alt={m.name} className="w-7 h-7 rounded-lg object-cover shrink-0 border border-white/20" />
+                        : <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${on ? "bg-white/20 text-white" : "bg-[#002147] text-white"}`}>{m.name[0]}</div>}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold truncate">{m.name}</div>
+                        <div className={`text-xs ${on ? "text-white/50" : "text-gray-400"}`}>{m.memberId} · {m.batch}</div>
+                      </div>
+                      {on && <CheckCircle size={14} className="text-[#D4AF37] shrink-0" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Custom message */}
             <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
               <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Custom Message (optional)</div>
-              <textarea
-                value={customMessage}
-                onChange={(e) => setCustomMessage(e.target.value)}
-                rows={2}
+              <textarea value={customMessage} onChange={(e) => setCustomMessage(e.target.value)} rows={2}
                 placeholder="Add a personal note to appear on the certificate…"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] resize-none"
-              />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] resize-none" />
             </div>
           </div>
 
-          {/* ── Right panel: Preview ── */}
           <div className="xl:col-span-3">
             {!certData ? (
               <div className="flex flex-col items-center justify-center h-80 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 gap-3">
@@ -668,53 +774,36 @@ export default function CertificateGenerator() {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Download actions */}
                 <div className="flex items-center gap-3 flex-wrap">
-                  <button
-                    onClick={() => downloadSingle("pdf")}
-                    disabled={downloading}
-                    className="inline-flex items-center gap-2 bg-[#002147] text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#003575] transition-colors disabled:opacity-60"
-                  >
-                    {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                    Download PDF
+                  <button onClick={() => downloadSingle("pdf")} disabled={downloading}
+                    className="inline-flex items-center gap-2 bg-[#002147] text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#003575] transition-colors disabled:opacity-60">
+                    {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download PDF
                   </button>
-                  <button
-                    onClick={() => downloadSingle("png")}
-                    disabled={downloading}
-                    className="inline-flex items-center gap-2 bg-white border border-[#002147]/20 text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#002147] hover:text-white transition-colors disabled:opacity-60"
-                  >
-                    {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                    Download PNG
+                  <button onClick={() => downloadSingle("png")} disabled={downloading}
+                    className="inline-flex items-center gap-2 bg-white border border-[#002147]/20 text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#002147] hover:text-white transition-colors disabled:opacity-60">
+                    {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download PNG
                   </button>
-                  <button
-                    onClick={() => setShowPreview((v) => !v)}
-                    className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#002147] px-3 py-2.5 rounded-xl border border-gray-200 hover:border-[#002147]/30 transition-colors ml-auto"
-                  >
+                  <button onClick={() => setShowPreview((v) => !v)}
+                    className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#002147] px-3 py-2.5 rounded-xl border border-gray-200 hover:border-[#002147]/30 transition-colors ml-auto">
                     <Eye size={14} /> {showPreview ? "Hide" : "Show"} Preview
                   </button>
                 </div>
 
-                {/* Certificate preview */}
                 {showPreview && (
                   <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-lg">
                     <div className="bg-gray-50 px-4 py-2 text-xs text-gray-500 border-b border-gray-200 flex items-center gap-2">
-                      <Eye size={12} />
-                      Certificate Preview · {TEMPLATES.find((t) => t.id === certData.template)?.label} Template
+                      <Eye size={12} /> Preview · {TEMPLATES.find((t) => t.id === certData.template)?.label} Template
                     </div>
                     <div className="overflow-x-auto p-4 bg-gray-100">
-                      <div id="cert-preview-capture">
-                        <CertificateCanvas data={certData} scale={0.72} />
-                      </div>
+                      <CertificateCanvas data={certData} scale={0.72} />
                     </div>
                   </div>
                 )}
 
-                {/* Member summary card */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-3">
                   {selectedMember?.photoUrl
                     ? <img src={selectedMember.photoUrl} alt={selectedMember.name} className="w-12 h-12 rounded-xl object-cover border border-gray-200 shrink-0" />
-                    : <div className="w-12 h-12 rounded-xl bg-[#002147] flex items-center justify-center text-xl font-bold text-[#D4AF37] shrink-0">{selectedMember!.name[0]}</div>
-                  }
+                    : <div className="w-12 h-12 rounded-xl bg-[#002147] flex items-center justify-center text-xl font-bold text-[#D4AF37] shrink-0">{selectedMember!.name[0]}</div>}
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-[#002147]">{selectedMember!.name}</div>
                     <div className="text-xs text-gray-400">{selectedMember!.memberId} · {selectedMember!.batch} · {selectedMember!.faculty}</div>
@@ -731,16 +820,16 @@ export default function CertificateGenerator() {
         </div>
       )}
 
-      {/* Hidden elements for batch PDF export */}
-      {certType === "participation" && selectedActivity && (
-        <div style={{ position: "fixed", left: "-9999px", top: 0, pointerEvents: "none" }} aria-hidden>
-          {activityParticipants.map((m) => (
-            <div key={m.memberId} id={`batch-cert-${m.memberId}`}>
-              <CertificateCanvas data={buildCertData(m)} scale={1} />
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Hidden full-size copies used for export */}
+      <div style={{ position: "fixed", left: "-9999px", top: 0, pointerEvents: "none" }} aria-hidden>
+        {certData && <div id="cert-export-single"><CertificateCanvas data={certData} scale={1} /></div>}
+        {/* Batch export renders ONE certificate at a time — no cache reuse, no blur */}
+        {batchCurrent && (
+          <div id="batch-cert-single">
+            <CertificateCanvas data={buildCertData(batchCurrent)} scale={1} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
