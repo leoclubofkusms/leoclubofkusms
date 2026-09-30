@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { getMembers, getActivities, getAwards, getClubSettings } from "@/lib/firestore";
 import type { Member, Activity, Award, ClubSettings } from "@/lib/types";
 import { activitySortKey } from "@/lib/types";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeCanvas } from "qrcode.react";
 import {
   Award as AwardIcon, FileText, Download, Loader2, Star,
   Search, CheckCircle, Eye, Layers, Sparkles,
@@ -27,8 +27,6 @@ interface CertData {
   joinedYear?: string;
   customMessage?: string;
   verifyUrl: string;
-  issuedDate: string;
-  serial: string;
   sloganPhotoUrl?: string;
   signatureUrl?: string;
 }
@@ -42,8 +40,17 @@ const ASSET = {
 const NAVY = "#002147";
 const GOLD = "#C9A227";
 const GOLD_LIGHT = "#F0D77A";
+const GOLD_DEEP = "#9C7A14";
 
-// ── Safe image: hides itself if src is empty or fails to load ─────────────────
+// Every template keeps a LIGHT paper centre so a black, transparent-PNG
+// signature always stays readable. Templates differ in frame and accents.
+const PALETTE: Record<Template, { frame: string; paper: string; ink: string; sub: string; band: number }> = {
+  classic: { frame: NAVY,      paper: "#fcfaf3", ink: NAVY,      sub: "#55524a", band: 16 },
+  modern:  { frame: "#0a1a33", paper: "#fbf9f2", ink: "#0a1a33", sub: "#4f5563", band: 30 },
+  gold:    { frame: "#17110a", paper: "#f8f1dd", ink: "#1b1408", sub: "#5c4f33", band: 22 },
+};
+
+// ── Safe image ────────────────────────────────────────────────────────────────
 function Img({ src, style }: { src?: string; style: React.CSSProperties }) {
   if (!src) return null;
   return (
@@ -67,80 +74,104 @@ function starPoints(cx: number, cy: number, outer: number, inner: number, n: num
   return pts.join(" ");
 }
 
-function Seal({ size, dark }: { size: number; dark: boolean }) {
-  const id = `sg-${dark ? "d" : "l"}-${Math.round(size)}`;
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100">
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={GOLD_LIGHT} />
-          <stop offset="50%" stopColor={GOLD} />
-          <stop offset="100%" stopColor="#8a6d12" />
-        </linearGradient>
-      </defs>
-      <polygon points={starPoints(50, 50, 48, 43, 32)} fill={`url(#${id})`} />
-      <circle cx="50" cy="50" r="38" fill="none" stroke={dark ? "#1a1200" : NAVY} strokeWidth="1.2" />
-      <circle cx="50" cy="50" r="33" fill={dark ? "#1a1200" : NAVY} />
-      <circle cx="50" cy="50" r="30" fill="none" stroke={GOLD_LIGHT} strokeWidth="0.8" strokeDasharray="2 2" />
-      <text x="50" y="47" textAnchor="middle" fontSize="15" fontWeight="700" fill={GOLD_LIGHT} fontFamily="Cinzel, Georgia, serif">LEO</text>
-      <text x="50" y="59" textAnchor="middle" fontSize="6" letterSpacing="1.2" fill={GOLD_LIGHT} fontFamily="Georgia, serif">KUSMS</text>
-      <text x="50" y="68" textAnchor="middle" fontSize="5" letterSpacing="1" fill="#fff" fontFamily="Georgia, serif">OFFICIAL</text>
-    </svg>
-  );
-}
-
 function CornerFlourish({ x, y, rot, color }: { x: number; y: number; rot: number; color: string }) {
   return (
-    <g transform={`translate(${x} ${y}) rotate(${rot})`} fill="none" stroke={color} strokeWidth="1.4">
-      <path d="M0 0 H46 M0 0 V46" strokeWidth="2.4" />
-      <path d="M8 8 H34 M8 8 V34" />
-      <path d="M14 14 Q30 14 30 30" />
-      <path d="M0 0 Q26 4 26 26 Q4 26 0 0Z" strokeWidth="1" opacity="0.7" />
-      <rect x="-4" y="-4" width="8" height="8" transform="rotate(45)" fill={color} stroke="none" />
+    <g transform={`translate(${x} ${y}) rotate(${rot})`} fill="none" stroke={color} strokeWidth="1.3">
+      <path d="M0 0 H50 M0 0 V50" strokeWidth="2.2" />
+      <path d="M8 8 H36 M8 8 V36" />
+      <path d="M15 15 Q33 15 33 33" />
+      <path d="M0 0 Q28 4 28 28 Q4 28 0 0Z" strokeWidth="0.9" opacity="0.7" />
+      <circle cx="40" cy="8" r="1.6" fill={color} stroke="none" />
+      <circle cx="8" cy="40" r="1.6" fill={color} stroke="none" />
+      <rect x="-4.5" y="-4.5" width="9" height="9" transform="rotate(45)" fill={color} stroke="none" />
     </g>
   );
 }
 
 // ── Background artwork ────────────────────────────────────────────────────────
 function Artwork({ template, W, H }: { template: Template; W: number; H: number }) {
-  const dark = template !== "classic";
-  const base = template === "gold" ? "#140e00" : template === "modern" ? "#0a1a33" : "#fffdf8";
-  const line = dark ? GOLD : NAVY;
+  const { frame, paper, band } = PALETTE[template];
   const id = `art-${template}`;
-  const rings = Array.from({ length: 14 }, (_, i) => 60 + i * 16);
+  const rings = Array.from({ length: 12 }, (_, i) => 50 + i * 18);
+  const outer = `M0 0H794V562H0Z`;
+  const inner = `M${band} ${band}V${562 - band}H${794 - band}V${band}Z`;
+  const bandPath = `${outer} ${inner}`;
+  const o = band + 14;
+
   return (
     <svg width={W} height={H} viewBox="0 0 794 562" style={{ position: "absolute", inset: 0 }} xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id={`${id}-gold`} x1="0" y1="0" x2="1" y2="0">
+        <linearGradient id={`${id}-gold`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor={GOLD} />
           <stop offset="50%" stopColor={GOLD_LIGHT} />
           <stop offset="100%" stopColor={GOLD} />
         </linearGradient>
-        <radialGradient id={`${id}-glow`} cx="50%" cy="45%" r="60%">
-          <stop offset="0%" stopColor={dark ? "#ffffff" : GOLD} stopOpacity={dark ? 0.07 : 0.1} />
-          <stop offset="100%" stopColor={dark ? "#ffffff" : GOLD} stopOpacity="0" />
+        <radialGradient id={`${id}-glow`} cx="50%" cy="46%" r="62%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
         </radialGradient>
-        <pattern id={`${id}-lat`} width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <path d="M0 0 H14 M0 0 V14" stroke={line} strokeWidth="0.3" opacity={dark ? 0.12 : 0.07} fill="none" />
+        <radialGradient id={`${id}-vig`} cx="50%" cy="50%" r="75%">
+          <stop offset="70%" stopColor={GOLD} stopOpacity="0" />
+          <stop offset="100%" stopColor={GOLD} stopOpacity="0.16" />
+        </radialGradient>
+        <pattern id={`${id}-dia`} width="12" height="12" patternUnits="userSpaceOnUse">
+          <path d="M6 0 L12 6 L6 12 L0 6Z" fill="none" stroke={GOLD} strokeWidth="0.7" opacity="0.55" />
+        </pattern>
+        <pattern id={`${id}-lat`} width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <path d="M0 0 H10 M0 0 V10" stroke={frame} strokeWidth="0.25" opacity="0.07" fill="none" />
         </pattern>
       </defs>
-      <rect width="794" height="562" fill={base} />
+
+      {/* Paper */}
+      <rect width="794" height="562" fill={paper} />
       <rect width="794" height="562" fill={`url(#${id}-lat)`} />
       <rect width="794" height="562" fill={`url(#${id}-glow)`} />
-      <g fill="none" stroke={line} strokeWidth="0.5" opacity={dark ? 0.1 : 0.06}>
-        {rings.map((r) => <circle key={r} cx="397" cy="290" r={r} />)}
-        {rings.map((r) => <ellipse key={`e${r}`} cx="397" cy="290" rx={r * 1.5} ry={r * 0.55} />)}
+      <rect width="794" height="562" fill={`url(#${id}-vig)`} />
+
+      {/* Guilloche rosette behind the text */}
+      <g fill="none" stroke={frame} strokeWidth="0.5" opacity="0.07">
+        {rings.map((r) => <ellipse key={`a${r}`} cx="397" cy="281" rx={r * 1.7} ry={r * 0.62} />)}
+        {rings.map((r) => <ellipse key={`b${r}`} cx="397" cy="281" rx={r * 0.62} ry={r * 1.7} transform="rotate(0)" />)}
       </g>
-      <rect x="14" y="14" width="766" height="534" fill="none" stroke={`url(#${id}-gold)`} strokeWidth="5" />
-      <rect x="24" y="24" width="746" height="514" fill="none" stroke={dark ? GOLD : NAVY} strokeWidth="1.6" />
-      <rect x="30" y="30" width="734" height="502" fill="none" stroke={`url(#${id}-gold)`} strokeWidth="0.8" strokeDasharray="1.5 3" />
-      <CornerFlourish x={34} y={34} rot={0} color={GOLD} />
-      <CornerFlourish x={760} y={34} rot={90} color={GOLD} />
-      <CornerFlourish x={760} y={528} rot={180} color={GOLD} />
-      <CornerFlourish x={34} y={528} rot={270} color={GOLD} />
-      <rect x="0" y="0" width="794" height="6" fill={`url(#${id}-gold)`} />
-      <rect x="0" y="556" width="794" height="6" fill={`url(#${id}-gold)`} />
+
+      {/* Frame band */}
+      <path d={bandPath} fillRule="evenodd" fill={frame} />
+      {template === "modern" && <path d={bandPath} fillRule="evenodd" fill={`url(#${id}-dia)`} />}
+      {template === "gold" && <path d={bandPath} fillRule="evenodd" fill={`url(#${id}-gold)`} opacity="0.12" />}
+
+      {/* Gold rules inside the frame */}
+      <rect x={band} y={band} width={794 - band * 2} height={562 - band * 2} fill="none" stroke={`url(#${id}-gold)`} strokeWidth="3" />
+      <rect x={band + 7} y={band + 7} width={794 - (band + 7) * 2} height={562 - (band + 7) * 2} fill="none" stroke={GOLD} strokeWidth="0.9" />
+      <rect x={band + 11} y={band + 11} width={794 - (band + 11) * 2} height={562 - (band + 11) * 2} fill="none" stroke={GOLD} strokeWidth="0.5" strokeDasharray="1.5 3" opacity="0.8" />
+
+      <CornerFlourish x={o} y={o} rot={0} color={GOLD} />
+      <CornerFlourish x={794 - o} y={o} rot={90} color={GOLD} />
+      <CornerFlourish x={794 - o} y={562 - o} rot={180} color={GOLD} />
+      <CornerFlourish x={o} y={562 - o} rot={270} color={GOLD} />
     </svg>
+  );
+}
+
+// ── QR code (canvas — renders reliably in html2canvas) ────────────────────────
+function QrCode({ value, size }: { value: string; size: number }) {
+  return (
+    <div style={{
+      padding: Math.max(3, size * 0.08),
+      background: "#ffffff",
+      border: `1.5px solid ${GOLD}`,
+      borderRadius: size * 0.08,
+      lineHeight: 0,
+      display: "inline-block",
+    }}>
+      <QRCodeCanvas
+        value={value}
+        size={size}
+        fgColor={NAVY}
+        bgColor="#ffffff"
+        level="M"
+        style={{ display: "block", width: size, height: size }}
+      />
+    </div>
   );
 }
 
@@ -149,12 +180,10 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
   const W = 794 * scale;
   const H = 562 * scale;
   const s = (n: number) => n * scale;
-  const dark = data.template !== "classic";
-  const main = dark ? "#ffffff" : NAVY;
-  const sub = dark ? "rgba(255,255,255,0.72)" : "#4a4a4a";
+  const { frame, ink, sub } = PALETTE[data.template];
   const SERIF = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
   const DISPLAY = "Cinzel, Georgia, serif";
-  const SCRIPT = "'Great Vibes', 'Brush Script MT', cursive";
+  const SCRIPT = "'Alex Brush', 'Brush Script MT', cursive";
 
   const titles: Record<CertType, string> = {
     participation: "Certificate of Participation",
@@ -174,11 +203,11 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
     : data.certType === "award" ? data.awardTitle || ""
     : "Leo Club of Kathmandu University School of Medical Sciences";
 
-  const rule = (w: string) => (
-    <div style={{ display: "flex", alignItems: "center", gap: s(8), width: w }}>
-      <div style={{ flex: 1, height: s(1), background: GOLD, opacity: 0.6 }} />
+  const rule = (w: number) => (
+    <div style={{ display: "flex", alignItems: "center", gap: s(8), width: s(w) }}>
+      <div style={{ flex: 1, height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})` }} />
       <div style={{ width: s(6), height: s(6), background: GOLD, transform: "rotate(45deg)" }} />
-      <div style={{ flex: 1, height: s(1), background: GOLD, opacity: 0.6 }} />
+      <div style={{ flex: 1, height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})` }} />
     </div>
   );
 
@@ -189,133 +218,123 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
     <div style={{ width: W, height: H, position: "relative", overflow: "hidden", fontFamily: SERIF, flexShrink: 0 }}>
       <Artwork template={data.template} W={W} H={H} />
 
+      {/* Faint lion watermark */}
       <Img src={ASSET.lion} style={{
-        position: "absolute", left: "50%", top: "50%", width: s(300), height: s(300),
-        transform: "translate(-50%,-50%)", objectFit: "contain", opacity: dark ? 0.07 : 0.06,
+        position: "absolute", left: "50%", top: "47%", width: s(290), height: s(290),
+        transform: "translate(-50%,-50%)", objectFit: "contain", opacity: 0.06,
       }} />
 
+      {/* ── Main content column ── */}
       <div style={{
-        position: "absolute", left: s(58), right: s(58), top: s(38), bottom: s(hasSlogan ? 78 : 44),
+        position: "absolute", left: s(64), right: s(64), top: s(46), bottom: s(128),
         display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
       }}>
+        {/* Logos */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: s(14), width: "100%" }}>
-          <Img src={ASSET.leo} style={{ height: s(44), width: s(44), objectFit: "contain" }} />
-          <div style={{ flex: "0 0 auto", width: s(70), height: s(1), background: GOLD, opacity: 0.6 }} />
-          <Img src={ASSET.logo} style={{ height: s(58), width: s(58), objectFit: "contain" }} />
-          <div style={{ flex: "0 0 auto", width: s(70), height: s(1), background: GOLD, opacity: 0.6 }} />
-          <Img src={ASSET.lion} style={{ height: s(44), width: s(44), objectFit: "contain" }} />
+          <Img src={ASSET.leo} style={{ height: s(38), width: s(38), objectFit: "contain" }} />
+          <div style={{ width: s(54), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})` }} />
+          <Img src={ASSET.logo} style={{ height: s(48), width: s(48), objectFit: "contain" }} />
+          <div style={{ width: s(54), height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})` }} />
+          <Img src={ASSET.lion} style={{ height: s(38), width: s(38), objectFit: "contain" }} />
         </div>
-        <div style={{ fontFamily: DISPLAY, fontSize: s(11.5), fontWeight: 700, color: main, letterSpacing: s(2), marginTop: s(5) }}>
+
+        <div style={{ fontFamily: DISPLAY, fontSize: s(10.5), fontWeight: 700, color: ink, letterSpacing: s(2), marginTop: s(5) }}>
           LEO CLUB OF KATHMANDU UNIVERSITY SCHOOL OF MEDICAL SCIENCES
         </div>
-        <div style={{ fontSize: s(9), color: GOLD, letterSpacing: s(1.5), marginTop: s(2), fontStyle: "italic" }}>
+        <div style={{ fontSize: s(9), color: GOLD_DEEP, letterSpacing: s(1.2), marginTop: s(2), fontStyle: "italic", fontWeight: 700 }}>
           Lions Clubs International · District 325L Nepal · Club No. 172194
         </div>
 
-        <div style={{ marginTop: s(9) }}>{rule(`${s(300)}px`)}</div>
+        <div style={{ marginTop: s(7) }}>{rule(300)}</div>
 
-        <div style={{ fontFamily: DISPLAY, fontSize: s(25), fontWeight: 700, color: GOLD, letterSpacing: s(5), marginTop: s(8), textTransform: "uppercase" }}>
+        <div style={{ fontFamily: DISPLAY, fontSize: s(23), fontWeight: 700, color: GOLD_DEEP, letterSpacing: s(4.5), marginTop: s(7), textTransform: "uppercase" }}>
           {titles[data.certType]}
         </div>
-        <div style={{ fontSize: s(11.5), color: sub, fontStyle: "italic", marginTop: s(6) }}>
+        <div style={{ fontSize: s(11.5), color: sub, fontStyle: "italic", marginTop: s(4) }}>
           This certificate is proudly presented to
         </div>
 
-        <div style={{ fontFamily: SCRIPT, fontSize: s(44), color: main, lineHeight: 1.1, marginTop: s(2), maxWidth: s(640) }}>
+        {/* Recipient */}
+        <div style={{
+          fontFamily: SCRIPT, fontSize: s(46), color: ink, lineHeight: 1.15,
+          marginTop: s(1), maxWidth: s(640), paddingBottom: s(2),
+        }}>
           {data.recipientName}
         </div>
-        <div style={{ width: s(360), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD},transparent)`, marginTop: s(1) }} />
+        <div style={{ width: s(360), height: s(1.2), background: `linear-gradient(90deg,transparent,${GOLD},transparent)` }} />
 
         {data.recipientRole && (
-          <div style={{ fontFamily: DISPLAY, fontSize: s(9), color: GOLD, letterSpacing: s(2.5), fontWeight: 700, marginTop: s(5) }}>
+          <div style={{ fontFamily: DISPLAY, fontSize: s(8.5), color: GOLD_DEEP, letterSpacing: s(2.2), fontWeight: 700, marginTop: s(5) }}>
             {data.recipientRole.toUpperCase()}  ·  ID {data.recipientId}
           </div>
         )}
 
-        <div style={{ fontSize: s(12), color: sub, lineHeight: 1.45, maxWidth: s(560), marginTop: s(7) }}>
+        <div style={{ fontSize: s(11.5), color: sub, lineHeight: 1.42, maxWidth: s(540), marginTop: s(6), fontWeight: 500 }}>
           {bodies[data.certType]}
         </div>
-        <div style={{ fontSize: s(17), fontWeight: 700, color: main, lineHeight: 1.2, maxWidth: s(600), marginTop: s(4), fontStyle: data.certType === "participation" ? "italic" : "normal" }}>
-          "{subject}"
+        <div style={{
+          fontSize: s(16.5), fontWeight: 700, color: ink, lineHeight: 1.22, maxWidth: s(600), marginTop: s(3),
+          fontStyle: data.certType === "participation" ? "italic" : "normal",
+        }}>
+          &ldquo;{subject}&rdquo;
         </div>
 
         {data.certType === "participation" && data.activityMonth && (
-          <div style={{ fontSize: s(10.5), color: sub, marginTop: s(3), letterSpacing: s(1) }}>
+          <div style={{ fontSize: s(10), color: sub, marginTop: s(3), letterSpacing: s(1) }}>
             {data.activityMonth} · Leo Year {data.activityYear}
           </div>
         )}
         {data.certType === "service" && (
-          <div style={{ display: "flex", gap: s(26), marginTop: s(4) }}>
+          <div style={{ display: "flex", gap: s(24), marginTop: s(4) }}>
             {!!data.activitiesCount && (
-              <div><span style={{ fontFamily: DISPLAY, fontSize: s(17), fontWeight: 700, color: GOLD }}>{data.activitiesCount}</span>
+              <div><span style={{ fontFamily: DISPLAY, fontSize: s(15), fontWeight: 700, color: GOLD_DEEP }}>{data.activitiesCount}</span>
                 <span style={{ fontSize: s(10), color: sub }}> activities served</span></div>
             )}
             {data.joinedYear && (
               <div><span style={{ fontSize: s(10), color: sub }}>member since </span>
-                <span style={{ fontFamily: DISPLAY, fontSize: s(13), fontWeight: 700, color: GOLD }}>{data.joinedYear}</span></div>
+                <span style={{ fontFamily: DISPLAY, fontSize: s(12), fontWeight: 700, color: GOLD_DEEP }}>{data.joinedYear}</span></div>
             )}
           </div>
         )}
         {data.customMessage && (
-          <div style={{ fontSize: s(11), color: sub, fontStyle: "italic", maxWidth: s(520), lineHeight: 1.4, marginTop: s(4) }}>
+          <div style={{ fontSize: s(10.5), color: sub, fontStyle: "italic", maxWidth: s(520), lineHeight: 1.35, marginTop: s(3) }}>
             {data.customMessage}
           </div>
         )}
       </div>
 
-      <div style={{
-        position: "absolute", left: s(58), right: s(58), bottom: s(hasSlogan ? 76 : 42),
-        display: "flex", alignItems: "flex-end", justifyContent: "space-between",
-      }}>
-        <div style={{ width: s(150), textAlign: "left", fontSize: s(9), color: sub, lineHeight: 1.5 }}>
-          <div>Issued on {data.issuedDate}</div>
-          <div style={{ fontFamily: "monospace", fontSize: s(8), opacity: 0.85 }}>Serial No. {data.serial}</div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "flex-end", gap: s(22) }}>
-          {/* PRESIDENT column — signature image above the line, text below */}
-          <div style={{ textAlign: "center", position: "relative" }}>
-            {hasSignature && (
-              <div style={{
-                height: s(38), display: "flex", alignItems: "flex-end", justifyContent: "center",
-                marginBottom: s(3),
-              }}>
-                <Img src={data.signatureUrl} style={{ height: "100%", maxWidth: s(140), objectFit: "contain" }} />
-              </div>
-            )}
-            <div style={{ width: s(120), borderTop: `${s(1)}px solid ${dark ? GOLD : NAVY}`, marginBottom: s(3) }} />
-            <div style={{ fontFamily: DISPLAY, fontSize: s(9), color: main, fontWeight: 700, letterSpacing: s(1.5) }}>PRESIDENT</div>
-            <div style={{ fontSize: s(8.5), color: sub }}>Leo Club of KUSMS</div>
-          </div>
-
-          <div style={{ marginBottom: s(2) }}><Seal size={s(64)} dark={data.template === "gold"} /></div>
-
-          <div style={{ textAlign: "center" }}>
-            <div style={{ width: s(120), borderTop: `${s(1)}px solid ${dark ? GOLD : NAVY}`, marginBottom: s(3) }} />
-            <div style={{ fontFamily: DISPLAY, fontSize: s(9), color: main, fontWeight: 700, letterSpacing: s(1.5) }}>SECRETARY</div>
-            <div style={{ fontSize: s(8.5), color: sub }}>Leo Club of KUSMS</div>
-          </div>
-        </div>
-
-        <div style={{ width: s(150), display: "flex", justifyContent: "flex-end" }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ padding: s(4), background: "#fff", border: `${s(1.5)}px solid ${GOLD}`, borderRadius: s(4), display: "inline-block", lineHeight: 0 }}>
-              <QRCodeSVG value={data.verifyUrl} size={s(46)} fgColor={NAVY} level="M" />
-            </div>
-            <div style={{ fontSize: s(7.5), color: sub, marginTop: s(2) }}>Scan to verify</div>
-          </div>
-        </div>
+      {/* ── Bottom row: QR · slogan · President ── */}
+      <div style={{ position: "absolute", left: s(76), bottom: s(40), display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <QrCode value={data.verifyUrl} size={Math.round(s(58))} />
+        <div style={{ fontSize: s(7.5), color: sub, marginTop: s(3), letterSpacing: s(0.5) }}>Scan to verify</div>
       </div>
 
       {hasSlogan && (
         <div style={{
-          position: "absolute", left: "50%", bottom: s(38), transform: "translateX(-50%)",
-          height: s(30), padding: `${s(3)}px ${s(18)}px`, background: dark ? "rgba(255,255,255,0.96)" : "transparent",
-          borderRadius: s(15), display: "flex", alignItems: "center", justifyContent: "center", maxWidth: s(520),
+          position: "absolute", left: "50%", bottom: s(44), transform: "translateX(-50%)",
+          display: "flex", justifyContent: "center", alignItems: "flex-end", width: s(300),
         }}>
-          <Img src={data.sloganPhotoUrl} style={{ height: "100%", maxWidth: s(480), objectFit: "contain" }} />
+          <Img src={data.sloganPhotoUrl} style={{ maxHeight: s(58), maxWidth: s(300), objectFit: "contain" }} />
         </div>
       )}
+
+      {/* President signature — transparent PNG, drawn directly on the paper, no plate */}
+      <div style={{
+        position: "absolute", right: s(70), bottom: s(40),
+        display: "flex", flexDirection: "column", alignItems: "center", width: s(176),
+      }}>
+        <div style={{ height: s(48), width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", marginBottom: s(2) }}>
+          {hasSignature && (
+            <Img
+              src={data.signatureUrl}
+              style={{ maxHeight: "100%", maxWidth: s(160), objectFit: "contain", background: "transparent" }}
+            />
+          )}
+        </div>
+        <div style={{ width: s(160), height: s(1.4), background: `linear-gradient(90deg,transparent,${GOLD},transparent)`, marginBottom: s(4) }} />
+        <div style={{ fontFamily: DISPLAY, fontSize: s(10), color: ink, fontWeight: 700, letterSpacing: s(2.4) }}>PRESIDENT</div>
+        <div style={{ fontSize: s(9), color: sub, letterSpacing: s(0.6), fontStyle: "italic" }}>Leo Club of KUSMS</div>
+      </div>
     </div>
   );
 }
@@ -328,7 +347,8 @@ async function ensureFontsReady() {
       await Promise.all([
         anyDoc.fonts.load('700 16px "Cinzel"'),
         anyDoc.fonts.load('500 16px "Cormorant Garamond"'),
-        anyDoc.fonts.load('44px "Great Vibes"'),
+        anyDoc.fonts.load('700 16px "Cormorant Garamond"'),
+        anyDoc.fonts.load('46px "Alex Brush"'),
       ]).catch(() => {});
       await anyDoc.fonts.ready;
     }
@@ -340,6 +360,7 @@ async function ensureImagesReady(el: HTMLElement) {
   await Promise.all(imgs.map((img) =>
     img.complete ? Promise.resolve() : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); })
   ));
+  await new Promise((r) => setTimeout(r, 60));
 }
 
 type H2C = (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
@@ -396,7 +417,7 @@ export default function CertificateGenerator() {
     const l = document.createElement("link");
     l.id = "cert-fonts";
     l.rel = "stylesheet";
-    l.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&family=Great+Vibes&display=swap";
+    l.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500;1,700&family=Alex+Brush&display=swap";
     document.head.appendChild(l);
   }, []);
 
@@ -429,8 +450,6 @@ export default function CertificateGenerator() {
     activities.filter((a) => a.participants.some((p) => p.memberId === m.memberId)).length;
 
   function buildCertData(member: Member): CertData {
-    const now = new Date();
-    const code = { participation: "PA", service: "SV", award: "RC", appreciation: "AP" }[certType];
     const base: CertData = {
       recipientName: member.name,
       recipientRole: member.currentRole || "Leo Member",
@@ -439,8 +458,6 @@ export default function CertificateGenerator() {
       sloganPhotoUrl,
       signatureUrl,
       verifyUrl: verifyUrl(member.memberId),
-      issuedDate: now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-      serial: `LEO172194-${code}-${now.getFullYear()}-${member.memberId}`,
     };
     if (certType === "participation" && selectedActivity) {
       base.activityTitle = selectedActivity.title;
@@ -510,9 +527,9 @@ export default function CertificateGenerator() {
     { id: "appreciation", label: "Appreciation", icon: Sparkles, desc: "General appreciation" },
   ];
   const TEMPLATES: { id: Template; label: string; bg: string; desc: string }[] = [
-    { id: "classic", label: "Classic", bg: "from-white to-gray-50", desc: "Ivory with navy & gold frame" },
-    { id: "modern", label: "Modern", bg: "from-[#0d1f3c] to-[#002147]", desc: "Deep navy with gold accents" },
-    { id: "gold", label: "Prestige", bg: "from-[#1a1200] to-[#2a1f00]", desc: "Black-gold luxury style" },
+    { id: "classic", label: "Classic", bg: "from-[#fcfaf3] via-[#fcfaf3] to-[#002147]", desc: "Ivory paper, navy frame, gold rules" },
+    { id: "modern", label: "Royal", bg: "from-[#fbf9f2] via-[#fbf9f2] to-[#0a1a33]", desc: "Wide navy lattice border" },
+    { id: "gold", label: "Prestige", bg: "from-[#f8f1dd] via-[#f8f1dd] to-[#17110a]", desc: "Champagne paper, black-gold frame" },
   ];
 
   const stepLabel = certType === "participation" || certType === "award" ? "4" : "3";
@@ -522,7 +539,7 @@ export default function CertificateGenerator() {
       <div className="mb-6">
         <h3 className="text-lg font-bold text-[#002147]">Certificate Generator</h3>
         <p className="text-sm text-gray-500">
-          Generate certificates with Leo, Lion and club logos, plus slogan and President's signature from Club Settings.
+          Generate certificates with club logos, the President&apos;s signature and slogan — all pulled from Club Settings.
           Download individually or batch-export an activity as one PDF.
         </p>
       </div>
@@ -555,7 +572,7 @@ export default function CertificateGenerator() {
                 {TEMPLATES.map(({ id, label, bg, desc }) => (
                   <button key={id} onClick={() => setTemplate(id)}
                     className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${template === id ? "border-[#D4AF37] bg-[#D4AF37]/5" : "border-gray-200 hover:border-gray-300"}`}>
-                    <div className={`w-10 h-7 rounded-lg bg-gradient-to-br ${bg} border border-gray-200 shrink-0`} />
+                    <div className={`w-10 h-7 rounded-lg bg-gradient-to-br ${bg} border border-[#D4AF37]/50 shrink-0`} />
                     <div className="text-left flex-1">
                       <div className="text-sm font-semibold text-[#002147]">{label}</div>
                       <div className="text-xs text-gray-400">{desc}</div>
