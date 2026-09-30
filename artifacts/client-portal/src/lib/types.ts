@@ -119,6 +119,8 @@ export interface ClubSettings {
   donationAccountNumber?: string;
   donationNote?: string;
   usdToNprRate?: number;
+  // NEW: President's signature image (uploaded in Club Settings, shown on certificates)
+  presidentSignatureUrl?: string;
 }
 
 export interface LeaderQuote {
@@ -311,7 +313,6 @@ export function isAnnouncementExpired(a: Announcement): boolean {
   return a.expiresAt < today;
 }
 
-/** Format a number with thousand separators, handling decimals. */
 export function formatImpactNumber(n: number): string {
   if (!isFinite(n)) return "0";
   if (n === 0) return "0";
@@ -333,7 +334,6 @@ export function formatImpactNumber(n: number): string {
   return n.toLocaleString("en-US", { maximumFractionDigits: 1 });
 }
 
-/** Format a currency value. */
 export function formatCurrency(n: number, currency: "USD" | "NPR"): string {
   const prefix = currency === "USD" ? "$" : "Rs. ";
   if (!isFinite(n)) return `${prefix}0`;
