@@ -29,6 +29,7 @@ interface CertData {
   verifyUrl: string;
   sloganPhotoUrl?: string;
   signatureUrl?: string;
+  presidentName?: string;
 }
 
 const BASE = import.meta.env.BASE_URL ?? "/";
@@ -42,8 +43,6 @@ const GOLD = "#C9A227";
 const GOLD_LIGHT = "#F0D77A";
 const GOLD_DEEP = "#9C7A14";
 
-// Every template keeps a LIGHT paper centre so a black, transparent-PNG
-// signature always stays readable. Templates differ in frame and accents.
 const PALETTE: Record<Template, { frame: string; paper: string; ink: string; sub: string; band: number }> = {
   classic: { frame: NAVY,      paper: "#fcfaf3", ink: NAVY,      sub: "#55524a", band: 16 },
   modern:  { frame: "#0a1a33", paper: "#fbf9f2", ink: "#0a1a33", sub: "#4f5563", band: 30 },
@@ -64,16 +63,6 @@ function Img({ src, style }: { src?: string; style: React.CSSProperties }) {
 }
 
 // ── Ornament geometry ─────────────────────────────────────────────────────────
-function starPoints(cx: number, cy: number, outer: number, inner: number, n: number) {
-  const pts: string[] = [];
-  for (let i = 0; i < n * 2; i++) {
-    const r = i % 2 === 0 ? outer : inner;
-    const a = (Math.PI * i) / n - Math.PI / 2;
-    pts.push(`${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`);
-  }
-  return pts.join(" ");
-}
-
 function CornerFlourish({ x, y, rot, color }: { x: number; y: number; rot: number; color: string }) {
   return (
     <g transform={`translate(${x} ${y}) rotate(${rot})`} fill="none" stroke={color} strokeWidth="1.3">
@@ -122,24 +111,20 @@ function Artwork({ template, W, H }: { template: Template; W: number; H: number 
         </pattern>
       </defs>
 
-      {/* Paper */}
       <rect width="794" height="562" fill={paper} />
       <rect width="794" height="562" fill={`url(#${id}-lat)`} />
       <rect width="794" height="562" fill={`url(#${id}-glow)`} />
       <rect width="794" height="562" fill={`url(#${id}-vig)`} />
 
-      {/* Guilloche rosette behind the text */}
       <g fill="none" stroke={frame} strokeWidth="0.5" opacity="0.07">
         {rings.map((r) => <ellipse key={`a${r}`} cx="397" cy="281" rx={r * 1.7} ry={r * 0.62} />)}
-        {rings.map((r) => <ellipse key={`b${r}`} cx="397" cy="281" rx={r * 0.62} ry={r * 1.7} transform="rotate(0)" />)}
+        {rings.map((r) => <ellipse key={`b${r}`} cx="397" cy="281" rx={r * 0.62} ry={r * 1.7} />)}
       </g>
 
-      {/* Frame band */}
       <path d={bandPath} fillRule="evenodd" fill={frame} />
       {template === "modern" && <path d={bandPath} fillRule="evenodd" fill={`url(#${id}-dia)`} />}
       {template === "gold" && <path d={bandPath} fillRule="evenodd" fill={`url(#${id}-gold)`} opacity="0.12" />}
 
-      {/* Gold rules inside the frame */}
       <rect x={band} y={band} width={794 - band * 2} height={562 - band * 2} fill="none" stroke={`url(#${id}-gold)`} strokeWidth="3" />
       <rect x={band + 7} y={band + 7} width={794 - (band + 7) * 2} height={562 - (band + 7) * 2} fill="none" stroke={GOLD} strokeWidth="0.9" />
       <rect x={band + 11} y={band + 11} width={794 - (band + 11) * 2} height={562 - (band + 11) * 2} fill="none" stroke={GOLD} strokeWidth="0.5" strokeDasharray="1.5 3" opacity="0.8" />
@@ -152,7 +137,7 @@ function Artwork({ template, W, H }: { template: Template; W: number; H: number 
   );
 }
 
-// ── QR code (canvas — renders reliably in html2canvas) ────────────────────────
+// ── QR code ───────────────────────────────────────────────────────────────────
 function QrCode({ value, size }: { value: string; size: number }) {
   return (
     <div style={{
@@ -180,7 +165,7 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
   const W = 794 * scale;
   const H = 562 * scale;
   const s = (n: number) => n * scale;
-  const { frame, ink, sub } = PALETTE[data.template];
+  const { ink, sub } = PALETTE[data.template];
   const SERIF = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
   const DISPLAY = "Cinzel, Georgia, serif";
   const SCRIPT = "'Alex Brush', 'Brush Script MT', cursive";
@@ -218,18 +203,15 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
     <div style={{ width: W, height: H, position: "relative", overflow: "hidden", fontFamily: SERIF, flexShrink: 0 }}>
       <Artwork template={data.template} W={W} H={H} />
 
-      {/* Faint lion watermark */}
       <Img src={ASSET.lion} style={{
         position: "absolute", left: "50%", top: "47%", width: s(290), height: s(290),
         transform: "translate(-50%,-50%)", objectFit: "contain", opacity: 0.06,
       }} />
 
-      {/* ── Main content column ── */}
       <div style={{
         position: "absolute", left: s(64), right: s(64), top: s(46), bottom: s(128),
         display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
       }}>
-        {/* Logos */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: s(14), width: "100%" }}>
           <Img src={ASSET.leo} style={{ height: s(38), width: s(38), objectFit: "contain" }} />
           <div style={{ width: s(54), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})` }} />
@@ -254,7 +236,6 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
           This certificate is proudly presented to
         </div>
 
-        {/* Recipient */}
         <div style={{
           fontFamily: SCRIPT, fontSize: s(46), color: ink, lineHeight: 1.15,
           marginTop: s(1), maxWidth: s(640), paddingBottom: s(2),
@@ -303,7 +284,7 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         )}
       </div>
 
-      {/* ── Bottom row: QR · slogan · President ── */}
+      {/* Bottom row: QR · slogan · President */}
       <div style={{ position: "absolute", left: s(76), bottom: s(40), display: "flex", flexDirection: "column", alignItems: "center" }}>
         <QrCode value={data.verifyUrl} size={Math.round(s(58))} />
         <div style={{ fontSize: s(7.5), color: sub, marginTop: s(3), letterSpacing: s(0.5) }}>Scan to verify</div>
@@ -318,10 +299,10 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         </div>
       )}
 
-      {/* President signature — transparent PNG, drawn directly on the paper, no plate */}
+      {/* President signature block */}
       <div style={{
         position: "absolute", right: s(70), bottom: s(40),
-        display: "flex", flexDirection: "column", alignItems: "center", width: s(176),
+        display: "flex", flexDirection: "column", alignItems: "center", width: s(190),
       }}>
         <div style={{ height: s(48), width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", marginBottom: s(2) }}>
           {hasSignature && (
@@ -333,7 +314,14 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         </div>
         <div style={{ width: s(160), height: s(1.4), background: `linear-gradient(90deg,transparent,${GOLD},transparent)`, marginBottom: s(4) }} />
         <div style={{ fontFamily: DISPLAY, fontSize: s(10), color: ink, fontWeight: 700, letterSpacing: s(2.4) }}>PRESIDENT</div>
-        <div style={{ fontSize: s(9), color: sub, letterSpacing: s(0.6), fontStyle: "italic" }}>Leo Club of KUSMS</div>
+        {data.presidentName && (
+          <div style={{ fontSize: s(9.5), color: ink, letterSpacing: s(0.8), marginTop: s(2), fontStyle: "italic", fontWeight: 600 }}>
+            {data.presidentName}
+          </div>
+        )}
+        <div style={{ fontSize: s(8.5), color: sub, letterSpacing: s(0.6), fontStyle: "italic", marginTop: data.presidentName ? s(1) : s(2) }}>
+          Leo Club of KUSMS
+        </div>
       </div>
     </div>
   );
@@ -398,6 +386,7 @@ export default function CertificateGenerator() {
   const [awards, setAwards] = useState<Award[]>([]);
   const [sloganPhotoUrl, setSloganPhotoUrl] = useState("");
   const [signatureUrl, setSignatureUrl] = useState("");
+  const [presidentName, setPresidentName] = useState("");
   const [loading, setLoading] = useState(true);
 
   const [certType, setCertType] = useState<CertType>("participation");
@@ -435,6 +424,7 @@ export default function CertificateGenerator() {
         const cfg = st as ClubSettings;
         setSloganPhotoUrl(cfg.presidentSloganPhotoUrl ?? "");
         setSignatureUrl(cfg.presidentSignatureUrl ?? "");
+        setPresidentName(cfg.presidentSloganName ?? "");
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -457,6 +447,7 @@ export default function CertificateGenerator() {
       certType, template, customMessage,
       sloganPhotoUrl,
       signatureUrl,
+      presidentName,
       verifyUrl: verifyUrl(member.memberId),
     };
     if (certType === "participation" && selectedActivity) {
@@ -539,7 +530,7 @@ export default function CertificateGenerator() {
       <div className="mb-6">
         <h3 className="text-lg font-bold text-[#002147]">Certificate Generator</h3>
         <p className="text-sm text-gray-500">
-          Generate certificates with club logos, the President&apos;s signature and slogan — all pulled from Club Settings.
+          Generate certificates with club logos, the President&apos;s signature, name and slogan — all pulled from Club Settings.
           Download individually or batch-export an activity as one PDF.
         </p>
       </div>
