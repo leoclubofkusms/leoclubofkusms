@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { getMembers } from "@/lib/firestore";
 import type { Member } from "@/lib/types";
 import { LEO_YEARS } from "@/lib/types";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeCanvas } from "qrcode.react";
 import {
-  Download, CreditCard, Search, CheckCircle, Clock,
+  Download, Search, CheckCircle, Clock,
   ChevronDown, Loader2, Users,
 } from "lucide-react";
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function serviceYears(member: Member): string {
   const joined = member.joinedLeoYear ?? "";
   const left = member.leftLeoYear ?? "";
@@ -26,6 +27,9 @@ function yearsCount(member: Member): number {
   return Math.max(1, (lIdx === -1 ? LEO_YEARS.length - 1 : lIdx) - jIdx + 1);
 }
 
+// ── Vertical Premium ID Card ─────────────────────────────────────────────────
+// Card size: 340 × 540 px on screen — aspect ratio matches standard CR80
+// portrait (53.98 × 85.6 mm). Exports at scale 3 → 1020 × 1620 px (300 DPI).
 function IDCard({
   member,
   verifyUrl,
@@ -37,184 +41,270 @@ function IDCard({
   const svc = serviceYears(member);
   const yrs = yearsCount(member);
 
+  const CARD_W = 340;
+  const CARD_H = 540;
+  const GOLD = "#D4AF37";
+  const NAVY = "#002147";
+
   return (
     <div
       style={{
-        width: "340px",
-        height: "214px",
-        borderRadius: "12px",
+        width: `${CARD_W}px`,
+        height: `${CARD_H}px`,
+        borderRadius: "16px",
         overflow: "hidden",
-        background: "#fff",
-        boxShadow: "0 4px 24px rgba(0,33,71,0.18)",
+        background: "#ffffff",
+        boxShadow: "0 8px 32px rgba(0,33,71,0.22)",
         fontFamily: "system-ui, -apple-system, sans-serif",
         position: "relative",
         flexShrink: 0,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      {/* Navy header bar */}
+      {/* ── TOP: Navy header ── */}
       <div
         style={{
           background: "linear-gradient(135deg, #002147 0%, #003575 100%)",
-          height: "68px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 14px 0 14px",
+          padding: "16px 16px 14px",
           position: "relative",
         }}
       >
-        {/* Gold accent strip */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "#D4AF37" }} />
+        {/* Gold accent line at bottom of header */}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: `linear-gradient(90deg, ${GOLD}, #F0D77A, ${GOLD})` }} />
 
-        <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-          {/* Club mark; the official logo is used automatically when uploaded. */}
-          <div style={{
-            position: "relative", overflow: "hidden",
-            width: "32px", height: "32px", borderRadius: "8px",
-            background: "#D4AF37", display: "flex", alignItems: "center",
-            justifyContent: "center", fontWeight: "900", fontSize: "13px",
-            color: "#002147", flexShrink: 0, letterSpacing: "-0.5px",
-          }}>
+        {/* Top-left mini crest + status pill */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+          <div
+            style={{
+              position: "relative", width: "32px", height: "32px", borderRadius: "8px",
+              overflow: "hidden", background: GOLD, display: "flex",
+              alignItems: "center", justifyContent: "center",
+              fontWeight: "900", fontSize: "12px", color: NAVY,
+              flexShrink: 0, letterSpacing: "-0.5px",
+            }}
+          >
             <span>LEO</span>
             <img
               src="/logo.png"
               alt=""
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-              onError={(event) => { event.currentTarget.style.display = "none"; }}
+              onError={(event) => { (event.currentTarget as HTMLImageElement).style.display = "none"; }}
             />
           </div>
-          <div>
-            <div style={{ color: "#fff", fontWeight: "700", fontSize: "11px", lineHeight: 1.2 }}>
-              Leo Club of KUSMS
-            </div>
-            <div style={{ color: "#D4AF37", fontSize: "8.5px", letterSpacing: "0.8px", marginTop: "2px" }}>
-              LIONS CLUBS INTERNATIONAL · D325L · #172194
-            </div>
+          <div
+            style={{
+              padding: "3px 9px",
+              borderRadius: "20px",
+              fontSize: "8.5px",
+              fontWeight: "700",
+              letterSpacing: "0.8px",
+              background: isActive ? "rgba(34,197,94,0.18)" : "rgba(255,255,255,0.12)",
+              color: isActive ? "#4ade80" : "rgba(255,255,255,0.55)",
+              border: `1px solid ${isActive ? "rgba(74,222,128,0.4)" : "rgba(255,255,255,0.2)"}`,
+            }}
+          >
+            {isActive ? "● ACTIVE" : "◌ PAST"}
           </div>
         </div>
 
-        {/* Status badge */}
-        <div style={{
-          padding: "3px 9px", borderRadius: "20px", fontSize: "9px",
-          fontWeight: "700", letterSpacing: "0.8px",
-          background: isActive ? "rgba(34,197,94,0.18)" : "rgba(255,255,255,0.12)",
-          color: isActive ? "#4ade80" : "rgba(255,255,255,0.5)",
-          border: `1px solid ${isActive ? "rgba(74,222,128,0.35)" : "rgba(255,255,255,0.18)"}`,
-        }}>
-          {isActive ? "● ACTIVE" : "◌ PAST"}
+        {/* Club name */}
+        <div style={{ color: "#fff", fontWeight: "800", fontSize: "13px", letterSpacing: "0.2px", lineHeight: 1.15 }}>
+          Leo Club of KUSMS
+        </div>
+        <div style={{ color: GOLD, fontSize: "7.5px", letterSpacing: "0.9px", marginTop: "3px", fontWeight: "600" }}>
+          LIONS CLUBS INTERNATIONAL · DISTRICT 325L · #172194
+        </div>
+        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "7.5px", letterSpacing: "0.7px", marginTop: "2px" }}>
+          OFFICIAL MEMBER ID
         </div>
       </div>
 
-      {/* Body */}
-      <div style={{
-        display: "flex", alignItems: "flex-start", padding: "12px 14px", gap: "12px",
-      }}>
-        {/* Photo */}
-        <div style={{ flexShrink: 0 }}>
+      {/* ── MIDDLE: Photo ── */}
+      <div style={{ display: "flex", justifyContent: "center", paddingTop: "16px" }}>
+        <div
+          style={{
+            position: "relative",
+            width: "132px",
+            height: "132px",
+            borderRadius: "14px",
+            overflow: "hidden",
+            border: `3px solid ${GOLD}`,
+            background: NAVY,
+            boxShadow: "0 4px 16px rgba(0,33,71,0.2)",
+          }}
+        >
           {member.photoUrl ? (
             <img
               src={member.photoUrl}
               alt={member.name}
-              style={{
-                width: "64px", height: "64px", borderRadius: "10px",
-                objectFit: "cover",
-                border: "2px solid #002147",
-              }}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              onError={(event) => { (event.currentTarget as HTMLImageElement).style.display = "none"; }}
             />
-          ) : (
-            <div style={{
-              width: "64px", height: "64px", borderRadius: "10px",
-              background: "#002147", display: "flex", alignItems: "center",
-              justifyContent: "center", fontSize: "24px", fontWeight: "700",
-              color: "#D4AF37", border: "2px solid #002147",
-            }}>
+          ) : null}
+          {/* Fallback initial — shown if no photo */}
+          {!member.photoUrl && (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: GOLD, fontSize: "52px", fontWeight: "800" }}>
               {member.name[0]}
             </div>
           )}
         </div>
+      </div>
 
-        {/* Info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontWeight: "800", fontSize: "14px", color: "#002147",
-            lineHeight: 1.2, marginBottom: "3px",
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-          }}>
-            {member.name}
-          </div>
-          <div style={{ fontSize: "9.5px", color: "#D4AF37", fontWeight: "700", letterSpacing: "0.5px", marginBottom: "6px" }}>
-            {member.currentRole || "Leo Member"}
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-            <div style={{ fontSize: "8.5px", color: "#555", display: "flex", gap: "5px" }}>
-              <span style={{ color: "#002147", fontWeight: "600" }}>ID</span>
-              <span style={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>{member.memberId}</span>
-            </div>
-            {member.faculty && (
-              <div style={{ fontSize: "8.5px", color: "#555", display: "flex", gap: "5px" }}>
-                <span style={{ color: "#002147", fontWeight: "600" }}>Faculty</span>
-                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "110px" }}>{member.faculty}</span>
-              </div>
-            )}
-            <div style={{ fontSize: "8.5px", color: "#555", display: "flex", gap: "5px" }}>
-              <span style={{ color: "#002147", fontWeight: "600" }}>Batch</span>
-              <span>{member.batch}</span>
-            </div>
-            {svc && (
-              <div style={{ fontSize: "8.5px", color: "#555", display: "flex", gap: "5px" }}>
-                <span style={{ color: "#002147", fontWeight: "600" }}>Leo Year</span>
-                <span>{svc}{yrs > 0 ? ` (${yrs} yr${yrs !== 1 ? "s" : ""})` : ""}</span>
-              </div>
-            )}
-          </div>
+      {/* ── Name + Role ── */}
+      <div style={{ textAlign: "center", padding: "14px 16px 0" }}>
+        <div
+          style={{
+            fontWeight: "800",
+            fontSize: "18px",
+            color: NAVY,
+            lineHeight: 1.2,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {member.name}
         </div>
-
-        {/* QR Code */}
-        <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px" }}>
-          <div style={{
-            padding: "5px", background: "#fff",
-            borderRadius: "8px", border: "1.5px solid #002147",
-          }}>
-            <QRCodeSVG value={verifyUrl} size={56} fgColor="#002147" level="M" />
-          </div>
-          <div style={{ fontSize: "7px", color: "#aaa", textAlign: "center", letterSpacing: "0.3px" }}>
-            Scan to verify
-          </div>
+        <div
+          style={{
+            fontSize: "9.5px",
+            color: GOLD,
+            fontWeight: "700",
+            letterSpacing: "1.4px",
+            marginTop: "5px",
+            textTransform: "uppercase",
+          }}
+        >
+          {member.currentRole || "Leo Member"}
         </div>
       </div>
 
-      {/* Footer */}
-      <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0,
-        background: "#F8FAFC", borderTop: "1px solid #eee",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "4px 14px",
-      }}>
-        <div style={{ fontSize: "7.5px", color: "#aaa" }}>
-          Roll No: {member.rollNo}
+      {/* ── Gold divider ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "center", margin: "12px 24px 10px" }}>
+        <div style={{ flex: 1, height: "1px", background: `linear-gradient(90deg, transparent, ${GOLD})` }} />
+        <div style={{ width: "4px", height: "4px", background: GOLD, transform: "rotate(45deg)" }} />
+        <div style={{ flex: 1, height: "1px", background: `linear-gradient(270deg, transparent, ${GOLD})` }} />
+      </div>
+
+      {/* ── Info rows ── */}
+      <div style={{ padding: "0 20px", display: "flex", flexDirection: "column", gap: "7px" }}>
+        <InfoRow label="ID" value={member.memberId} mono />
+        {member.faculty && <InfoRow label="Faculty" value={member.faculty} />}
+        <InfoRow label="Batch" value={member.batch} />
+        {svc && (
+          <InfoRow
+            label="Service"
+            value={`${svc}${yrs > 0 ? `  ·  ${yrs} yr${yrs !== 1 ? "s" : ""}` : ""}`}
+          />
+        )}
+      </div>
+
+      {/* ── Spacer ── */}
+      <div style={{ flex: 1, minHeight: "8px" }} />
+
+      {/* ── QR code ── */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingBottom: "12px" }}>
+        <div
+          style={{
+            padding: "5px",
+            background: "#fff",
+            borderRadius: "10px",
+            border: `1.5px solid ${NAVY}`,
+            display: "inline-block",
+            lineHeight: 0,
+          }}
+        >
+          <QRCodeCanvas value={verifyUrl} size={64} fgColor={NAVY} bgColor="#ffffff" level="M" style={{ display: "block" }} />
         </div>
-        <div style={{ fontSize: "7.5px", color: "#aaa" }}>
+        <div style={{ fontSize: "7px", color: "#94a3b8", marginTop: "4px", letterSpacing: "0.5px", fontWeight: "600" }}>
+          SCAN TO VERIFY
+        </div>
+      </div>
+
+      {/* ── FOOTER: Navy strip ── */}
+      <div
+        style={{
+          background: NAVY,
+          padding: "7px 14px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderTop: `2px solid ${GOLD}`,
+        }}
+      >
+        <div style={{ fontSize: "7.5px", color: "rgba(255,255,255,0.55)", letterSpacing: "0.3px" }}>
+          Roll {member.rollNo}
+        </div>
+        <div style={{ fontSize: "7.5px", color: GOLD, fontWeight: "700", letterSpacing: "0.5px" }}>
           leoclubofkusms.org
-        </div>
-        <div style={{ fontSize: "7.5px", color: "#D4AF37", fontWeight: "700" }}>
-          VERIFIED ✓
         </div>
       </div>
     </div>
   );
 }
 
+function InfoRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div style={{ fontSize: "8.5px", color: "#94a3b8", fontWeight: "700", letterSpacing: "0.8px", textTransform: "uppercase", width: "56px", flexShrink: 0 }}>
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: "11px",
+          color: "#002147",
+          fontWeight: "600",
+          fontFamily: mono ? "ui-monospace, monospace" : undefined,
+          letterSpacing: mono ? "0.5px" : "0.2px",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          flex: 1,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+// ── Export helpers ────────────────────────────────────────────────────────────
+async function ensureFontsReady() {
+  try {
+    const anyDoc = document as unknown as { fonts?: { ready: Promise<unknown> } };
+    if (anyDoc.fonts) await anyDoc.fonts.ready;
+  } catch { /* ignore */ }
+}
+
+async function ensureImagesReady(el: HTMLElement) {
+  const imgs = Array.from(el.querySelectorAll("img"));
+  await Promise.all(imgs.map((img) =>
+    img.complete ? Promise.resolve() : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); })
+  ));
+  await new Promise((r) => setTimeout(r, 60));
+}
+
+type H2C = (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
+async function captureCard(id: string, scale = 3): Promise<HTMLCanvasElement | null> {
+  const { default: html2canvas } = (await import("html2canvas")) as { default: H2C };
+  const el = document.getElementById(id);
+  if (!el) return null;
+  await ensureFontsReady();
+  await ensureImagesReady(el);
+  return html2canvas(el, { scale, backgroundColor: "#ffffff", useCORS: true, allowTaint: true });
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function IDCardGenerator() {
   const [members, setMembers] = useState<Member[]>([]);
   const [filtered, setFiltered] = useState<Member[]>([]);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Member | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "past">("all");
   const [loading, setLoading] = useState(true);
-  const [downloading, setDownloading] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const [batchProgress, setBatchProgress] = useState(0);
 
   useEffect(() => {
     getMembers()
@@ -242,9 +332,6 @@ export default function IDCardGenerator() {
       );
     }
     setFiltered(list);
-    if (selected && !list.find((m) => m.memberId === selected.memberId)) {
-      setSelected(null);
-    }
   }, [query, filterStatus, members]);
 
   function verifyUrl(memberId: string) {
@@ -252,54 +339,42 @@ export default function IDCardGenerator() {
   }
 
   async function downloadCard(member: Member) {
-    setDownloading(true);
+    setDownloading(member.memberId);
     try {
-      const { default: html2canvas } = await import("html2canvas") as {
-        default: (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
-      };
-      const el = document.getElementById(`id-card-${member.memberId}`);
-      if (!el) return;
-      const canvas = await html2canvas(el, {
-        scale: 3,
-        backgroundColor: "#fff",
-        useCORS: true,
-        allowTaint: true,
-      });
-      const link = document.createElement("a");
-      link.download = `${member.memberId}-id-card.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
+      const c = await captureCard(`id-card-${member.memberId}`, 3);
+      if (!c) return;
+      const a = document.createElement("a");
+      a.download = `${member.memberId}-id-card.png`;
+      a.href = c.toDataURL("image/png");
+      a.click();
     } finally {
-      setDownloading(false);
+      setDownloading(null);
     }
   }
 
   async function downloadAllCards() {
     if (!filtered.length) return;
     setDownloadingAll(true);
-    const { default: html2canvas } = await import("html2canvas") as {
-      default: (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
-    };
-    const { default: jsPDF } = await import("jspdf");
-
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: [85.6, 53.98],
-    });
-
-    for (let i = 0; i < filtered.length; i++) {
-      const m = filtered[i];
-      const el = document.getElementById(`id-card-${m.memberId}`);
-      if (!el) continue;
-      const canvas = await html2canvas(el, { scale: 3, backgroundColor: "#fff", useCORS: true, allowTaint: true });
-      const imgData = canvas.toDataURL("image/png");
-      if (i > 0) pdf.addPage([85.6, 53.98], "landscape");
-      pdf.addImage(imgData, "PNG", 0, 0, 85.6, 53.98);
+    setBatchProgress(0);
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      // Standard CR80 portrait card — 53.98 × 85.6 mm
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [53.98, 85.6] });
+      let page = 0;
+      for (let i = 0; i < filtered.length; i++) {
+        setBatchProgress(Math.round(((i + 1) / filtered.length) * 100));
+        const m = filtered[i];
+        const c = await captureCard(`id-card-${m.memberId}`, 3);
+        if (!c) continue;
+        if (page > 0) pdf.addPage([53.98, 85.6], "portrait");
+        pdf.addImage(c.toDataURL("image/png"), "PNG", 0, 0, 53.98, 85.6);
+        page++;
+      }
+      pdf.save(`leo-club-id-cards-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } finally {
+      setDownloadingAll(false);
+      setBatchProgress(0);
     }
-
-    pdf.save(`leo-club-id-cards-${new Date().toISOString().slice(0, 10)}.pdf`);
-    setDownloadingAll(false);
   }
 
   return (
@@ -307,7 +382,7 @@ export default function IDCardGenerator() {
       <div className="mb-6">
         <h3 className="text-lg font-bold text-[#002147]">ID Card Generator</h3>
         <p className="text-sm text-gray-500">
-          Generate printable QR-scannable ID cards for members. Each card links to the live verify page.
+          Vertical premium QR-scannable ID cards for members. Each card links to the live verify page.
         </p>
       </div>
 
@@ -344,7 +419,7 @@ export default function IDCardGenerator() {
             className="inline-flex items-center gap-2 bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors disabled:opacity-60 shrink-0"
           >
             {downloadingAll
-              ? <><Loader2 size={14} className="animate-spin" /> Exporting…</>
+              ? <><Loader2 size={14} className="animate-spin" /> {batchProgress}%</>
               : <><Download size={14} /> Download All ({filtered.length}) PDF</>
             }
           </button>
@@ -363,7 +438,7 @@ export default function IDCardGenerator() {
       ) : (
         <div className="space-y-4">
           {/* Stats bar */}
-          <div className="flex items-center gap-3 text-sm text-gray-500">
+          <div className="flex items-center gap-3 text-sm text-gray-500 flex-wrap">
             <span className="font-medium text-[#002147]">{filtered.length}</span> card{filtered.length !== 1 ? "s" : ""}
             {filtered.filter((m) => m.isActive !== false).length > 0 && (
               <span className="flex items-center gap-1 text-green-600 text-xs">
@@ -377,31 +452,25 @@ export default function IDCardGenerator() {
             )}
           </div>
 
-          {/* Cards grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Cards grid — vertical cards side by side */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filtered.map((m) => (
-              <div key={m.memberId} className="group">
-                {/* Card preview */}
-                <div
-                  id={`id-card-${m.memberId}`}
-                  className="inline-block"
-                  style={{ display: "block" }}
-                >
+              <div key={m.memberId} className="group flex flex-col items-center">
+                <div id={`id-card-${m.memberId}`} className="mb-3">
                   <IDCard member={m} verifyUrl={verifyUrl(m.memberId)} />
                 </div>
 
-                {/* Action row */}
-                <div className="flex items-center gap-3 mt-3 px-1">
+                <div className="w-full max-w-[340px] flex items-center gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-[#002147] truncate">{m.name}</div>
-                    <div className="text-xs text-gray-400">{m.memberId} · {m.batch}</div>
+                    <div className="text-xs font-semibold text-[#002147] truncate">{m.name}</div>
+                    <div className="text-[10px] text-gray-400">{m.memberId} · {m.batch}</div>
                   </div>
                   <button
                     onClick={() => downloadCard(m)}
-                    disabled={downloading}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-[#002147] border border-[#002147]/20 bg-white hover:bg-[#002147] hover:text-white px-3 py-1.5 rounded-lg transition-all shrink-0 disabled:opacity-50"
+                    disabled={downloading === m.memberId}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-[#002147] border border-[#002147]/20 bg-white hover:bg-[#002147] hover:text-white px-2.5 py-1.5 rounded-lg transition-all shrink-0 disabled:opacity-50"
                   >
-                    {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                    {downloading === m.memberId ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
                     PNG
                   </button>
                 </div>
@@ -411,7 +480,9 @@ export default function IDCardGenerator() {
 
           {/* Print tip */}
           <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-600">
-            <strong>Print tip:</strong> Standard CR80 ID cards are 85.6 × 53.98 mm. The "Download All PDF" export uses this exact size — send directly to a card printer or print shop. Individual PNG downloads are high-resolution (3× scale) for digital use.
+            <strong>Print tip:</strong> These are vertical CR80 cards (53.98 × 85.6 mm — the standard credit-card size in portrait).
+            The "Download All PDF" export uses this exact size. Send directly to a card printer or print shop.
+            Individual PNG downloads are high-resolution (3× scale) for digital use.
           </div>
         </div>
       )}
