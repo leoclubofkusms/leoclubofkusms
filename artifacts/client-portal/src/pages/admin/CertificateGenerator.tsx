@@ -418,7 +418,6 @@ async function downloadPdf(id: string, filename: string) {
 }
 
 // ── Fetch an image and convert it to base64 (crisp with html2canvas) ──────────
-// Falls back to the original URL if fetching fails (e.g. host blocks CORS)
 async function urlToDataUrl(url: string): Promise<string> {
   if (!url) return "";
   if (url.startsWith("data:")) return url;
@@ -487,7 +486,6 @@ export default function CertificateGenerator() {
       setSloganText(cfg.presidentSlogan ?? "");
       setPresidentName(cfg.presidentSloganName ?? "");
 
-      // Attempt to base64 the user-uploaded images; fall back to raw URL if CORS blocks
       const [sloganPhoto, signature] = await Promise.all([
         urlToDataUrl(sloganRaw),
         urlToDataUrl(signatureRaw),
@@ -573,11 +571,14 @@ export default function CertificateGenerator() {
     }
   }
 
+  // ── BATCH DOWNLOAD — same quality as single ──────────────────────────────────
+  // Uses scale 3 + PNG (lossless) so logos stay as sharp as single downloads.
   async function downloadBatchForActivity() {
     if (!selectedActivity) return;
     setBatchDownloading(true);
     setBatchRenderReady(true);
-    await new Promise((r) => setTimeout(r, 500));
+    // Give the hidden batch divs time to mount + all base64 images time to paint
+    await new Promise((r) => setTimeout(r, 900));
     try {
       const { default: jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
@@ -586,10 +587,14 @@ export default function CertificateGenerator() {
       let page = 0;
       for (let i = 0; i < activityParticipants.length; i++) {
         setBatchProgress(Math.round(((i + 1) / activityParticipants.length) * 100));
-        const c = await capture(`batch-cert-${activityParticipants[i].memberId}`, 2);
+        // Small per-cert delay so the browser finishes rendering before capture
+        await new Promise((r) => setTimeout(r, 120));
+        // scale: 3 = same resolution as the single certificate download
+        const c = await capture(`batch-cert-${activityParticipants[i].memberId}`, 3);
         if (!c) continue;
         if (page > 0) pdf.addPage();
-        pdf.addImage(c.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pw, ph);
+        // PNG = lossless, no compression artifacts on logos or text
+        pdf.addImage(c.toDataURL("image/png"), "PNG", 0, 0, pw, ph);
         page++;
       }
       pdf.save(`${selectedActivity.title.replace(/\s+/g, "-")}-certificates.pdf`);
@@ -631,8 +636,8 @@ export default function CertificateGenerator() {
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
           <div className="xl:col-span-2 space-y-5">
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-              <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Step 1 · Certificate Type</div>
+            <div className="bg-white border border-gray-100 rounded-ry2xl p-4 shadow-sm,">
+              <div className="text-xs font-bold text text-gray-400 uppercase tracking-widest mb slightly-3">Step 1 · Certificate Type</div>
               <div className="grid grid-cols-2 gap-2">
                 {CERT_TYPES.map(({ id, label, icon: Icon, desc }) => (
                   <button key={id}
