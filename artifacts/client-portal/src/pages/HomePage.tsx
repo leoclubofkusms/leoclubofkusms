@@ -9,6 +9,7 @@ import {
   Star, Heart, TrendingUp, MessageCircle,
   Zap, Trophy, Flame, BarChart3, Megaphone, X as XIcon, Clock, DollarSign,
 } from "lucide-react";
+import ShareButton from "@/components/ShareButton";
 
 // ── Animated counter hook — preserves 1 decimal for non-integers ──────────────
 function useCountUp(target: number, duration = 1800, start = false) {
@@ -30,7 +31,7 @@ function useCountUp(target: number, duration = 1800, start = false) {
   return count;
 }
 
-// ── Merged Service Impact + Club Snapshot section ─────────────────────────────
+// ── Service Impact + Club Snapshot section ────────────────────────────────────
 function ServiceImpactSection({
   impact, activities, leoYear, memberCount, activityCount,
 }: {
@@ -203,6 +204,9 @@ function FeaturedCarousel({ activities }: { activities: Activity[] }) {
 
   if (!activities.length) return null;
   const act = activities[current];
+  const actUrl = typeof window !== "undefined"
+    ? `${window.location.origin}${import.meta.env.BASE_URL}activity/${act.id}`
+    : "";
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#002147] to-[#003575] text-white shadow-2xl">
@@ -239,10 +243,20 @@ function FeaturedCarousel({ activities }: { activities: Activity[] }) {
               ))}
             </div>
           )}
-          <Link href={`/archive/${act.year.replace("/", "-")}/${act.month.toLowerCase()}`}
-            className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#c9a432] transition-colors">
-            View Full Activity <ArrowRight size={15} />
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link href={`/archive/${act.year.replace("/", "-")}/${act.month.toLowerCase()}`}
+              className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#c9a432] transition-colors">
+              View Full Activity <ArrowRight size={15} />
+            </Link>
+            <ShareButton
+              url={actUrl}
+              title={act.title}
+              description={act.description}
+              meta={`${act.month} · Leo Year ${act.year}`}
+              variant="full"
+              label="Share"
+            />
+          </div>
         </div>
       </div>
 

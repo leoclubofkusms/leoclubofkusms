@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Users,
 } from "lucide-react";
+import ShareButton from "@/components/ShareButton";
 
 interface ArchivePageProps {
   year: string;   // URL format: "YYYY-YY"
@@ -72,7 +73,6 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
     if (monthIdx > 0) {
       return `/archive/${year}/${monthsInLeoOrder[monthIdx - 1].toLowerCase()}`;
     } else if (yearIdx > 0) {
-      // Go to previous Leo Year's last month (June)
       const prevYear = LEO_YEARS[yearIdx - 1].replace("/", "-");
       return `/archive/${prevYear}/${monthsInLeoOrder[monthsInLeoOrder.length - 1].toLowerCase()}`;
     }
@@ -83,7 +83,6 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
     if (monthIdx < monthsInLeoOrder.length - 1) {
       return `/archive/${year}/${monthsInLeoOrder[monthIdx + 1].toLowerCase()}`;
     } else if (yearIdx < LEO_YEARS.length - 1) {
-      // Go to next Leo Year's first month (July)
       const nextYear = LEO_YEARS[yearIdx + 1].replace("/", "-");
       return `/archive/${nextYear}/${monthsInLeoOrder[0].toLowerCase()}`;
     }
@@ -131,13 +130,12 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
               </div>
               <h1 className="text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">{displayMonth} {displayCalendarYear}</h1>
               <p className="mt-4 text-sm text-white/60 sm:text-base">
-                A month in the club’s record ·{" "}
+                A month in the club's record ·{" "}
                 <span className="text-white/85">
                   {activities.length} activit{activities.length === 1 ? "y" : "ies"} recorded
                 </span>
               </p>
             </div>
-            {/* Prev/Next */}
             <div className="flex items-center gap-2 lg:pb-1">
               {previousHref ? (
                 <Link
@@ -189,7 +187,6 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
               </Link>
             ))}
           </div>
-          {/* Months in Leo Year order: July → June */}
           <div className="flex gap-1 overflow-x-auto py-2.5 scrollbar-hide">
             {monthsInLeoOrder.map((m) => {
               const isActive = m.toLowerCase() === normalizedMonth;
@@ -261,125 +258,178 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
           </div>
         ) : (
           <div className="space-y-9">
-            {activities.map((act, activityIndex) => (
-              <div
-                key={act.id}
-                id={act.title.toLowerCase().replace(/\s+/g, "-")}
-                className="overflow-hidden rounded-[1.5rem] border border-[#dfe6e3] bg-[#fffdf8] shadow-[0_12px_30px_rgba(0,33,71,0.06)]"
-              >
-                {/* Activity header */}
-                <div className="border-b border-[#e5e9e6] p-6 sm:p-8">
-                  <div className="flex items-start gap-4">
-                    <div className="hidden shrink-0 pt-1 text-3xl font-semibold tracking-[-0.05em] text-[#d5dcd9] sm:block">
-                      {String(activityIndex + 1).padStart(2, "0")}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7b898a]">
-                        <span className="inline-flex items-center gap-1.5 text-[#a07f1c]">
-                          <Calendar size={12} /> {displayMonth} {displayCalendarYear}
-                        </span>
-                        <span className="h-1 w-1 rounded-full bg-[#cbd3d0]" />
-                        <span>Leo Year {displayYear}</span>
-                        {act.featured && (
-                          <span className="rounded-full bg-[#f2e7bc] px-2 py-1 text-[#806313]">
-                            Featured record
-                          </span>
-                        )}
+            {activities.map((act, activityIndex) => {
+              const actUrl = `${window.location.origin}${import.meta.env.BASE_URL}activity/${act.id}`;
+              return (
+                <div
+                  key={act.id}
+                  id={act.title.toLowerCase().replace(/\s+/g, "-")}
+                  className="overflow-hidden rounded-[1.5rem] border border-[#dfe6e3] bg-[#fffdf8] shadow-[0_12px_30px_rgba(0,33,71,0.06)]"
+                >
+                  {/* Activity header */}
+                  <div className="border-b border-[#e5e9e6] p-6 sm:p-8">
+                    <div className="flex items-start gap-4">
+                      <div className="hidden shrink-0 pt-1 text-3xl font-semibold tracking-[-0.05em] text-[#d5dcd9] sm:block">
+                        {String(activityIndex + 1).padStart(2, "0")}
                       </div>
-                      <h2 className="text-2xl font-semibold leading-tight tracking-[-0.03em] text-[#002147] sm:text-3xl">
-                        {act.title}
-                      </h2>
-                      <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5e6d70] sm:text-[15px]">
-                        {act.description}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Photos grid */}
-                {act.photos.length > 0 && (
-                  <div className="border-b border-[#e5e9e6] p-4 sm:p-6">
-                    <div className="mb-3 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7c898b]">
-                      <ImageIcon size={13} />
-                      <span>{act.photos.length} {act.photos.length === 1 ? "photo" : "photos"}</span>
-                    </div>
-                    <div className={`grid gap-3 ${act.photos.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-[1.35fr_1fr]"}`}>
-                      <div className="relative overflow-hidden rounded-2xl bg-[#e8edeb]">
-                        <img
-                          src={act.photos[0]}
-                          alt={`${act.title} photo 1`}
-                          className={`w-full object-cover ${act.photos.length === 1 ? "max-h-[34rem] min-h-64" : "h-64 md:h-full md:min-h-[22rem]"}`}
-                        />
-                        <span className="absolute bottom-3 left-3 rounded-full bg-[#002147]/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
-                          01 / {String(act.photos.length).padStart(2, "0")}
-                        </span>
-                      </div>
-                      {act.photos.length > 1 && (
-                        <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
-                          {act.photos.slice(1).map((url, i) => (
-                            <div key={i} className="relative overflow-hidden rounded-2xl bg-[#e8edeb]">
-                              <img
-                                src={url}
-                                alt={`${act.title} photo ${i + 2}`}
-                                className="h-40 w-full object-cover sm:h-52 md:h-full md:min-h-[10rem]"
-                              />
-                              <span className="absolute bottom-2 left-2 rounded-full bg-[#002147]/75 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur">
-                                {String(i + 2).padStart(2, "0")}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Participants */}
-                {act.participants.length > 0 && (
-                  <div className="p-6 sm:p-8">
-                    <div className="mb-4 flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-[#002147]">
-                        <Users size={16} className="text-[#a17f15]" />
-                        Participants
-                      </div>
-                      <span className="text-xs text-[#7b898a]">{act.participants.length} listed</span>
-                    </div>
-                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                      {act.participants.map((p, i) => (
-                        <Link
-                          key={`${p.memberId}-${i}`}
-                          href={`/verify/member/${p.memberId}`}
-                          className="group flex items-center justify-between gap-3 rounded-2xl border border-[#e2e8e5] bg-[#f5f7f5] px-3 py-3 transition-all hover:border-[#D4AF37]/60 hover:bg-[#f0f2ee]"
-                        >
-                          <div className="flex min-w-0 items-center gap-3">
-                            {getMember(p.memberId)?.photoUrl ? (
-                              <img
-                                src={getMember(p.memberId)?.photoUrl}
-                                alt=""
-                                className="h-9 w-9 shrink-0 rounded-xl object-cover"
-                              />
-                            ) : (
-                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#002147] text-[10px] font-bold text-[#D4AF37]">
-                                {getInitials(getMemberName(p.memberId))}
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7b898a]">
+                            <span className="inline-flex items-center gap-1.5 text-[#a07f1c]">
+                              <Calendar size={12} /> {displayMonth} {displayCalendarYear}
+                            </span>
+                            <span className="h-1 w-1 rounded-full bg-[#cbd3d0]" />
+                            <span>Leo Year {displayYear}</span>
+                            {act.featured && (
+                              <span className="rounded-full bg-[#f2e7bc] px-2 py-1 text-[#806313]">
+                                Featured record
                               </span>
                             )}
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-semibold text-[#002147] transition-colors group-hover:text-[#8d7014]">
-                                {getMemberName(p.memberId)}
-                              </div>
-                              {p.awardTitle && (
-                                <div className="mt-0.5 truncate text-xs text-[#7e8a8b]">{p.awardTitle}</div>
-                              )}
-                            </div>
                           </div>
-                          <ChevronRight size={15} className="shrink-0 text-[#b6c0be] transition-colors group-hover:text-[#D4AF37]" />
-                        </Link>
-                      ))}
+                          <ShareButton
+                            url={actUrl}
+                            title={act.title}
+                            description={act.description}
+                            meta={`${displayMonth} ${displayCalendarYear} · Leo Year ${displayYear}`}
+                            variant="icon"
+                            className="!bg-[#002147]/5 !text-[#002147] hover:!bg-[#002147]/15"
+                          />
+                        </div>
+                        <h2 className="text-2xl font-semibold leading-tight tracking-[-0.03em] text-[#002147] sm:text-3xl">
+                          {act.title}
+                        </h2>
+                        <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5e6d70] sm:text-[15px]">
+                          {act.description}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {/* Photos grid */}
+                  {act.photos.length > 0 && (
+                    <div className="border-b border-[#e5e9e6] p-4 sm:p-6">
+                      <div className="mb-3 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7c898b]">
+                        <ImageIcon size={13} />
+                        <span>{act.photos.length} {act.photos.length === 1 ? "photo" : "photos"}</span>
+                      </div>
+                      <div className={`grid gap-3 ${act.photos.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-[1.35fr_1fr]"}`}>
+                        <div className="relative overflow-hidden rounded-2xl bg-[#e8edeb]">
+                          <img
+                            src={act.photos[0]}
+                            alt={`${act.title} photo 1`}
+                            className={`w-full object-cover ${act.photos.length === 1 ? "max-h-[34rem] min-h-64" : "h-64 md:h-full md:min-h-[22rem]"}`}
+                          />
+                          <span className="absolute bottom-3 left-3 rounded-full bg-[#002147]/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
+                            01 / {String(act.photos.length).padStart(2, "0")}
+                          </span>
+                        </div>
+                        {act.photos.length > 1 && (
+                          <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
+                            {act.photos.slice(1).map((url, i) => (
+                              <div key={i} className="relative overflow-hidden rounded-2xl bg-[#e8edeb]">
+                                <img
+                                  src={url}
+                                  alt={`${act.title} photo ${i + 2}`}
+                                  className="h-40 w-full object-cover sm:h-52 md:h-full md:min-h-[10rem]"
+                                />
+                                <span className="absolute bottom-2 left-2 rounded-full bg-[#002147]/75 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur">
+                                  {String(i + 2).padStart(2, "0")}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Participants */}
+                  {act.participants.length > 0 && (
+                    <div className="p-6 sm:p-8">
+                      <div className="mb-4 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-[#002147]">
+                          <Users size={16} className="text-[#a17f15]" />
+                          Participants
+                        </div>
+                        <span className="text-xs text-[#7b898a]">{act.participants.length} listed</span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                        {act.participants.map((p, i) => (
+                          <Link
+                            key={`${p.memberId}-${i}`}
+                            href={`/verify/member/${p.memberId}`}
+                            className="group flex items-center justify-between gap-3 rounded-2xl border border-[#e2e8e5] bg-[#f5f7f5] px-3 py-3 transition-all hover:border-[#D4AF37]/60 hover:bg-[#f0f2ee]"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              {getMember(p.memberId)?.photoUrl ? (
+                                <img
+                                  src={getMember(p.memberId)?.photoUrl}
+                                  alt=""
+                                  className="h-9 w-9 shrink-0 rounded-xl object-cover"
+                                />
+                              ) : (
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#002147] text-[10px] font-bold text-[#D4AF37]">
+                                  {getInitials(getMemberName(p.memberId))}
+                                </span>
+                              )}
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-semibold text-[#002147] transition-colors group-hover:text-[#8d7014]">
+                                  {getMemberName(p.memberId)}
+                                </div>
+                                {p.awardTitle && (
+                                  <div className="mt-0.5 truncate text-xs text-[#7e8a8b]">{p.awardTitle}</div>
+                                )}
+                              </div>
+                            </div>
+                            <ChevronRight size={15} className="shrink-0 text-[#b6c0be] transition-colors group-hover:text-[#D4AF37]" />
+                          </Link>
+                        ))}
+                      </div>
+
+                      {/* Share section at bottom */}
+                      <div className="mt-6 pt-5 border-t border-[#e5e9e6] flex flex-wrap items-center gap-3">
+                        <ShareButton
+                          url={actUrl}
+                          title={act.title}
+                          description={act.description}
+                          meta={`${displayMonth} ${displayCalendarYear} · Leo Year ${displayYear}`}
+                          variant="full"
+                          label="Share this activity"
+                          className="!bg-[#002147] !border-[#002147] hover:!bg-[#07345e] !text-white"
+                        />
+                        <Link
+                          href={`/activity/${act.id}`}
+                          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#002147] hover:text-[#a17f15] transition-colors"
+                        >
+                          Open full activity <ArrowRight size={14} />
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Share section if no participants */}
+                  {act.participants.length === 0 && (
+                    <div className="p-6 sm:p-8 flex flex-wrap items-center gap-3">
+                      <ShareButton
+                        url={actUrl}
+                        title={act.title}
+                        description={act.description}
+                        meta={`${displayMonth} ${displayCalendarYear} · Leo Year ${displayYear}`}
+                        variant="full"
+                        label="Share this activity"
+                        className="!bg-[#002147] !border-[#002147] hover:!bg-[#07345e] !text-white"
+                      />
+                      <Link
+                        href={`/activity/${act.id}`}
+                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#002147] hover:text-[#a17f15] transition-colors"
+                      >
+                        Open full activity <ArrowRight size={14} />
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </main>
