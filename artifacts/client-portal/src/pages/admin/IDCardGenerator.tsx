@@ -1,50 +1,30 @@
 import { useState, useEffect } from "react";
 import { getMembers } from "@/lib/firestore";
 import type { Member } from "@/lib/types";
-import { LEO_YEARS } from "@/lib/types";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Download, Search, CheckCircle, Clock,
   ChevronDown, Loader2, Users,
 } from "lucide-react";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function serviceYears(member: Member): string {
-  const joined = member.joinedLeoYear ?? "";
-  const left = member.leftLeoYear ?? "";
-  if (joined && left) return `${joined} – ${left}`;
-  if (joined) return `${joined} – Present`;
-  return "";
-}
+const BASE = import.meta.env.BASE_URL ?? "/";
+const ASSET = { logo: `${BASE}logo.png`, lion: `${BASE}lion.png` };
 
-function yearsCount(member: Member): number {
-  const joined = member.joinedLeoYear ?? "";
-  const left = member.leftLeoYear ?? "";
-  if (!joined) return 0;
-  const jIdx = LEO_YEARS.indexOf(joined);
-  const lIdx = left ? LEO_YEARS.indexOf(left) : LEO_YEARS.length - 1;
-  if (jIdx === -1) return 1;
-  return Math.max(1, (lIdx === -1 ? LEO_YEARS.length - 1 : lIdx) - jIdx + 1);
-}
+const GOLD = "#D4AF37";
+const GOLD_LIGHT = "#F0D77A";
+const GOLD_DEEP = "#9C7A14";
+const NAVY = "#002147";
+const IVORY = "#fcfaf3";
+const DISPLAY = "Cinzel, Georgia, 'Times New Roman', serif";
+const SERIF = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
 
 // ── Vertical Premium ID Card ─────────────────────────────────────────────────
-// Card size: 340 × 540 px on screen — aspect ratio matches standard CR80
-// portrait (53.98 × 85.6 mm). Exports at scale 3 → 1020 × 1620 px (300 DPI).
-function IDCard({
-  member,
-  verifyUrl,
-}: {
-  member: Member;
-  verifyUrl: string;
-}) {
-  const isActive = member.isActive !== false;
-  const svc = serviceYears(member);
-  const yrs = yearsCount(member);
-
+// Screen size: 340 × 540 px — CR80 portrait (53.98 × 85.6 mm)
+// Exports at scale 3 → 1020 × 1620 px (print-ready)
+function IDCard({ member, verifyUrl }: { member: Member; verifyUrl: string }) {
   const CARD_W = 340;
   const CARD_H = 540;
-  const GOLD = "#D4AF37";
-  const NAVY = "#002147";
+  const uid = member.memberId.replace(/[^a-zA-Z0-9]/g, "");
 
   return (
     <div
@@ -53,214 +33,209 @@ function IDCard({
         height: `${CARD_H}px`,
         borderRadius: "16px",
         overflow: "hidden",
-        background: "#ffffff",
-        boxShadow: "0 8px 32px rgba(0,33,71,0.22)",
-        fontFamily: "system-ui, -apple-system, sans-serif",
+        background: IVORY,
+        boxShadow: "0 12px 40px rgba(0,33,71,0.28)",
+        fontFamily: SERIF,
         position: "relative",
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
       }}
     >
-      {/* ── TOP: Navy header ── */}
-      <div
+      {/* Faint lion watermark */}
+      <img
+        src={ASSET.lion}
+        alt=""
         style={{
-          background: "linear-gradient(135deg, #002147 0%, #003575 100%)",
-          padding: "16px 16px 14px",
-          position: "relative",
+          position: "absolute", left: "50%", top: "60%", width: "240px", height: "240px",
+          transform: "translate(-50%,-50%)", objectFit: "contain", opacity: 0.05, pointerEvents: "none",
         }}
-      >
-        {/* Gold accent line at bottom of header */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: `linear-gradient(90deg, ${GOLD}, #F0D77A, ${GOLD})` }} />
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+      />
 
-        {/* Top-left mini crest + status pill */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-          <div
-            style={{
-              position: "relative", width: "32px", height: "32px", borderRadius: "8px",
-              overflow: "hidden", background: GOLD, display: "flex",
-              alignItems: "center", justifyContent: "center",
-              fontWeight: "900", fontSize: "12px", color: NAVY,
-              flexShrink: 0, letterSpacing: "-0.5px",
-            }}
-          >
-            <span>LEO</span>
+      {/* ═══ HEADER — navy arch with lattice + gold foil edge ═══ */}
+      <div style={{ position: "relative", height: "146px", flexShrink: 0 }}>
+        <svg width="340" height="146" viewBox="0 0 340 146" style={{ position: "absolute", inset: 0 }} xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id={`hg-${uid}`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#001a38" />
+              <stop offset="50%" stopColor="#003575" />
+              <stop offset="100%" stopColor="#001a38" />
+            </linearGradient>
+            <linearGradient id={`gg-${uid}`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor={GOLD} />
+              <stop offset="50%" stopColor={GOLD_LIGHT} />
+              <stop offset="100%" stopColor={GOLD} />
+            </linearGradient>
+            <radialGradient id={`gl-${uid}`} cx="50%" cy="38%" r="60%">
+              <stop offset="0%" stopColor={GOLD} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={GOLD} stopOpacity="0" />
+            </radialGradient>
+            <pattern id={`lt-${uid}`} width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <path d="M0 0H10M0 0V10" stroke={GOLD} strokeWidth="0.35" opacity="0.22" fill="none" />
+            </pattern>
+          </defs>
+          <path d="M0 0H340V122Q170 158 0 122Z" fill={`url(#hg-${uid})`} />
+          <path d="M0 0H340V122Q170 158 0 122Z" fill={`url(#lt-${uid})`} />
+          <path d="M0 0H340V122Q170 158 0 122Z" fill={`url(#gl-${uid})`} />
+          <g fill="none" stroke={GOLD} strokeWidth="0.6" opacity="0.13">
+            {[36, 56, 76, 96, 116, 136].map((r) => <circle key={r} cx="170" cy="56" r={r} />)}
+          </g>
+          <path d="M0 116Q170 152 340 116" fill="none" stroke={GOLD} strokeWidth="0.7" opacity="0.55" />
+          <path d="M0 122Q170 158 340 122" fill="none" stroke={`url(#gg-${uid})`} strokeWidth="3" />
+          <rect width="340" height="3" fill={`url(#gg-${uid})`} />
+          {/* corner brackets */}
+          <g fill="none" stroke={GOLD} strokeWidth="1.3" opacity="0.8">
+            <path d="M12 26 V12 H26" />
+            <path d="M328 26 V12 H314" />
+          </g>
+        </svg>
+
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "13px" }}>
+          <div style={{
+            width: "54px", height: "54px", borderRadius: "50%",
+            border: `1.5px solid ${GOLD}`,
+            background: "radial-gradient(circle, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.02) 100%)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
             <img
-              src="/logo.png"
-              alt=""
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-              onError={(event) => { (event.currentTarget as HTMLImageElement).style.display = "none"; }}
+              src={ASSET.logo}
+              alt="Leo Club of Kathmandu University School of Medical Sciences"
+              style={{ width: "42px", height: "42px", objectFit: "contain" }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
             />
           </div>
-          <div
-            style={{
-              padding: "3px 9px",
-              borderRadius: "20px",
-              fontSize: "8.5px",
-              fontWeight: "700",
-              letterSpacing: "0.8px",
-              background: isActive ? "rgba(34,197,94,0.18)" : "rgba(255,255,255,0.12)",
-              color: isActive ? "#4ade80" : "rgba(255,255,255,0.55)",
-              border: `1px solid ${isActive ? "rgba(74,222,128,0.4)" : "rgba(255,255,255,0.2)"}`,
-            }}
-          >
-            {isActive ? "● ACTIVE" : "◌ PAST"}
+          <div style={{ fontFamily: DISPLAY, color: GOLD_LIGHT, fontSize: "8.5px", letterSpacing: "3.2px", fontWeight: 700, marginTop: "6px" }}>
+            LEO CLUB OF
           </div>
-        </div>
-
-        {/* Club name */}
-        <div style={{ color: "#fff", fontWeight: "800", fontSize: "13px", letterSpacing: "0.2px", lineHeight: 1.15 }}>
-          Leo Club of KUSMS
-        </div>
-        <div style={{ color: GOLD, fontSize: "7.5px", letterSpacing: "0.9px", marginTop: "3px", fontWeight: "600" }}>
-          LIONS CLUBS INTERNATIONAL · DISTRICT 325L · #172194
-        </div>
-        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "7.5px", letterSpacing: "0.7px", marginTop: "2px" }}>
-          OFFICIAL MEMBER ID
+          <div style={{ fontFamily: DISPLAY, color: "#ffffff", fontSize: "13.5px", letterSpacing: "1.2px", fontWeight: 700, marginTop: "2px", lineHeight: 1.1 }}>
+            KATHMANDU UNIVERSITY
+          </div>
+          <div style={{ fontFamily: DISPLAY, color: "#ffffff", fontSize: "9.3px", letterSpacing: "1.7px", fontWeight: 700, marginTop: "2px", lineHeight: 1.1 }}>
+            SCHOOL OF MEDICAL SCIENCES
+          </div>
+          <div style={{ fontFamily: DISPLAY, color: GOLD, fontSize: "6.2px", letterSpacing: "1.5px", fontWeight: 700, marginTop: "5px" }}>
+            LIONS CLUBS INTERNATIONAL · DISTRICT 325L · CLUB NO. 172194
+          </div>
         </div>
       </div>
 
-      {/* ── MIDDLE: Photo ── */}
-      <div style={{ display: "flex", justifyContent: "center", paddingTop: "16px" }}>
+      {/* ═══ PHOTO — overlaps the arch ═══ */}
+      <div style={{ display: "flex", justifyContent: "center", marginTop: "-18px", position: "relative", zIndex: 2 }}>
         <div
           style={{
-            position: "relative",
-            width: "132px",
-            height: "132px",
-            borderRadius: "14px",
-            overflow: "hidden",
-            border: `3px solid ${GOLD}`,
-            background: NAVY,
-            boxShadow: "0 4px 16px rgba(0,33,71,0.2)",
+            width: "134px", height: "134px", borderRadius: "16px", padding: "4px",
+            background: `linear-gradient(135deg, ${GOLD} 0%, ${GOLD_LIGHT} 50%, ${GOLD_DEEP} 100%)`,
+            boxShadow: "0 8px 22px rgba(0,33,71,0.35)",
           }}
         >
-          {member.photoUrl ? (
-            <img
-              src={member.photoUrl}
-              alt={member.name}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              onError={(event) => { (event.currentTarget as HTMLImageElement).style.display = "none"; }}
-            />
-          ) : null}
-          {/* Fallback initial — shown if no photo */}
-          {!member.photoUrl && (
-            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: GOLD, fontSize: "52px", fontWeight: "800" }}>
-              {member.name[0]}
-            </div>
-          )}
+          <div style={{
+            width: "100%", height: "100%", borderRadius: "12px", overflow: "hidden",
+            background: NAVY, border: "1.5px solid #ffffff",
+            display: "flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box",
+          }}>
+            {member.photoUrl ? (
+              <img
+                src={member.photoUrl}
+                alt={member.name}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              <span style={{ fontFamily: DISPLAY, fontSize: "48px", fontWeight: 700, color: GOLD }}>{member.name[0]}</span>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ── Name + Role ── */}
-      <div style={{ textAlign: "center", padding: "14px 16px 0" }}>
-        <div
-          style={{
-            fontWeight: "800",
-            fontSize: "18px",
-            color: NAVY,
-            lineHeight: 1.2,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+      {/* ═══ NAME + ROLE ═══ */}
+      <div style={{ textAlign: "center", padding: "10px 18px 0", position: "relative", zIndex: 2 }}>
+        <div style={{
+          fontFamily: SERIF, fontWeight: 700, fontSize: "23px", color: NAVY, lineHeight: 1.15,
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", letterSpacing: "0.3px",
+        }}>
           {member.name}
         </div>
-        <div
-          style={{
-            fontSize: "9.5px",
-            color: GOLD,
-            fontWeight: "700",
-            letterSpacing: "1.4px",
-            marginTop: "5px",
-            textTransform: "uppercase",
-          }}
-        >
+        <div style={{
+          display: "inline-block", marginTop: "6px", padding: "3px 14px",
+          border: `1px solid ${GOLD}`, borderRadius: "999px", background: "rgba(212,175,55,0.12)",
+          fontFamily: DISPLAY, fontSize: "8px", fontWeight: 700, letterSpacing: "2px",
+          color: GOLD_DEEP, textTransform: "uppercase",
+        }}>
           {member.currentRole || "Leo Member"}
         </div>
       </div>
 
-      {/* ── Gold divider ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "center", margin: "12px 24px 10px" }}>
+      {/* ═══ GOLD DIVIDER ═══ */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "center", margin: "12px 26px 8px", position: "relative", zIndex: 2 }}>
         <div style={{ flex: 1, height: "1px", background: `linear-gradient(90deg, transparent, ${GOLD})` }} />
-        <div style={{ width: "4px", height: "4px", background: GOLD, transform: "rotate(45deg)" }} />
+        <div style={{ width: "5px", height: "5px", background: GOLD, transform: "rotate(45deg)" }} />
         <div style={{ flex: 1, height: "1px", background: `linear-gradient(270deg, transparent, ${GOLD})` }} />
       </div>
 
-      {/* ── Info rows ── */}
-      <div style={{ padding: "0 20px", display: "flex", flexDirection: "column", gap: "7px" }}>
-        <InfoRow label="ID" value={member.memberId} mono />
-        {member.faculty && <InfoRow label="Faculty" value={member.faculty} />}
-        <InfoRow label="Batch" value={member.batch} />
-        {svc && (
-          <InfoRow
-            label="Service"
-            value={`${svc}${yrs > 0 ? `  ·  ${yrs} yr${yrs !== 1 ? "s" : ""}` : ""}`}
-          />
-        )}
+      {/* ═══ INFO + QR ═══ */}
+      <div style={{ display: "flex", alignItems: "center", gap: "16px", padding: "0 22px", position: "relative", zIndex: 2 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <InfoRow label="Member ID" value={member.memberId} mono />
+          {member.faculty && <InfoRow label="Faculty" value={member.faculty} />}
+          <InfoRow label="Batch" value={member.batch} />
+          {member.joinedLeoYear && <InfoRow label="Joined" value={member.joinedLeoYear} />}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+          <div style={{
+            padding: "6px", background: "#ffffff", borderRadius: "10px",
+            border: `1.5px solid ${GOLD}`, display: "inline-block", lineHeight: 0,
+            boxShadow: "0 3px 10px rgba(0,33,71,0.12)",
+          }}>
+            <QRCodeCanvas value={verifyUrl} size={78} fgColor={NAVY} bgColor="#ffffff" level="M" style={{ display: "block" }} />
+          </div>
+          <div style={{ fontFamily: DISPLAY, fontSize: "6.5px", color: GOLD_DEEP, marginTop: "5px", letterSpacing: "1.4px", fontWeight: 700 }}>
+            SCAN TO VERIFY
+          </div>
+        </div>
       </div>
 
-      {/* ── Spacer ── */}
       <div style={{ flex: 1, minHeight: "8px" }} />
 
-      {/* ── QR code ── */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingBottom: "12px" }}>
-        <div
-          style={{
-            padding: "5px",
-            background: "#fff",
-            borderRadius: "10px",
-            border: `1.5px solid ${NAVY}`,
-            display: "inline-block",
-            lineHeight: 0,
-          }}
-        >
-          <QRCodeCanvas value={verifyUrl} size={64} fgColor={NAVY} bgColor="#ffffff" level="M" style={{ display: "block" }} />
-        </div>
-        <div style={{ fontSize: "7px", color: "#94a3b8", marginTop: "4px", letterSpacing: "0.5px", fontWeight: "600" }}>
-          SCAN TO VERIFY
-        </div>
-      </div>
-
-      {/* ── FOOTER: Navy strip ── */}
+      {/* ═══ FOOTER ═══ */}
       <div
         style={{
-          background: NAVY,
-          padding: "7px 14px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          borderTop: `2px solid ${GOLD}`,
+          background: `linear-gradient(90deg, #001a38, ${NAVY}, #001a38)`,
+          padding: "9px 18px 10px", display: "flex", alignItems: "center", justifyContent: "space-between",
+          borderTop: `2px solid ${GOLD}`, position: "relative", zIndex: 2,
         }}
       >
-        <div style={{ fontSize: "7.5px", color: "rgba(255,255,255,0.55)", letterSpacing: "0.3px" }}>
-          Roll {member.rollNo}
+        <div style={{ fontFamily: DISPLAY, fontSize: "7px", color: "rgba(255,255,255,0.65)", letterSpacing: "1px", fontWeight: 700 }}>
+          {member.rollNo ? `ROLL ${member.rollNo}` : "OFFICIAL MEMBER"}
         </div>
-        <div style={{ fontSize: "7.5px", color: GOLD, fontWeight: "700", letterSpacing: "0.5px" }}>
+        <div style={{ width: "5px", height: "5px", background: GOLD, transform: "rotate(45deg)" }} />
+        <div style={{ fontFamily: DISPLAY, fontSize: "7px", color: GOLD_LIGHT, fontWeight: 700, letterSpacing: "0.8px" }}>
           leoclubofkusms.org
         </div>
       </div>
+
+      {/* Inner gold foil border */}
+      <div style={{
+        position: "absolute", inset: "5px", borderRadius: "12px",
+        border: `1px solid rgba(212,175,55,0.5)`, pointerEvents: "none", zIndex: 3,
+      }} />
     </div>
   );
 }
 
 function InfoRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-      <div style={{ fontSize: "8.5px", color: "#94a3b8", fontWeight: "700", letterSpacing: "0.8px", textTransform: "uppercase", width: "56px", flexShrink: 0 }}>
+    <div style={{ padding: "4px 0 5px", borderBottom: "1px solid rgba(201,162,39,0.3)" }}>
+      <div style={{ fontFamily: DISPLAY, fontSize: "6.5px", color: GOLD_DEEP, fontWeight: 700, letterSpacing: "1.6px", textTransform: "uppercase" }}>
         {label}
       </div>
       <div
         style={{
-          fontSize: "11px",
-          color: "#002147",
-          fontWeight: "600",
-          fontFamily: mono ? "ui-monospace, monospace" : undefined,
-          letterSpacing: mono ? "0.5px" : "0.2px",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          flex: 1,
+          fontFamily: mono ? "ui-monospace, monospace" : SERIF,
+          fontSize: mono ? "11.5px" : "13.5px", color: NAVY, fontWeight: 700,
+          letterSpacing: mono ? "0.6px" : "0.2px", marginTop: "1px",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}
       >
         {value}
@@ -272,15 +247,23 @@ function InfoRow({ label, value, mono = false }: { label: string; value: string;
 // ── Export helpers ────────────────────────────────────────────────────────────
 async function ensureFontsReady() {
   try {
-    const anyDoc = document as unknown as { fonts?: { ready: Promise<unknown> } };
-    if (anyDoc.fonts) await anyDoc.fonts.ready;
+    const anyDoc = document as unknown as { fonts?: { load: (f: string) => Promise<unknown>; ready: Promise<unknown> } };
+    if (anyDoc.fonts) {
+      await Promise.all([
+        anyDoc.fonts.load('700 16px "Cinzel"'),
+        anyDoc.fonts.load('700 16px "Cormorant Garamond"'),
+      ]).catch(() => {});
+      await anyDoc.fonts.ready;
+    }
   } catch { /* ignore */ }
 }
 
 async function ensureImagesReady(el: HTMLElement) {
   const imgs = Array.from(el.querySelectorAll("img"));
   await Promise.all(imgs.map((img) =>
-    img.complete ? Promise.resolve() : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); })
+    img.complete
+      ? Promise.resolve()
+      : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); })
   ));
   await new Promise((r) => setTimeout(r, 60));
 }
@@ -305,6 +288,16 @@ export default function IDCardGenerator() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [batchProgress, setBatchProgress] = useState(0);
+
+  // Same font stylesheet as the certificate generator (shared id, no duplicate load)
+  useEffect(() => {
+    if (document.getElementById("cert-fonts")) return;
+    const l = document.createElement("link");
+    l.id = "cert-fonts";
+    l.rel = "stylesheet";
+    l.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500;1,700&family=Alex+Brush&display=swap";
+    document.head.appendChild(l);
+  }, []);
 
   useEffect(() => {
     getMembers()
@@ -358,7 +351,7 @@ export default function IDCardGenerator() {
     setBatchProgress(0);
     try {
       const { default: jsPDF } = await import("jspdf");
-      // Standard CR80 portrait card — 53.98 × 85.6 mm
+      // Standard CR80 portrait — 53.98 × 85.6 mm (credit-card size)
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [53.98, 85.6] });
       let page = 0;
       for (let i = 0; i < filtered.length; i++) {
@@ -452,7 +445,7 @@ export default function IDCardGenerator() {
             )}
           </div>
 
-          {/* Cards grid — vertical cards side by side */}
+          {/* Vertical cards grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filtered.map((m) => (
               <div key={m.memberId} className="group flex flex-col items-center">
@@ -470,7 +463,9 @@ export default function IDCardGenerator() {
                     disabled={downloading === m.memberId}
                     className="inline-flex items-center gap-1.5 text-xs font-medium text-[#002147] border border-[#002147]/20 bg-white hover:bg-[#002147] hover:text-white px-2.5 py-1.5 rounded-lg transition-all shrink-0 disabled:opacity-50"
                   >
-                    {downloading === m.memberId ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                    {downloading === m.memberId
+                      ? <Loader2 size={12} className="animate-spin" />
+                      : <Download size={12} />}
                     PNG
                   </button>
                 </div>
