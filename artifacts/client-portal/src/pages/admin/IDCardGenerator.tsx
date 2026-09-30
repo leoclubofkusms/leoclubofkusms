@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL ?? "/";
-const ASSET = { logo: `${BASE}logo.png`, lion: `${BASE}lion.png` };
 
 const GOLD = "#D4AF37";
 const GOLD_LIGHT = "#F0D77A";
@@ -18,10 +17,20 @@ const IVORY = "#fcfaf3";
 const DISPLAY = "Cinzel, Georgia, 'Times New Roman', serif";
 const SERIF = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
 
+const EXPORT_SCALE = 3;
+
 // ── Vertical Premium ID Card ─────────────────────────────────────────────────
-// Screen size: 340 × 540 px — CR80 portrait (53.98 × 85.6 mm)
-// Exports at scale 3 → 1020 × 1620 px (print-ready)
-function IDCard({ member, verifyUrl }: { member: Member; verifyUrl: string }) {
+function IDCard({
+  member,
+  verifyUrl,
+  logoAsset,
+  lionAsset,
+}: {
+  member: Member;
+  verifyUrl: string;
+  logoAsset: string;
+  lionAsset: string;
+}) {
   const CARD_W = 340;
   const CARD_H = 540;
   const uid = member.memberId.replace(/[^a-zA-Z0-9]/g, "");
@@ -44,7 +53,7 @@ function IDCard({ member, verifyUrl }: { member: Member; verifyUrl: string }) {
     >
       {/* Faint lion watermark */}
       <img
-        src={ASSET.lion}
+        src={lionAsset}
         alt=""
         style={{
           position: "absolute", left: "50%", top: "60%", width: "240px", height: "240px",
@@ -84,7 +93,6 @@ function IDCard({ member, verifyUrl }: { member: Member; verifyUrl: string }) {
           <path d="M0 116Q170 152 340 116" fill="none" stroke={GOLD} strokeWidth="0.7" opacity="0.55" />
           <path d="M0 122Q170 158 340 122" fill="none" stroke={`url(#gg-${uid})`} strokeWidth="3" />
           <rect width="340" height="3" fill={`url(#gg-${uid})`} />
-          {/* corner brackets */}
           <g fill="none" stroke={GOLD} strokeWidth="1.3" opacity="0.8">
             <path d="M12 26 V12 H26" />
             <path d="M328 26 V12 H314" />
@@ -99,7 +107,7 @@ function IDCard({ member, verifyUrl }: { member: Member; verifyUrl: string }) {
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <img
-              src={ASSET.logo}
+              src={logoAsset}
               alt="Leo Club of Kathmandu University School of Medical Sciences"
               style={{ width: "42px", height: "42px", objectFit: "contain" }}
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
@@ -188,7 +196,7 @@ function IDCard({ member, verifyUrl }: { member: Member; verifyUrl: string }) {
             border: `1.5px solid ${GOLD}`, display: "inline-block", lineHeight: 0,
             boxShadow: "0 3px 10px rgba(0,33,71,0.12)",
           }}>
-            <QRCodeCanvas value={verifyUrl} size={78} fgColor={NAVY} bgColor="#ffffff" level="M" style={{ display: "block" }} />
+            <QRCodeCanvas value={verifyUrl} size={78 * 2} fgColor={NAVY} bgColor="#ffffff" level="M" style={{ display: "block", width: 78, height: 78 }} />
           </div>
           <div style={{ fontFamily: DISPLAY, fontSize: "6.5px", color: GOLD_DEEP, marginTop: "5px", letterSpacing: "1.4px", fontWeight: 700 }}>
             SCAN TO VERIFY
@@ -244,6 +252,67 @@ function InfoRow({ label, value, mono = false }: { label: string; value: string;
   );
 }
 
+// ── Asset pipeline (same as certificate — pre-size for crisp html2canvas) ────
+async function urlToDataUrl(url: string): Promise<string> {
+  if (!url) return "";
+  if (url.startsWith("data:")) return url;
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url;
+  }
+}
+
+async function fitImage(src: string, boxW: number, boxH: number, factor = EXPORT_SCALE): Promise<string> {
+  if (!src) return "";
+  try {
+    const img = new Image();
+    if (!src.startsWith("data:")) img.crossOrigin = "anonymous";
+    img.src = src;
+    await img.decode();
+    const nw = img.naturalWidth, nh = img.naturalHeight;
+    if (!nw || !nh) return src;
+
+    const ratio = Math.min((boxW * factor) / nw, (boxH * factor) / nh);
+    if (ratio >= 1) return src;
+
+    const tw = Math.max(1, Math.round(nw * ratio));
+    const th = Math.max(1, Math.round(nh * ratio));
+
+    let cur: CanvasImageSource = img;
+    let cw = nw, ch = nh;
+    while (cw / 2 > tw) {
+      const stepW = Math.round(cw / 2), stepH = Math.round(ch / 2);
+      const c = document.createElement("canvas");
+      c.width = stepW; c.height = stepH;
+      const ctx = c.getContext("2d");
+      if (!ctx) return src;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(cur, 0, 0, stepW, stepH);
+      cur = c; cw = stepW; ch = stepH;
+    }
+    const out = document.createElement("canvas");
+    out.width = tw; out.height = th;
+    const octx = out.getContext("2d");
+    if (!octx) return src;
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = "high";
+    octx.drawImage(cur, 0, 0, tw, th);
+    return out.toDataURL("image/png");
+  } catch {
+    return src;
+  }
+}
+
 // ── Export helpers ────────────────────────────────────────────────────────────
 async function ensureFontsReady() {
   try {
@@ -260,22 +329,30 @@ async function ensureFontsReady() {
 
 async function ensureImagesReady(el: HTMLElement) {
   const imgs = Array.from(el.querySelectorAll("img"));
-  await Promise.all(imgs.map((img) =>
-    img.complete
-      ? Promise.resolve()
-      : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); })
-  ));
+  await Promise.all(imgs.map(async (img) => {
+    if (!img.complete) {
+      await new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); });
+    }
+    try { await img.decode(); } catch { /* ignore */ }
+  }));
   await new Promise((r) => setTimeout(r, 60));
 }
 
 type H2C = (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
-async function captureCard(id: string, scale = 3): Promise<HTMLCanvasElement | null> {
+async function captureCard(id: string, scale = EXPORT_SCALE): Promise<HTMLCanvasElement | null> {
   const { default: html2canvas } = (await import("html2canvas")) as { default: H2C };
   const el = document.getElementById(id);
   if (!el) return null;
   await ensureFontsReady();
   await ensureImagesReady(el);
-  return html2canvas(el, { scale, backgroundColor: "#ffffff", useCORS: true, allowTaint: true });
+  return html2canvas(el, {
+    scale,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+    allowTaint: true,
+    logging: false,
+    imageTimeout: 30000,
+  });
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -288,8 +365,11 @@ export default function IDCardGenerator() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [batchProgress, setBatchProgress] = useState(0);
+  const [assetsReady, setAssetsReady] = useState(false);
+  const [logoAsset, setLogoAsset] = useState("");
+  const [lionAsset, setLionAsset] = useState("");
 
-  // Same font stylesheet as the certificate generator (shared id, no duplicate load)
+  // Shared font stylesheet (loaded once, reused by the certificate generator too)
   useEffect(() => {
     if (document.getElementById("cert-fonts")) return;
     const l = document.createElement("link");
@@ -297,6 +377,32 @@ export default function IDCardGenerator() {
     l.rel = "stylesheet";
     l.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500;1,700&family=Alex+Brush&display=swap";
     document.head.appendChild(l);
+  }, []);
+
+  // Pre-size logos to their exact export dimensions (fixes bulk blur)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [logoRaw, lionRaw] = await Promise.all([
+          urlToDataUrl(`${BASE}logo.png`),
+          urlToDataUrl(`${BASE}lion.png`),
+        ]);
+        const [logo, lion] = await Promise.all([
+          fitImage(logoRaw, 42, 42),
+          fitImage(lionRaw, 240, 240),
+        ]);
+        if (!cancelled) {
+          setLogoAsset(logo);
+          setLionAsset(lion);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setAssetsReady(true);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -332,9 +438,10 @@ export default function IDCardGenerator() {
   }
 
   async function downloadCard(member: Member) {
+    if (!assetsReady) return;
     setDownloading(member.memberId);
     try {
-      const c = await captureCard(`id-card-${member.memberId}`, 3);
+      const c = await captureCard(`id-card-${member.memberId}`, EXPORT_SCALE);
       if (!c) return;
       const a = document.createElement("a");
       a.download = `${member.memberId}-id-card.png`;
@@ -346,7 +453,7 @@ export default function IDCardGenerator() {
   }
 
   async function downloadAllCards() {
-    if (!filtered.length) return;
+    if (!filtered.length || !assetsReady) return;
     setDownloadingAll(true);
     setBatchProgress(0);
     try {
@@ -357,11 +464,12 @@ export default function IDCardGenerator() {
       for (let i = 0; i < filtered.length; i++) {
         setBatchProgress(Math.round(((i + 1) / filtered.length) * 100));
         const m = filtered[i];
-        const c = await captureCard(`id-card-${m.memberId}`, 3);
+        const c = await captureCard(`id-card-${m.memberId}`, EXPORT_SCALE);
         if (!c) continue;
         if (page > 0) pdf.addPage([53.98, 85.6], "portrait");
         pdf.addImage(c.toDataURL("image/png"), "PNG", 0, 0, 53.98, 85.6);
         page++;
+        c.width = 0; c.height = 0;
       }
       pdf.save(`leo-club-id-cards-${new Date().toISOString().slice(0, 10)}.pdf`);
     } finally {
@@ -408,7 +516,7 @@ export default function IDCardGenerator() {
         {filtered.length > 0 && (
           <button
             onClick={downloadAllCards}
-            disabled={downloadingAll}
+            disabled={downloadingAll || !assetsReady}
             className="inline-flex items-center gap-2 bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] transition-colors disabled:opacity-60 shrink-0"
           >
             {downloadingAll
@@ -419,7 +527,7 @@ export default function IDCardGenerator() {
         )}
       </div>
 
-      {loading ? (
+      {loading || !assetsReady ? (
         <div className="flex items-center justify-center h-48">
           <div className="w-8 h-8 border-2 border-[#002147] border-t-transparent rounded-full animate-spin" />
         </div>
@@ -450,7 +558,12 @@ export default function IDCardGenerator() {
             {filtered.map((m) => (
               <div key={m.memberId} className="group flex flex-col items-center">
                 <div id={`id-card-${m.memberId}`} className="mb-3">
-                  <IDCard member={m} verifyUrl={verifyUrl(m.memberId)} />
+                  <IDCard
+                    member={m}
+                    verifyUrl={verifyUrl(m.memberId)}
+                    logoAsset={logoAsset}
+                    lionAsset={lionAsset}
+                  />
                 </div>
 
                 <div className="w-full max-w-[340px] flex items-center gap-2">
@@ -460,7 +573,7 @@ export default function IDCardGenerator() {
                   </div>
                   <button
                     onClick={() => downloadCard(m)}
-                    disabled={downloading === m.memberId}
+                    disabled={downloading === m.memberId || !assetsReady}
                     className="inline-flex items-center gap-1.5 text-xs font-medium text-[#002147] border border-[#002147]/20 bg-white hover:bg-[#002147] hover:text-white px-2.5 py-1.5 rounded-lg transition-all shrink-0 disabled:opacity-50"
                   >
                     {downloading === m.memberId
