@@ -417,7 +417,7 @@ async function downloadPdf(id: string, filename: string) {
   pdf.save(filename);
 }
 
-// ── Fetch an image and convert it to base64 (crisp with html2canvas) ──────────
+// ── Fetch an image and convert it to base64 ───────────────────────────────────
 async function urlToDataUrl(url: string): Promise<string> {
   if (!url) return "";
   if (url.startsWith("data:")) return url;
@@ -432,7 +432,7 @@ async function urlToDataUrl(url: string): Promise<string> {
       reader.readAsDataURL(blob);
     });
   } catch {
-    return url; // graceful fallback
+    return url;
   }
 }
 
@@ -458,9 +458,12 @@ export default function CertificateGenerator() {
   const [customMessage, setCustomMessage] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [batchDownloading, setBatchDownloading] = useState(false);
-  const [batchRenderReady, setBatchRenderReady] = useState(false);
   const [batchProgress, setBatchProgress] = useState(0);
   const [showPreview, setShowPreview] = useState(true);
+
+  // The single certificate currently being rendered for batch export.
+  // Only ONE is mounted at a time — this is what guarantees pristine quality.
+  const [batchCurrent, setBatchCurrent] = useState<Member | null>(null);
 
   useEffect(() => {
     if (document.getElementById("cert-fonts")) return;
@@ -471,7 +474,6 @@ export default function CertificateGenerator() {
     document.head.appendChild(l);
   }, []);
 
-  // Load logos (same-origin) + user-uploaded images as base64 for crisp html2canvas output
   useEffect(() => {
     Promise.all([
       urlToDataUrl(`${BASE}leo.png`),
@@ -571,37 +573,49 @@ export default function CertificateGenerator() {
     }
   }
 
-  // ── BATCH DOWNLOAD — same quality as single ──────────────────────────────────
-  // Uses scale 3 + PNG (lossless) so logos stay as sharp as single downloads.
+  // ── BATCH DOWNLOAD — sequential rendering (one certificate at a time) ───────
+  // This guarantees each certificate is rendered in isolation, so html2canvas
+  // never reuses a cached render. Result: bulk quality = single quality.
   async function downloadBatchForActivity() {
-    if (!selectedActivity) return;
+    if (!selectedActivity || activityParticipants.length === 0) return;
     setBatchDownloading(true);
-    setBatchRenderReady(true);
-    // Give the hidden batch divs time to mount + all base64 images time to paint
-    await new Promise((r) => setTimeout(r, 900));
+    setBatchProgress(0);
+
     try {
       const { default: jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
       const pw = pdf.internal.pageSize.getWidth();
       const ph = pdf.internal.pageSize.getHeight();
       let page = 0;
+
       for (let i = 0; i < activityParticipants.length; i++) {
+        const member = activityParticipants[i];
         setBatchProgress(Math.round(((i + 1) / activityParticipants.length) * 100));
-        // Small per-cert delay so the browser finishes rendering before capture
+
+        // 1. Mount the certificate
+        setBatchCurrent(member);
+        // 2. Wait for React to commit + images to load
+        await new Promise((r) => setTimeout(r, 450));
+
+        // 3. Capture
+        const c = await capture("batch-cert-single", 3);
+
+        // 4. Unmount (clean slate for the next one)
+        setBatchCurrent(null);
         await new Promise((r) => setTimeout(r, 120));
-        // scale: 3 = same resolution as the single certificate download
-        const c = await capture(`batch-cert-${activityParticipants[i].memberId}`, 3);
+
         if (!c) continue;
         if (page > 0) pdf.addPage();
-        // PNG = lossless, no compression artifacts on logos or text
+        // Lossless PNG — no JPEG artifacts on logos/text
         pdf.addImage(c.toDataURL("image/png"), "PNG", 0, 0, pw, ph);
         page++;
       }
+
       pdf.save(`${selectedActivity.title.replace(/\s+/g, "-")}-certificates.pdf`);
     } finally {
+      setBatchCurrent(null);
       setBatchDownloading(false);
       setBatchProgress(0);
-      setBatchRenderReady(false);
     }
   }
 
@@ -636,8 +650,8 @@ export default function CertificateGenerator() {
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
           <div className="xl:col-span-2 space-y-5">
-            <div className="bg-white border border-gray-100 rounded-ry2xl p-4 shadow-sm,">
-              <div className="text-xs font-bold text text-gray-400 uppercase tracking-widest mb slightly-3">Step 1 · Certificate Type</div>
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+              <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Step 1 · Certificate Type</div>
               <div className="grid grid-cols-2 gap-2">
                 {CERT_TYPES.map(({ id, label, icon: Icon, desc }) => (
                   <button key={id}
@@ -689,6 +703,11 @@ export default function CertificateGenerator() {
                         ? <><Loader2 size={14} className="animate-spin" /> Generating… {batchProgress}%</>
                         : <><Layers size={14} /> Download All {activityParticipants.length} Certificates PDF</>}
                     </button>
+                    {batchDownloading && (
+                      <p className="text-[10px] text-gray-400 mt-2 text-center">
+                        Rendering each certificate individually for maximum quality…
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -804,11 +823,12 @@ export default function CertificateGenerator() {
       {/* Hidden full-size copies used for export */}
       <div style={{ position: "fixed", left: "-9999px", top: 0, pointerEvents: "none" }} aria-hidden>
         {certData && <div id="cert-export-single"><CertificateCanvas data={certData} scale={1} /></div>}
-        {batchRenderReady && selectedActivity && activityParticipants.map((m) => (
-          <div key={m.memberId} id={`batch-cert-${m.memberId}`}>
-            <CertificateCanvas data={buildCertData(m)} scale={1} />
+        {/* Batch export renders ONE certificate at a time — no cache reuse, no blur */}
+        {batchCurrent && (
+          <div id="batch-cert-single">
+            <CertificateCanvas data={buildCertData(batchCurrent)} scale={1} />
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
