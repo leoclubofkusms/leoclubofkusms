@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getMembers, getActivities, getAwards, getClubSettings } from "@/lib/firestore";
 import type { Member, Activity, Award, ClubSettings } from "@/lib/types";
-import { activitySortKey } from "@/lib/types";
+import { activitySortKey, leoMonthToCalendarYear } from "@/lib/types";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Award as AwardIcon, FileText, Download, Loader2, Star,
@@ -50,26 +50,25 @@ const PALETTE: Record<Template, { frame: string; paper: string; ink: string; sub
   gold:    { frame: "#17110a", paper: "#f8f1dd", ink: "#1b1408", sub: "#5c4f33", band: 22 },
 };
 
-// ── Safe image — with explicit dimensions so the browser renders at full quality ──
+// ── Safe image (CSS-only sizing so the browser never upscales a fixed pixel size) ──
 function Img({
   src,
   style,
-  width,
-  height,
 }: {
   src?: string;
   style: React.CSSProperties;
-  width?: number;
-  height?: number;
 }) {
   if (!src) return null;
   return (
     <img
       src={src}
       alt=""
-      width={width}
-      height={height}
-      style={{ imageRendering: "auto", ...style }}
+      style={{
+        display: "block",
+        imageRendering: "auto",
+        flexShrink: 0,
+        ...style,
+      }}
       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
     />
   );
@@ -212,6 +211,12 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
   const hasSloganPhoto = !!data.sloganPhotoUrl;
   const hasSloganText = !!data.sloganText;
   const hasSignature = !!data.signatureUrl;
+  const hasMonthChip = data.certType === "participation" && !!data.activityMonth && !!data.activityYear;
+
+  // Compute calendar year for the activity month within its Leo Year
+  const calendarYear = hasMonthChip && data.activityMonth && data.activityYear
+    ? leoMonthToCalendarYear(data.activityYear, data.activityMonth)
+    : null;
 
   return (
     <div style={{ width: W, height: H, position: "relative", overflow: "hidden", fontFamily: SERIF, flexShrink: 0 }}>
@@ -226,28 +231,16 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         position: "absolute", left: s(64), right: s(64), top: s(46), bottom: s(128),
         display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
       }}>
-        {/* Top row — bigger logos */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: s(16), width: "100%" }}>
-          <Img
-            src={ASSET.leo}
-            width={Math.round(s(56))}
-            height={Math.round(s(56))}
-            style={{ objectFit: "contain" }}
-          />
-          <div style={{ width: s(60), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})` }} />
-          <Img
-            src={ASSET.logo}
-            width={Math.round(s(72))}
-            height={Math.round(s(72))}
-            style={{ objectFit: "contain" }}
-          />
-          <div style={{ width: s(60), height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})` }} />
-          <Img
-            src={ASSET.lion}
-            width={Math.round(s(56))}
-            height={Math.round(s(56))}
-            style={{ objectFit: "contain" }}
-          />
+        {/* Top row — logos with flexShrink:0 so long titles never squeeze them */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: s(16), width: "100%", flexShrink: 0,
+        }}>
+          <Img src={ASSET.leo} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
+          <div style={{ width: s(60), height: s(1), background: `linear-gradient(90deg,transparent,${GOLD})`, flexShrink: 0 }} />
+          <Img src={ASSET.logo} style={{ height: s(72), width: s(72), objectFit: "contain" }} />
+          <div style={{ width: s(60), height: s(1), background: `linear-gradient(270deg,transparent,${GOLD})`, flexShrink: 0 }} />
+          <Img src={ASSET.lion} style={{ height: s(56), width: s(56), objectFit: "contain" }} />
         </div>
 
         <div style={{ fontFamily: DISPLAY, fontSize: s(10.5), fontWeight: 700, color: ink, letterSpacing: s(2), marginTop: s(6) }}>
@@ -257,7 +250,27 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
           Lions Clubs International · District 325L Nepal · Club No. 172194
         </div>
 
-        <div style={{ marginTop: s(7) }}>{rule(300)}</div>
+        {/* Leo Year chip — participation only */}
+        {hasMonthChip && (
+          <div style={{
+            marginTop: s(5),
+            display: "inline-flex",
+            alignItems: "center",
+            gap: s(6),
+            padding: `${s(2)}px ${s(10)}px`,
+            borderRadius: s(20),
+            border: `${s(0.8)}px solid ${GOLD}`,
+            background: "rgba(201,162,39,0.08)",
+          }}>
+            <span style={{ width: s(4), height: s(4), background: GOLD, transform: "rotate(45deg)", flexShrink: 0 }} />
+            <span style={{ fontFamily: DISPLAY, fontSize: s(8.5), color: GOLD_DEEP, letterSpacing: s(1.6), fontWeight: 700, whiteSpace: "nowrap" }}>
+              {data.activityMonth!.toUpperCase()} {calendarYear}  ·  LEO YEAR {data.activityYear}
+            </span>
+            <span style={{ width: s(4), height: s(4), background: GOLD, transform: "rotate(45deg)", flexShrink: 0 }} />
+          </div>
+        )}
+
+        <div style={{ marginTop: s(6) }}>{rule(300)}</div>
 
         <div style={{ fontFamily: DISPLAY, fontSize: s(23), fontWeight: 700, color: GOLD_DEEP, letterSpacing: s(4.5), marginTop: s(7), textTransform: "uppercase" }}>
           {titles[data.certType]}
@@ -290,11 +303,8 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
           &ldquo;{subject}&rdquo;
         </div>
 
-        {data.certType === "participation" && data.activityMonth && (
-          <div style={{ fontSize: s(10), color: sub, marginTop: s(3), letterSpacing: s(1) }}>
-            {data.activityMonth} · Leo Year {data.activityYear}
-          </div>
-        )}
+        {/* NOTE: month/year line removed from middle — now shown in top chip */}
+
         {data.certType === "service" && (
           <div style={{ display: "flex", gap: s(24), marginTop: s(4) }}>
             {!!data.activitiesCount && (
@@ -542,7 +552,6 @@ export default function CertificateGenerator() {
     if (!selectedActivity) return;
     setBatchDownloading(true);
     setBatchRenderReady(true);
-    // Wait for the hidden batch divs to mount and images to load
     await new Promise((r) => setTimeout(r, 400));
     try {
       const { default: jsPDF } = await import("jspdf");
