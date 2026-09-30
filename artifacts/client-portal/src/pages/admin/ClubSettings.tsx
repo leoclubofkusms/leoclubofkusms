@@ -7,7 +7,7 @@ import {
 } from "@/lib/types";
 import {
   Upload, Link as LinkIcon, Check, Loader2, X, ExternalLink,
-  Facebook, Settings, Calendar, Award, Quote, ShieldCheck, Heart, Image, DollarSign,
+  Facebook, Settings, Calendar, Award, Quote, ShieldCheck, Heart, Image, DollarSign, PenTool,
 } from "lucide-react";
 
 export default function ClubSettingsPanel() {
@@ -16,6 +16,7 @@ export default function ClubSettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [sloganSaving, setSloganSaving] = useState(false);
   const [sloganPhotoSaving, setSloganPhotoSaving] = useState(false);
+  const [signatureSaving, setSignatureSaving] = useState(false);
   const [donationSaving, setDonationSaving] = useState(false);
   const [rateSaving, setRateSaving] = useState(false);
   const [uploading, setUploading] = useState<"cert" | "sloganPhoto" | "donationQr" | null>(null);
@@ -251,6 +252,35 @@ export default function ClubSettingsPanel() {
     }
   }
 
+  async function handleSaveSignature() {
+    setSignatureSaving(true);
+    setError("");
+    try {
+      const presidentSignatureUrl = settings.presidentSignatureUrl?.trim() ?? "";
+      await updateClubSettings({ presidentSignatureUrl });
+      setSettings((s) => ({ ...s, presidentSignatureUrl }));
+      showSuccess("Signature URL saved.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save signature.");
+    } finally {
+      setSignatureSaving(false);
+    }
+  }
+
+  async function handleRemoveSignature() {
+    setSignatureSaving(true);
+    setError("");
+    try {
+      await updateClubSettings({ presidentSignatureUrl: "" });
+      setSettings((s) => ({ ...s, presidentSignatureUrl: "" }));
+      showSuccess("Signature removed.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove signature.");
+    } finally {
+      setSignatureSaving(false);
+    }
+  }
+
   async function handleSaveDonation() {
     setDonationSaving(true); setError("");
     try {
@@ -401,6 +431,47 @@ export default function ClubSettingsPanel() {
               className="bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60"
             >
               {sloganPhotoSaving ? "Saving…" : "Save URL"}
+            </button>
+          </div>
+        </div>
+
+        {/* President Signature — NEW */}
+        <div className="border-t border-gray-100 pt-5 mt-5">
+          <h5 className="text-sm font-semibold text-[#002147] flex items-center gap-2 mb-2">
+            <PenTool size={14} className="text-[#D4AF37]" /> President&apos;s Signature (for certificates)
+          </h5>
+          <p className="text-xs text-gray-500 mb-3">
+            Paste a public image URL of the President&apos;s signature. It will appear on generated certificates above the "President" line.
+          </p>
+          {settings.presidentSignatureUrl && (
+            <div className="mb-3">
+              <img
+                src={settings.presidentSignatureUrl}
+                alt="President signature"
+                className="max-h-24 rounded-xl object-contain border border-gray-200 bg-white p-2"
+              />
+              <button
+                onClick={handleRemoveSignature}
+                className="mt-1.5 text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
+              >
+                <X size={11} /> Remove signature
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={settings.presidentSignatureUrl ?? ""}
+              onChange={(e) => setSettings((s) => ({ ...s, presidentSignatureUrl: e.target.value }))}
+              placeholder="https://example.com/president-signature.png"
+              className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+            />
+            <button
+              onClick={handleSaveSignature}
+              disabled={signatureSaving}
+              className="bg-[#002147] text-white px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60"
+            >
+              {signatureSaving ? "Saving…" : "Save URL"}
             </button>
           </div>
         </div>
