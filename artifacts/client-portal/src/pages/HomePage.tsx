@@ -31,7 +31,7 @@ function useCountUp(target: number, duration = 1800, start = false) {
   return count;
 }
 
-// ── Merged Service Impact + Club Snapshot section ─────────────────────────────
+// ── Service Impact + Club Snapshot section ────────────────────────────────────
 function ServiceImpactSection({
   impact, activities, leoYear, memberCount, activityCount,
 }: {
