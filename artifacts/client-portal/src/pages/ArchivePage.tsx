@@ -24,6 +24,26 @@ interface ArchivePageProps {
   month: string;  // e.g. "january"
 }
 
+
+// Add at the top of ArchivePage.tsx, right after the imports:
+if (typeof window !== "undefined" && !(window as any).__archiveErrHooked) {
+  (window as any).__archiveErrHooked = true;
+  window.addEventListener("error", (e) => {
+    const box = document.createElement("div");
+    box.style.cssText = "position:fixed;top:0;left:0;right:0;background:#b00;color:#fff;padding:12px;font:12px monospace;z-index:99999;white-space:pre-wrap";
+    box.textContent = "ARCHIVE ERROR: " + (e.message || e.error?.message || "unknown") + "\n" + (e.filename || "") + ":" + (e.lineno || "");
+    document.body.appendChild(box);
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const box = document.createElement("div");
+    box.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:#a00;color:#fff;padding:12px;font:12px monospace;z-index:99999;white-space:pre-wrap";
+    box.textContent = "ARCHIVE REJECTION: " + (e.reason?.message || String(e.reason));
+    document.body.appendChild(box);
+  });
+}
+
+
+
 // Safe wrapper — never let a date-math edge case crash the whole page.
 function safeCalendarYear(leoYear: string, month: string): string | number {
   try {
