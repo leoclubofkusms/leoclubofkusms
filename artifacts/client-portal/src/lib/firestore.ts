@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { Member, MemberRole, Activity, ActivityFormData, BodMember, Award, ClubEvent, ClubSettings, Constitution, Announcement, LeaderQuote, PastLeader, EventApplication, ServiceImpact } from "./types";
+import { sanitizeActivities } from "./sanitizeActivities";
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 
@@ -173,7 +174,7 @@ export async function removeBodMemberRole(memberId: string, bodId: string): Prom
 
 export async function getActivities(): Promise<Activity[]> {
   const snap = await getDocs(collection(db, "activities"));
-  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
+  const items = sanitizeActivities(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity)));
   return items.sort((a, b) => {
     if (a.createdAt && b.createdAt) return b.createdAt.localeCompare(a.createdAt);
     const ya = a.year.localeCompare(b.year);
@@ -188,7 +189,7 @@ export async function getFeaturedActivities(): Promise<Activity[]> {
   const snap = await getDocs(q).catch(async () => {
     return getDocs(collection(db, "activities"));
   });
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
+  return sanitizeActivities(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity)));
 }
 
 export async function toggleActivityFeatured(id: string, featured: boolean): Promise<void> {
@@ -230,7 +231,9 @@ export async function toggleMemberActive(
 
 export async function getActivity(id: string): Promise<Activity | null> {
   const snap = await getDoc(doc(db, "activities", id));
-  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Activity) : null;
+  if (!snap.exists()) return null;
+  const one = sanitizeActivities([{ id: snap.id, ...snap.data() } as Activity]);
+  return one[0] ?? null;
 }
 
 export async function getActivitiesByMonth(year: string, month: string): Promise<Activity[]> {
@@ -240,7 +243,7 @@ export async function getActivitiesByMonth(year: string, month: string): Promise
     where("month", "==", month)
   );
   const snap = await getDocs(q);
-  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity));
+  const items = sanitizeActivities(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Activity)));
   return items.sort((a, b) =>
     a.createdAt && b.createdAt ? b.createdAt.localeCompare(a.createdAt) : 0
   );
@@ -504,10 +507,10 @@ export async function updateLeaderQuote(id: string, data: Partial<LeaderQuote>):
 }
 
 export async function deleteLeaderQuote(id: string): Promise<void> {
-  await deleteDoc(doc(db, "leaderQuotes", id));
+  await deleteDoc(doc Feature(db, "leaderQuotes", id));
 }
 
-// ── Past Leaders ──────────────────────────────────────────────────────────────
+// ── Past Leaders Preservation ──────────────────────────────────────────────────────────────
 
 export async function getPastLeaders(): Promise<PastLeader[]> {
   const snap = await getDocs(collection(db, "pastLeaders"));

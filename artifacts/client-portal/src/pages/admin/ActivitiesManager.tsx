@@ -23,6 +23,23 @@ import {
 import ActivityForm from "./ActivityForm";
 import ShareButton from "@/components/ShareButton";
 
+function safePhotos(a: Activity): string[] {
+  return Array.isArray(a.photos) ? a.photos : [];
+}
+function safeParticipants(a: Activity): ActivityParticipant[] {
+  return Array.isArray(a.participants) ? a.participants : [];
+}
+function safeText(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v !== "string") return String(v);
+  // eslint-disable-next-line no-control-regex
+  return v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\uD800-\uDFFF]/g, "");
+}
+function safeActivityUrl(id: string): string {
+  const safeId = encodeURIComponent(safeText(id));
+  return `${window.location.origin}${import.meta.env.BASE_URL}activity/${safeId}`;
+}
+
 export default function ActivitiesManager() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -50,10 +67,16 @@ export default function ActivitiesManager() {
     setLoading(true);
     try {
       const [acts, memberList] = await Promise.all([getActivities(), getMembers()]);
-      setActivities(acts);
-      setMembers(memberList);
+      const safeActs = (acts ?? []).map((a) => ({
+        ...a,
+        photos: safePhotos(a),
+        participants: safeParticipants(a),
+      }));
+      setActivities(safeActs);
+      setMembers(memberList ?? []);
     } catch (e) {
       console.error(e);
+      setActivities([]);
     } finally {
       setLoading(false);
     }
@@ -67,8 +90,6 @@ export default function ActivitiesManager() {
   const countForMonth = (month: string) =>
     activitiesInYear.filter((a) => a.month === month).length;
 
-  // Count only Leo Years that actually have data, PLUS always include the
-  // current Leo Year (so the count is honest — no empty future years).
   const leoYearsWithData = new Set<string>();
   activities.forEach((a) => {
     if (a.year) leoYearsWithData.add(a.year);
@@ -84,7 +105,7 @@ export default function ActivitiesManager() {
 
   async function handleDelete(act: Activity) {
     try {
-      await deleteActivity(act.id, act.participants);
+      await deleteActivity(act.id, safeParticipants(act));
       setActivities((prev) => prev.filter((a) => a.id !== act.id));
       setDeleteConfirm(null);
     } catch (e) {
@@ -110,14 +131,14 @@ export default function ActivitiesManager() {
   async function startEdit(act: Activity) {
     setEditId(act.id);
     setEditForm({
-      title: act.title,
-      description: act.description,
-      photoInput: act.photos.join("\n"),
-      participants: [...act.participants],
+      title: safeText(act.title),
+      description: safeText(act.description),
+      photoInput: safePhotos(act).join("\n"),
+      participants: [...safeParticipants(act)],
     });
     setEditError("");
     try {
-      setMembers(await getMembers());
+      setMembers((await getMembers()) ?? []);
     } catch (e) {
       console.error(e);
     }
@@ -145,7 +166,7 @@ export default function ActivitiesManager() {
           photos,
           participants: editForm.participants,
         },
-        act.participants,
+        safeParticipants(act),
         {
           year: act.year,
           month: act.month,
@@ -189,13 +210,8 @@ export default function ActivitiesManager() {
     URL.revokeObjectURL(url);
   }
 
-  const qrUrl = qrActivity
-    ? `${window.location.origin}${import.meta.env.BASE_URL}activity/${qrActivity.id}`
-    : "";
+  const qrUrl = qrActivity ? safeActivityUrl(qrActivity.id) : "";
 
-  // ─────────────────────────────────────────────────────────
-  // ADD ACTIVITY VIEW
-  // ─────────────────────────────────────────────────────────
   if (showAddForm && selectedMonth) {
     const addCalendarYear = leoMonthToCalendarYear(selectedYear, selectedMonth);
     return (
@@ -228,9 +244,6 @@ export default function ActivitiesManager() {
     );
   }
 
-  // ─────────────────────────────────────────────────────────
-  // MONTH DETAIL VIEW
-  // ─────────────────────────────────────────────────────────
   if (selectedMonth) {
     const detailCalendarYear = leoMonthToCalendarYear(selectedYear, selectedMonth);
     return (
@@ -254,7 +267,7 @@ export default function ActivitiesManager() {
                 <QrCode size={20} className="text-[#D4AF37]" />
               </div>
               <h3 className="font-bold text-[#002147] text-lg mb-1">Activity QR Code</h3>
-              <p className="text-xs text-gray-500 mb-1 font-medium truncate">{qrActivity.title}</p>
+              <p className="text-xs text-gray-500 mb-1 font-medium truncate">{safeText(qrActivity.title)}</p>
               <p className="text-sm text-gray-500 mb-5">
                 Scan to open the public activity page. Attach to participation certificates.
               </p>
@@ -327,7 +340,11 @@ export default function ActivitiesManager() {
         ) : (
           <div className="space-y-3">
             {activitiesInSelectedMonth.map((act) => {
-              const actUrl = `${window.location.origin}${import.meta.env.BASE_URL}activity/${act.id}`;
+              const actUrl = safeActivityUrl(act.id);
+              const actPhotos = safePhotos(act);
+              const actParticipants = safeParticipants(act);
+              const actTitle = safeText(act.title);
+              const actDescription = safeText(act.description);
               return (
                 <div
                   key={act.id}
@@ -418,7 +435,7 @@ export default function ActivitiesManager() {
                                     {member?.name ?? participant.memberId}
                                   </span>
                                   <input
-                                    value={participant.awardTitle}
+                                    value={participant.awardTitle ?? ""}
                                     onChange={(e) =>
                                       setEditForm((f) => ({
                                         ...f,
@@ -480,10 +497,10 @@ export default function ActivitiesManager() {
                     </div>
                   ) : (
                     <div className="flex items-start gap-4">
-                      {act.photos[0] ? (
+                      {actPhotos[0] ? (
                         <img
-                          src={act.photos[0]}
-                          alt={act.title}
+                          src={actPhotos[0]}
+                          alt={actTitle}
                           className="w-20 h-20 rounded-xl object-cover shrink-0"
                         />
                       ) : (
@@ -494,7 +511,7 @@ export default function ActivitiesManager() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-semibold text-[#002147] truncate">
-                            {act.title}
+                            {actTitle || "Untitled activity"}
                           </h4>
                           {act.featured && (
                             <span className="shrink-0 inline-flex items-center gap-1 bg-[#D4AF37] text-[#002147] text-xs font-bold px-2 py-0.5 rounded-full">
@@ -503,15 +520,15 @@ export default function ActivitiesManager() {
                           )}
                         </div>
                         <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                          {act.description}
+                          {actDescription}
                         </p>
                         <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
                           <span className="flex items-center gap-1">
-                            <Users size={11} /> {act.participants.length} participants
+                            <Users size={11} /> {actParticipants.length} participants
                           </span>
-                          {act.photos.length > 0 && (
+                          {actPhotos.length > 0 && (
                             <span>
-                              {act.photos.length} photo{act.photos.length > 1 ? "s" : ""}
+                              {actPhotos.length} photo{actPhotos.length > 1 ? "s" : ""}
                             </span>
                           )}
                         </div>
@@ -519,8 +536,8 @@ export default function ActivitiesManager() {
                       <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                         <ShareButton
                           url={actUrl}
-                          title={act.title}
-                          description={act.description}
+                          title={actTitle}
+                          description={actDescription}
                           meta={`${act.month} · Leo Year ${act.year}`}
                           variant="icon"
                           className="!bg-[#002147]/10 !text-[#002147] hover:!bg-[#002147]/20"
@@ -593,9 +610,6 @@ export default function ActivitiesManager() {
     );
   }
 
-  // ─────────────────────────────────────────────────────────
-  // YEAR → MONTH GRID VIEW (Leo Year order: July → June)
-  // ─────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -637,7 +651,6 @@ export default function ActivitiesManager() {
             </span>
           </div>
 
-          {/* Month grid — July → June order, with real calendar year label */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {getMonthsInLeoOrder().map((month) => {
               const count = countForMonth(month);

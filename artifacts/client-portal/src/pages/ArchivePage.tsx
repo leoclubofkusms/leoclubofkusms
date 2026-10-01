@@ -18,10 +18,29 @@ import {
   Users,
 } from "lucide-react";
 import ShareButton from "@/components/ShareButton";
+import { sanitizeActivities } from "@/lib/sanitizeActivities";
 
 interface ArchivePageProps {
-  year: string;   // URL format: "YYYY-YY"
-  month: string;  // e.g. "january"
+  year: string;
+  month: string;
+}
+
+function safeCalendarYear(leoYear: string, month: string): string | number {
+  try {
+    const v = leoMonthToCalendarYear(leoYear, month);
+    if (v === undefined || v === null || Number.isNaN(v as number)) return "";
+    return v as string | number;
+  } catch (e) {
+    console.error("leoMonthToCalendarYear failed:", leoYear, month, e);
+    return "";
+  }
+}
+
+function slugify(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 export default function ArchivePage({ year, month }: ArchivePageProps) {
@@ -31,13 +50,10 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
   const [loadError, setLoadError] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
-  // Normalize year back to "YYYY/YY" format
   const displayYear = year.replace("-", "/");
   const normalizedMonth = month.toLowerCase();
   const displayMonth = normalizedMonth.charAt(0).toUpperCase() + normalizedMonth.slice(1);
-
-  // Actual calendar year for this month in this Leo Year
-  const displayCalendarYear = leoMonthToCalendarYear(displayYear, displayMonth);
+  const displayCalendarYear = safeCalendarYear(displayYear, displayMonth);
 
   useEffect(() => {
     async function load() {
@@ -48,8 +64,8 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
           getActivitiesByMonth(displayYear, displayMonth),
           getMembers(),
         ]);
-        setActivities(acts);
-        setMembers(mems);
+        setActivities(sanitizeActivities(acts));
+        setMembers(mems ?? []);
       } catch (e) {
         console.error(e);
         setActivities([]);
@@ -62,10 +78,7 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
     load();
   }, [displayYear, displayMonth, reloadToken]);
 
-  // Leo Year order (July → June)
   const monthsInLeoOrder = getMonthsInLeoOrder();
-
-  // Build prev/next navigation using Leo Year order
   const monthIdx = monthsInLeoOrder.findIndex((m) => m.toLowerCase() === normalizedMonth);
   const yearIdx = LEO_YEARS.findIndex((y) => y.replace("/", "-") === year);
 
@@ -92,19 +105,11 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
   function getMemberName(memberId: string) {
     return members.find((m) => m.memberId === memberId)?.name ?? memberId;
   }
-
   function getMember(memberId: string) {
     return members.find((m) => m.memberId === memberId);
   }
-
   function getInitials(name: string) {
-    return name
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase();
+    return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
   }
 
   const previousHref = prevLink();
@@ -128,7 +133,9 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                 <Calendar size={14} />
                 <span>{displayMonth} {displayCalendarYear} · Leo Year {displayYear}</span>
               </div>
-              <h1 className="text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">{displayMonth} {displayCalendarYear}</h1>
+              <h1 className="text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">
+                {displayMonth} {displayCalendarYear}
+              </h1>
               <p className="mt-4 text-sm text-white/60 sm:text-base">
                 A month in the club's record ·{" "}
                 <span className="text-white/85">
@@ -166,7 +173,6 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
         </div>
       </header>
 
-      {/* Month navigation pills */}
       <div className="sticky top-16 z-40 border-b border-[#dce2e0] bg-[#fffdf8]/95 shadow-[0_4px_14px_rgba(0,33,71,0.04)] backdrop-blur">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
           <div className="flex items-center gap-4 overflow-x-auto border-b border-[#e5e8e5] py-3 scrollbar-hide">
@@ -240,9 +246,10 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
               Try again
             </button>
           </div>
-        ) : activities.length === 0 ? (
-          <div className="rounded-[2rem] border border-dashed border-[#cbd5d7] bg-[#fffdf8] px-6 py-24 text-center">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e9eef0] text-[#66808a]">
+        ) :a activities.length === 0 ? (
+          <div] className="rounded-[2">
+rem] border border-dashed                            border-[#cbd5d7] bg-[#fff <df8] px-6 py-24 text-center">
+            <divspan className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e9eef0] text-[#66808a]">
               <Calendar size={29} strokeWidth={1.6} />
             </div>
             <h3 className="text-xl font-semibold tracking-[-0.02em] text-[#002147]">No activities this month</h3>
@@ -259,14 +266,18 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
         ) : (
           <div className="space-y-9">
             {activities.map((act, activityIndex) => {
-              const actUrl = `${window.location.origin}${import.meta.env.BASE_URL}activity/${act.id}`;
+              const safeActId = encodeURIComponent(act.id ?? "");
+              const actUrl = `${window.location.origin}${import.meta.env.BASE_URL}activity/${safeActId}`;
+              const photos = act.photos ?? [];
+              const participants = act.participants ?? [];
+              const safeTitle = act.title || "Untitled activity";
+              const safeDescription = act.description || "";
               return (
                 <div
-                  key={act.id}
-                  id={act.title.toLowerCase().replace(/\s+/g, "-")}
+                  key={act.id || activityIndex}
+                  id={slugify(safeTitle)}
                   className="overflow-hidden rounded-[1.5rem] border border-[#dfe6e3] bg-[#fffdf8] shadow-[0_12px_30px_rgba(0,33,71,0.06)]"
                 >
-                  {/* Activity header */}
                   <div className="border-b border-[#e5e9e6] p-6 sm:p-8">
                     <div className="flex items-start gap-4">
                       <div className="hidden shrink-0 pt-1 text-3xl font-semibold tracking-[-0.05em] text-[#d5dcd9] sm:block">
@@ -274,8 +285,7 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7b898a]">
-                            <span className="inline-flex items-center gap-1.5 text-[#a07f1c]">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7b898 className="inline-flex items-center gap-1.5 text-[#a07f1c]">
                               <Calendar size={12} /> {displayMonth} {displayCalendarYear}
                             </span>
                             <span className="h-1 w-1 rounded-full bg-[#cbd3d0]" />
@@ -288,48 +298,47 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                           </div>
                           <ShareButton
                             url={actUrl}
-                            title={act.title}
-                            description={act.description}
+                            title={safeTitle}
+                            description={safeDescription}
                             meta={`${displayMonth} ${displayCalendarYear} · Leo Year ${displayYear}`}
                             variant="icon"
                             className="!bg-[#002147]/5 !text-[#002147] hover:!bg-[#002147]/15"
                           />
                         </div>
                         <h2 className="text-2xl font-semibold leading-tight tracking-[-0.03em] text-[#002147] sm:text-3xl">
-                          {act.title}
+                          {safeTitle}
                         </h2>
                         <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5e6d70] sm:text-[15px]">
-                          {act.description}
+                          {safeDescription}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Photos grid */}
-                  {act.photos.length > 0 && (
+                  {photos.length > 0 && (
                     <div className="border-b border-[#e5e9e6] p-4 sm:p-6">
                       <div className="mb-3 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7c898b]">
                         <ImageIcon size={13} />
-                        <span>{act.photos.length} {act.photos.length === 1 ? "photo" : "photos"}</span>
+                        <span>{photos.length} {photos.length === 1 ? "photo" : "photos"}</span>
                       </div>
-                      <div className={`grid gap-3 ${act.photos.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-[1.35fr_1fr]"}`}>
+                      <div className={`grid gap-3 ${photos.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-[1.35fr_1fr]"}`}>
                         <div className="relative overflow-hidden rounded-2xl bg-[#e8edeb]">
                           <img
-                            src={act.photos[0]}
-                            alt={`${act.title} photo 1`}
-                            className={`w-full object-cover ${act.photos.length === 1 ? "max-h-[34rem] min-h-64" : "h-64 md:h-full md:min-h-[22rem]"}`}
+                            src={photos[0]}
+                            alt={`${safeTitle} photo 1`}
+                            className={`w-full object-cover ${photos.length === 1 ? "max-h-[34rem] min-h-64" : "h-64 md:h-full md:min-h-[22rem]"}`}
                           />
                           <span className="absolute bottom-3 left-3 rounded-full bg-[#002147]/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
-                            01 / {String(act.photos.length).padStart(2, "0")}
+                            01 / {String(photos.length).padStart(2, "0")}
                           </span>
                         </div>
-                        {act.photos.length > 1 && (
+                        {photos.length > 1 && (
                           <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
-                            {act.photos.slice(1).map((url, i) => (
+                            {photos.slice(1).map((url, i) => (
                               <div key={i} className="relative overflow-hidden rounded-2xl bg-[#e8edeb]">
                                 <img
                                   src={url}
-                                  alt={`${act.title} photo ${i + 2}`}
+                                  alt={`${safeTitle} photo ${i + 2}`}
                                   className="h-40 w-full object-cover sm:h-52 md:h-full md:min-h-[10rem]"
                                 />
                                 <span className="absolute bottom-2 left-2 rounded-full bg-[#002147]/75 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur">
@@ -343,62 +352,66 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                     </div>
                   )}
 
-                  {/* Participants */}
-                  {act.participants.length > 0 && (
+                  {participants.length > 0 && (
                     <div className="p-6 sm:p-8">
                       <div className="mb-4 flex items-center justify-between gap-4">
                         <div className="flex items-center gap-2 text-sm font-semibold text-[#002147]">
                           <Users size={16} className="text-[#a17f15]" />
                           Participants
                         </div>
-                        <span className="text-xs text-[#7b898a]">{act.participants.length} listed</span>
+                        <span className="text-xs text-[#7b898a]">{participants.length} listed</span>
                       </div>
                       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                        {act.participants.map((p, i) => (
-                          <Link
-                            key={`${p.memberId}-${i}`}
-                            href={`/verify/member/${p.memberId}`}
-                            className="group flex items-center justify-between gap-3 rounded-2xl border border-[#e2e8e5] bg-[#f5f7f5] px-3 py-3 transition-all hover:border-[#D4AF37]/60 hover:bg-[#f0f2ee]"
-                          >
-                            <div className="flex min-w-0 items-center gap-3">
-                              {getMember(p.memberId)?.photoUrl ? (
-                                <img
-                                  src={getMember(p.memberId)?.photoUrl}
-                                  alt=""
-                                  className="h-9 w-9 shrink-0 rounded-xl object-cover"
-                                />
-                              ) : (
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#002147] text-[10px] font-bold text-[#D4AF37]">
-                                  {getInitials(getMemberName(p.memberId))}
-                                </span>
-                              )}
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-semibold text-[#002147] transition-colors group-hover:text-[#8d7014]">
-                                  {getMemberName(p.memberId)}
-                                </div>
-                                {p.awardTitle && (
-                                  <div className="mt-0.5 truncate text-xs text-[#7e8a8b]">{p.awardTitle}</div>
+                        {participants.map((p, i) => {
+                          const mid = p.memberId ?? "";
+                          const safeMid = encodeURIComponent(mid);
+                          const m = mid ? getMember(mid) : undefined;
+                          const name = mid ? getMemberName(mid) : ((p as any).name ?? "Unknown");
+                          return (
+                            <Link
+                              key={`${mid || "p"}-${i}`}
+                              href={mid ? `/verify/member/${safeMid}` : "#"}
+                              className="group flex items-center justify-between gap-3 rounded-2xl border border-[#e2e8e5] bg-[#f5f7f5] px-3 py-3 transition-all hover:border-[#D4AF37]/60 hover:bg-[#f0f2ee]"
+                            >
+                              <div className="flex min-w-0 items-center gap-3">
+                                {m?.photoUrl ? (
+                                  <img
+                                    src={m.photoUrl}
+                                    alt=""
+                                    className="h-9 w-9 shrink-0 rounded-xl object-cover"
+                                  />
+                                ) : (
+                                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#002147] text-[10px] font-bold text-[#D4AF37]">
+                                    {getInitials(name)}
+                                  </span>
                                 )}
+                                <div className="min-w-0">
+                                  <div className="truncate text-sm font-semibold text-[#002147] transition-colors group-hover:text-[#8d7014]">
+                                    {name}
+                                  </div>
+                                  {p.awardTitle && (
+                                    <div className="mt-0.5 truncate text-xs text-[#7e8a8b]">{p.awardTitle}</div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                            <ChevronRight size={15} className="shrink-0 text-[#b6c0be] transition-colors group-hover:text-[#D4AF37]" />
-                          </Link>
-                        ))}
+                              <ChevronRight size={15} className="shrink-0 text-[#b6c0be] transition-colors group-hover:text-[#D4AF37]" />
+                            </Link>
+                          );
+                        })}
                       </div>
 
-                      {/* Share section at bottom */}
                       <div className="mt-6 pt-5 border-t border-[#e5e9e6] flex flex-wrap items-center gap-3">
                         <ShareButton
                           url={actUrl}
-                          title={act.title}
-                          description={act.description}
+                          title={safeTitle}
+                          description={safeDescription}
                           meta={`${displayMonth} ${displayCalendarYear} · Leo Year ${displayYear}`}
                           variant="full"
                           label="Share this activity"
                           className="!bg-[#002147] !border-[#002147] hover:!bg-[#07345e] !text-white"
                         />
                         <Link
-                          href={`/activity/${act.id}`}
+                          href={`/activity/${safeActId}`}
                           className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#002147] hover:text-[#a17f15] transition-colors"
                         >
                           Open full activity <ArrowRight size={14} />
@@ -407,20 +420,19 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                     </div>
                   )}
 
-                  {/* Share section if no participants */}
-                  {act.participants.length === 0 && (
+                  {participants.length === 0 && (
                     <div className="p-6 sm:p-8 flex flex-wrap items-center gap-3">
                       <ShareButton
                         url={actUrl}
-                        title={act.title}
-                        description={act.description}
+                        title={safeTitle}
+                        description={safeDescription}
                         meta={`${displayMonth} ${displayCalendarYear} · Leo Year ${displayYear}`}
                         variant="full"
                         label="Share this activity"
                         className="!bg-[#002147] !border-[#002147] hover:!bg-[#07345e] !text-white"
                       />
                       <Link
-                        href={`/activity/${act.id}`}
+                        href={`/activity/${safeActId}`}
                         className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#002147] hover:text-[#a17f15] transition-colors"
                       >
                         Open full activity <ArrowRight size={14} />
