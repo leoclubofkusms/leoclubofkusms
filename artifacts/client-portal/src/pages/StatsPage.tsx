@@ -180,8 +180,7 @@ export default function StatsPage() {
   );
 
   // ── Faculty distribution ──────────────────────────────────────────────────
-  // Blank faculty is labeled "Unspecified" — NOT "Other". "Other" only appears
-  // if a member explicitly picked "Other" from the dropdown.
+  // Blank faculty is labeled "Unspecified" — NOT "Other".
   const facultyRows = useMemo(() => {
     const counts: Record<string, number> = {};
     members.forEach((m) => {
@@ -281,6 +280,8 @@ export default function StatsPage() {
     [impactRows]
   );
 
+  // ── Club Intelligence ─────────────────────────────────────────────────────
+  // Most Productive Year — across all time (inherently multi-year)
   const mostProductiveYear = useMemo(() => {
     return LEO_YEARS.reduce<{ year: string; count: number }>(
       (best, y) => {
@@ -291,16 +292,27 @@ export default function StatsPage() {
     );
   }, [activities]);
 
+  // Most Active Month — respects the selected Leo Year (viewYear)
   const mostActiveMonth = useMemo(() => {
+    const inYear = activities.filter((a) => a.year === viewYear);
+    const leoOrder = getMonthsInLeoOrder();
     return MONTHS.reduce<{ month: string; count: number }>(
       (best, m) => {
-        const count = activities.filter((a) => a.month === m).length;
-        return count > best.count ? { month: m, count } : best;
+        const count = inYear.filter((a) => a.month === m).length;
+        if (count > best.count) return { month: m, count };
+        if (count === best.count && count > 0) {
+          // Tie-break: prefer the month later in Leo-year order (July → June)
+          return leoOrder.indexOf(m) > leoOrder.indexOf(best.month)
+            ? { month: m, count }
+            : best;
+        }
+        return best;
       },
       { month: "", count: 0 }
     );
-  }, [activities]);
+  }, [activities, viewYear]);
 
+  // Most Recognized Leo — all time
   const mostAwardedMember = useMemo(() => {
     return [...members]
       .map((m) => ({ member: m, count: awards.filter((a) => a.memberId === m.memberId).length }))
@@ -680,10 +692,27 @@ export default function StatsPage() {
 
         {/* ── Club Intelligence ── */}
         <section className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow">
-          <SectionHeading icon={Zap} title="Club Intelligence" />
+          <div className="flex items-end justify-between gap-3 mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#002147] to-[#003575] flex items-center justify-center shadow-md ring-1 ring-[#D4AF37]/25">
+                <Zap size={17} className="text-[#D4AF37]" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-[#002147] tracking-[-0.01em]">Club Intelligence</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Filtered by Leo Year</p>
+              </div>
+            </div>
+            <select
+              value={viewYear}
+              onChange={(e) => setViewYear(e.target.value)}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 font-semibold text-[#002147] bg-white focus:outline-none focus:border-[#D4AF37]"
+            >
+              {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {mostProductiveYear.year && (
-              <div className="group relative rounded-2xl border border-gray-100 bg-gradient-to-br from-[#F8FAFC] to-white p-4 hover:border-[#D4AF37]/40 hover:shadow-md transition-all">
+              <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-[#F8FAFC] to-white p-4 hover:border-[#D4AF37]/40 hover:shadow-md transition-all">
                 <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">Most Productive Year</div>
                 <div className="font-bold text-[#002147] mt-1 text-lg">Leo Year {mostProductiveYear.year}</div>
                 <div className="flex items-end gap-1 mt-3">
@@ -698,7 +727,7 @@ export default function StatsPage() {
                 <div className="font-bold text-[#002147] mt-1 text-lg">{mostActiveMonth.month}</div>
                 <div className="flex items-end gap-1 mt-3">
                   <span className="text-2xl font-bold text-[#D4AF37] tabular-nums">{mostActiveMonth.count}</span>
-                  <span className="text-xs text-gray-400 mb-1">across all years</span>
+                  <span className="text-xs text-gray-400 mb-1">in {viewYear}</span>
                 </div>
               </div>
             )}
