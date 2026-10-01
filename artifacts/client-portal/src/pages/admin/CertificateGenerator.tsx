@@ -870,7 +870,7 @@ export default function CertificateGenerator() {
                     className="inline-flex items-center gap-2 bg-white border border-[#002147]/20 text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#002147] hover:text-white transition-colors disabled:opacity-60">
                     {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download PNG
                   </button>
-                  <.button onClick={() => setShowPreview((v) => !v)}
+                  <button onClick={() => setShowPreview((v) => !v)}
                     className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#002147] px-3 py-2.5 rounded-xl border border-gray-200 hover:border-[#002147]/30 transition-colors ml-auto">
                     <Eye size={14} /> {showPreview ? "Hide" : "Show"} Preview
                   </button>
