@@ -24,6 +24,18 @@ interface ArchivePageProps {
   month: string;  // e.g. "january"
 }
 
+// Safe wrapper — never let a date-math edge case crash the whole page.
+function safeCalendarYear(leoYear: string, month: string): string | number {
+  try {
+    const v = leoMonthToCalendarYear(leoYear, month);
+    if (v === undefined || v === null || Number.isNaN(v as number)) return "";
+    return v as string | number;
+  } catch (e) {
+    console.error("leoMonthToCalendarYear failed:", leoYear, month, e);
+    return "";
+  }
+}
+
 export default function ArchivePage({ year, month }: ArchivePageProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -36,8 +48,8 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
   const normalizedMonth = month.toLowerCase();
   const displayMonth = normalizedMonth.charAt(0).toUpperCase() + normalizedMonth.slice(1);
 
-  // Actual calendar year for this month in this Leo Year
-  const displayCalendarYear = leoMonthToCalendarYear(displayYear, displayMonth);
+  // Actual calendar year for this month in this Leo Year — guarded
+  const displayCalendarYear = safeCalendarYear(displayYear, displayMonth);
 
   useEffect(() => {
     async function load() {
@@ -48,8 +60,8 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
           getActivitiesByMonth(displayYear, displayMonth),
           getMembers(),
         ]);
-        setActivities(acts);
-        setMembers(mems);
+        setActivities(acts ?? []);
+        setMembers(mems ?? []);
       } catch (e) {
         console.error(e);
         setActivities([]);
@@ -128,7 +140,9 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                 <Calendar size={14} />
                 <span>{displayMonth} {displayCalendarYear} · Leo Year {displayYear}</span>
               </div>
-              <h1 className="text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">{displayMonth} {displayCalendarYear}</h1>
+              <h1 className="text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">
+                {displayMonth} {displayCalendarYear}
+              </h1>
               <p className="mt-4 text-sm text-white/60 sm:text-base">
                 A month in the club's record ·{" "}
                 <span className="text-white/85">
@@ -260,10 +274,14 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
           <div className="space-y-9">
             {activities.map((act, activityIndex) => {
               const actUrl = `${window.location.origin}${import.meta.env.BASE_URL}activity/${act.id}`;
+              const photos = act.photos ?? [];
+              const participants = act.participants ?? [];
+              const safeTitle = act.title ?? "Untitled activity";
+              const safeDescription = act.description ?? "";
               return (
                 <div
                   key={act.id}
-                  id={act.title.toLowerCase().replace(/\s+/g, "-")}
+                  id={safeTitle.toLowerCase().replace(/\s+/g, "-")}
                   className="overflow-hidden rounded-[1.5rem] border border-[#dfe6e3] bg-[#fffdf8] shadow-[0_12px_30px_rgba(0,33,71,0.06)]"
                 >
                   {/* Activity header */}
@@ -288,48 +306,48 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                           </div>
                           <ShareButton
                             url={actUrl}
-                            title={act.title}
-                            description={act.description}
+                            title={safeTitle}
+                            description={safeDescription}
                             meta={`${displayMonth} ${displayCalendarYear} · Leo Year ${displayYear}`}
                             variant="icon"
                             className="!bg-[#002147]/5 !text-[#002147] hover:!bg-[#002147]/15"
                           />
                         </div>
                         <h2 className="text-2xl font-semibold leading-tight tracking-[-0.03em] text-[#002147] sm:text-3xl">
-                          {act.title}
+                          {safeTitle}
                         </h2>
                         <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5e6d70] sm:text-[15px]">
-                          {act.description}
+                          {safeDescription}
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Photos grid */}
-                  {act.photos.length > 0 && (
+                  {photos.length > 0 && (
                     <div className="border-b border-[#e5e9e6] p-4 sm:p-6">
                       <div className="mb-3 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7c898b]">
                         <ImageIcon size={13} />
-                        <span>{act.photos.length} {act.photos.length === 1 ? "photo" : "photos"}</span>
+                        <span>{photos.length} {photos.length === 1 ? "photo" : "photos"}</span>
                       </div>
-                      <div className={`grid gap-3 ${act.photos.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-[1.35fr_1fr]"}`}>
+                      <div className={`grid gap-3 ${photos.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-[1.35fr_1fr]"}`}>
                         <div className="relative overflow-hidden rounded-2xl bg-[#e8edeb]">
                           <img
-                            src={act.photos[0]}
-                            alt={`${act.title} photo 1`}
-                            className={`w-full object-cover ${act.photos.length === 1 ? "max-h-[34rem] min-h-64" : "h-64 md:h-full md:min-h-[22rem]"}`}
+                            src={photos[0]}
+                            alt={`${safeTitle} photo 1`}
+                            className={`w-full object-cover ${photos.length === 1 ? "max-h-[34rem] min-h-64" : "h-64 md:h-full md:min-h-[22rem]"}`}
                           />
                           <span className="absolute bottom-3 left-3 rounded-full bg-[#002147]/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
-                            01 / {String(act.photos.length).padStart(2, "0")}
+                            01 / {String(photos.length).padStart(2, "0")}
                           </span>
                         </div>
-                        {act.photos.length > 1 && (
+                        {photos.length > 1 && (
                           <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
-                            {act.photos.slice(1).map((url, i) => (
+                            {photos.slice(1).map((url, i) => (
                               <div key={i} className="relative overflow-hidden rounded-2xl bg-[#e8edeb]">
                                 <img
                                   src={url}
-                                  alt={`${act.title} photo ${i + 2}`}
+                                  alt={`${safeTitle} photo ${i + 2}`}
                                   className="h-40 w-full object-cover sm:h-52 md:h-full md:min-h-[10rem]"
                                 />
                                 <span className="absolute bottom-2 left-2 rounded-full bg-[#002147]/75 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur">
@@ -344,54 +362,59 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                   )}
 
                   {/* Participants */}
-                  {act.participants.length > 0 && (
+                  {participants.length > 0 && (
                     <div className="p-6 sm:p-8">
                       <div className="mb-4 flex items-center justify-between gap-4">
                         <div className="flex items-center gap-2 text-sm font-semibold text-[#002147]">
                           <Users size={16} className="text-[#a17f15]" />
                           Participants
                         </div>
-                        <span className="text-xs text-[#7b898a]">{act.participants.length} listed</span>
+                        <span className="text-xs text-[#7b898a]">{participants.length} listed</span>
                       </div>
                       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                        {act.participants.map((p, i) => (
-                          <Link
-                            key={`${p.memberId}-${i}`}
-                            href={`/verify/member/${p.memberId}`}
-                            className="group flex items-center justify-between gap-3 rounded-2xl border border-[#e2e8e5] bg-[#f5f7f5] px-3 py-3 transition-all hover:border-[#D4AF37]/60 hover:bg-[#f0f2ee]"
-                          >
-                            <div className="flex min-w-0 items-center gap-3">
-                              {getMember(p.memberId)?.photoUrl ? (
-                                <img
-                                  src={getMember(p.memberId)?.photoUrl}
-                                  alt=""
-                                  className="h-9 w-9 shrink-0 rounded-xl object-cover"
-                                />
-                              ) : (
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#002147] text-[10px] font-bold text-[#D4AF37]">
-                                  {getInitials(getMemberName(p.memberId))}
-                                </span>
-                              )}
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-semibold text-[#002147] transition-colors group-hover:text-[#8d7014]">
-                                  {getMemberName(p.memberId)}
-                                </div>
-                                {p.awardTitle && (
-                                  <div className="mt-0.5 truncate text-xs text-[#7e8a8b]">{p.awardTitle}</div>
+                        {participants.map((p, i) => {
+                          const mid = p.memberId ?? "";
+                          const m = mid ? getMember(mid) : undefined;
+                          const name = mid ? getMemberName(mid) : (p as any).name ?? "Unknown";
+                          return (
+                            <Link
+                              key={`${mid || "p"}-${i}`}
+                              href={mid ? `/verify/member/${mid}` : "#"}
+                              className="group flex items-center justify-between gap-3 rounded-2xl border border-[#e2e8e5] bg-[#f5f7f5] px-3 py-3 transition-all hover:border-[#D4AF37]/60 hover:bg-[#f0f2ee]"
+                            >
+                              <div className="flex min-w-0 items-center gap-3">
+                                {m?.photoUrl ? (
+                                  <img
+                                    src={m.photoUrl}
+                                    alt=""
+                                    className="h-9 w-9 shrink-0 rounded-xl object-cover"
+                                  />
+                                ) : (
+                                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#002147] text-[10px] font-bold text-[#D4AF37]">
+                                    {getInitials(name)}
+                                  </span>
                                 )}
+                                <div className="min-w-0">
+                                  <div className="truncate text-sm font-semibold text-[#002147] transition-colors group-hover:text-[#8d7014]">
+                                    {name}
+                                  </div>
+                                  {p.awardTitle && (
+                                    <div className="mt-0.5 truncate text-xs text-[#7e8a8b]">{p.awardTitle}</div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                            <ChevronRight size={15} className="shrink-0 text-[#b6c0be] transition-colors group-hover:text-[#D4AF37]" />
-                          </Link>
-                        ))}
+                              <ChevronRight size={15} className="shrink-0 text-[#b6c0be] transition-colors group-hover:text-[#D4AF37]" />
+                            </Link>
+                          );
+                        })}
                       </div>
 
                       {/* Share section at bottom */}
                       <div className="mt-6 pt-5 border-t border-[#e5e9e6] flex flex-wrap items-center gap-3">
                         <ShareButton
                           url={actUrl}
-                          title={act.title}
-                          description={act.description}
+                          title={safeTitle}
+                          description={safeDescription}
                           meta={`${displayMonth} ${displayCalendarYear} · Leo Year ${displayYear}`}
                           variant="full"
                           label="Share this activity"
@@ -408,12 +431,12 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                   )}
 
                   {/* Share section if no participants */}
-                  {act.participants.length === 0 && (
+                  {participants.length === 0 && (
                     <div className="p-6 sm:p-8 flex flex-wrap items-center gap-3">
                       <ShareButton
                         url={actUrl}
-                        title={act.title}
-                        description={act.description}
+                        title={safeTitle}
+                        description={safeDescription}
                         meta={`${displayMonth} ${displayCalendarYear} · Leo Year ${displayYear}`}
                         variant="full"
                         label="Share this activity"
