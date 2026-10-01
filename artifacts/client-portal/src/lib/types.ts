@@ -35,17 +35,20 @@ export interface Member {
 
 export interface ActivityParticipant {
   memberId: string;
-  awardTitle: string;
+  awardTitle?: string;
 }
 
+// NOTE: photos / participants are marked optional here on purpose.
+// Firestore may return documents created before these fields existed, or
+// partial documents saved by an admin form. Consumers must guard with `?? []`.
 export interface Activity {
   id: string;
   year: string;
   month: string;
   title: string;
   description: string;
-  photos: string[];
-  participants: ActivityParticipant[];
+  photos?: string[];
+  participants?: ActivityParticipant[];
   featured?: boolean;
   manual?: boolean;
   createdAt?: string;
@@ -119,7 +122,6 @@ export interface ClubSettings {
   donationAccountNumber?: string;
   donationNote?: string;
   usdToNprRate?: number;
-  // NEW: President's signature image (uploaded in Club Settings, shown on certificates)
   presidentSignatureUrl?: string;
 }
 
@@ -267,7 +269,12 @@ export function convertNprToUsd(npr: number, rate?: number): number {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 export function activitySortKey(year: string, month: string): number {
-  return LEO_YEARS.indexOf(year) * 12 + MONTHS.indexOf(month);
+  const yi = LEO_YEARS.indexOf(year);
+  const mi = MONTHS.indexOf(month);
+  // Unknown year or month — sort to the bottom instead of NaN
+  if (yi === -1) return 999999;
+  if (mi === -1) return yi * 12 + 99;
+  return yi * 12 + mi;
 }
 
 export function getCurrentLeoYear(): string {
@@ -284,7 +291,7 @@ export function getCurrentLeoYearLabel(): string {
 }
 
 export function leoMonthToCalendarYear(leoYear: string, month: string): number {
-  const startYear = parseInt(leoYear.split("/")[0], 10);
+  const startYear = parseInt((leoYear ?? "").split("/")[0], 10);
   if (isNaN(startYear)) return new Date().getFullYear();
   const monthIdx = MONTHS.indexOf(month);
   if (monthIdx === -1) return startYear;
@@ -293,7 +300,7 @@ export function leoMonthToCalendarYear(leoYear: string, month: string): number {
 
 export function leoMonthYearLabel(leoYear: string, month: string): string {
   const year = leoMonthToCalendarYear(leoYear, month);
-  return `${month.slice(0, 3)} ${year}`;
+  return `${(month ?? "").slice(0, 3)} ${year}`;
 }
 
 export function getMonthsInLeoOrder(): string[] {
