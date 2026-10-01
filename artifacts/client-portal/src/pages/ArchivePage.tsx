@@ -18,33 +18,13 @@ import {
   Users,
 } from "lucide-react";
 import ShareButton from "@/components/ShareButton";
+import { sanitizeActivities } from "@/lib/sanitizeActivities";
 
 interface ArchivePageProps {
-  year: string;   // URL format: "YYYY-YY"
-  month: string;  // e.g. "january"
+  year: string;
+  month: string;
 }
 
-
-// Add at the top of ArchivePage.tsx, right after the imports:
-if (typeof window !== "undefined" && !(window as any).__archiveErrHooked) {
-  (window as any).__archiveErrHooked = true;
-  window.addEventListener("error", (e) => {
-    const box = document.createElement("div");
-    box.style.cssText = "position:fixed;top:0;left:0;right:0;background:#b00;color:#fff;padding:12px;font:12px monospace;z-index:99999;white-space:pre-wrap";
-    box.textContent = "ARCHIVE ERROR: " + (e.message || e.error?.message || "unknown") + "\n" + (e.filename || "") + ":" + (e.lineno || "");
-    document.body.appendChild(box);
-  });
-  window.addEventListener("unhandledrejection", (e) => {
-    const box = document.createElement("div");
-    box.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:#a00;color:#fff;padding:12px;font:12px monospace;z-index:99999;white-space:pre-wrap";
-    box.textContent = "ARCHIVE REJECTION: " + (e.reason?.message || String(e.reason));
-    document.body.appendChild(box);
-  });
-}
-
-
-
-// Safe wrapper — never let a date-math edge case crash the whole page.
 function safeCalendarYear(leoYear: string, month: string): string | number {
   try {
     const v = leoMonthToCalendarYear(leoYear, month);
@@ -56,6 +36,13 @@ function safeCalendarYear(leoYear: string, month: string): string | number {
   }
 }
 
+function slugify(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export default function ArchivePage({ year, month }: ArchivePageProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -63,12 +50,9 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
   const [loadError, setLoadError] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
-  // Normalize year back to "YYYY/YY" format
   const displayYear = year.replace("-", "/");
   const normalizedMonth = month.toLowerCase();
   const displayMonth = normalizedMonth.charAt(0).toUpperCase() + normalizedMonth.slice(1);
-
-  // Actual calendar year for this month in this Leo Year — guarded
   const displayCalendarYear = safeCalendarYear(displayYear, displayMonth);
 
   useEffect(() => {
@@ -80,7 +64,7 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
           getActivitiesByMonth(displayYear, displayMonth),
           getMembers(),
         ]);
-        setActivities(acts ?? []);
+        setActivities(sanitizeActivities(acts));
         setMembers(mems ?? []);
       } catch (e) {
         console.error(e);
@@ -94,10 +78,7 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
     load();
   }, [displayYear, displayMonth, reloadToken]);
 
-  // Leo Year order (July → June)
   const monthsInLeoOrder = getMonthsInLeoOrder();
-
-  // Build prev/next navigation using Leo Year order
   const monthIdx = monthsInLeoOrder.findIndex((m) => m.toLowerCase() === normalizedMonth);
   const yearIdx = LEO_YEARS.findIndex((y) => y.replace("/", "-") === year);
 
@@ -124,19 +105,11 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
   function getMemberName(memberId: string) {
     return members.find((m) => m.memberId === memberId)?.name ?? memberId;
   }
-
   function getMember(memberId: string) {
     return members.find((m) => m.memberId === memberId);
   }
-
   function getInitials(name: string) {
-    return name
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase();
+    return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
   }
 
   const previousHref = prevLink();
@@ -200,7 +173,6 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
         </div>
       </header>
 
-      {/* Month navigation pills */}
       <div className="sticky top-16 z-40 border-b border-[#dce2e0] bg-[#fffdf8]/95 shadow-[0_4px_14px_rgba(0,33,71,0.04)] backdrop-blur">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
           <div className="flex items-center gap-4 overflow-x-auto border-b border-[#e5e8e5] py-3 scrollbar-hide">
@@ -274,9 +246,10 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
               Try again
             </button>
           </div>
-        ) : activities.length === 0 ? (
-          <div className="rounded-[2rem] border border-dashed border-[#cbd5d7] bg-[#fffdf8] px-6 py-24 text-center">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e9eef0] text-[#66808a]">
+        ) :a activities.length === 0 ? (
+          <div] className="rounded-[2">
+rem] border border-dashed                            border-[#cbd5d7] bg-[#fff <df8] px-6 py-24 text-center">
+            <divspan className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e9eef0] text-[#66808a]">
               <Calendar size={29} strokeWidth={1.6} />
             </div>
             <h3 className="text-xl font-semibold tracking-[-0.02em] text-[#002147]">No activities this month</h3>
@@ -293,18 +266,18 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
         ) : (
           <div className="space-y-9">
             {activities.map((act, activityIndex) => {
-              const actUrl = `${window.location.origin}${import.meta.env.BASE_URL}activity/${act.id}`;
+              const safeActId = encodeURIComponent(act.id ?? "");
+              const actUrl = `${window.location.origin}${import.meta.env.BASE_URL}activity/${safeActId}`;
               const photos = act.photos ?? [];
               const participants = act.participants ?? [];
-              const safeTitle = act.title ?? "Untitled activity";
-              const safeDescription = act.description ?? "";
+              const safeTitle = act.title || "Untitled activity";
+              const safeDescription = act.description || "";
               return (
                 <div
-                  key={act.id}
-                  id={safeTitle.toLowerCase().replace(/\s+/g, "-")}
+                  key={act.id || activityIndex}
+                  id={slugify(safeTitle)}
                   className="overflow-hidden rounded-[1.5rem] border border-[#dfe6e3] bg-[#fffdf8] shadow-[0_12px_30px_rgba(0,33,71,0.06)]"
                 >
-                  {/* Activity header */}
                   <div className="border-b border-[#e5e9e6] p-6 sm:p-8">
                     <div className="flex items-start gap-4">
                       <div className="hidden shrink-0 pt-1 text-3xl font-semibold tracking-[-0.05em] text-[#d5dcd9] sm:block">
@@ -312,8 +285,7 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7b898a]">
-                            <span className="inline-flex items-center gap-1.5 text-[#a07f1c]">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7b898 className="inline-flex items-center gap-1.5 text-[#a07f1c]">
                               <Calendar size={12} /> {displayMonth} {displayCalendarYear}
                             </span>
                             <span className="h-1 w-1 rounded-full bg-[#cbd3d0]" />
@@ -343,7 +315,6 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                     </div>
                   </div>
 
-                  {/* Photos grid */}
                   {photos.length > 0 && (
                     <div className="border-b border-[#e5e9e6] p-4 sm:p-6">
                       <div className="mb-3 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7c898b]">
@@ -381,7 +352,6 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                     </div>
                   )}
 
-                  {/* Participants */}
                   {participants.length > 0 && (
                     <div className="p-6 sm:p-8">
                       <div className="mb-4 flex items-center justify-between gap-4">
@@ -394,12 +364,13 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                         {participants.map((p, i) => {
                           const mid = p.memberId ?? "";
+                          const safeMid = encodeURIComponent(mid);
                           const m = mid ? getMember(mid) : undefined;
-                          const name = mid ? getMemberName(mid) : (p as any).name ?? "Unknown";
+                          const name = mid ? getMemberName(mid) : ((p as any).name ?? "Unknown");
                           return (
                             <Link
                               key={`${mid || "p"}-${i}`}
-                              href={mid ? `/verify/member/${mid}` : "#"}
+                              href={mid ? `/verify/member/${safeMid}` : "#"}
                               className="group flex items-center justify-between gap-3 rounded-2xl border border-[#e2e8e5] bg-[#f5f7f5] px-3 py-3 transition-all hover:border-[#D4AF37]/60 hover:bg-[#f0f2ee]"
                             >
                               <div className="flex min-w-0 items-center gap-3">
@@ -429,7 +400,6 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                         })}
                       </div>
 
-                      {/* Share section at bottom */}
                       <div className="mt-6 pt-5 border-t border-[#e5e9e6] flex flex-wrap items-center gap-3">
                         <ShareButton
                           url={actUrl}
@@ -441,7 +411,7 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                           className="!bg-[#002147] !border-[#002147] hover:!bg-[#07345e] !text-white"
                         />
                         <Link
-                          href={`/activity/${act.id}`}
+                          href={`/activity/${safeActId}`}
                           className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#002147] hover:text-[#a17f15] transition-colors"
                         >
                           Open full activity <ArrowRight size={14} />
@@ -450,7 +420,6 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                     </div>
                   )}
 
-                  {/* Share section if no participants */}
                   {participants.length === 0 && (
                     <div className="p-6 sm:p-8 flex flex-wrap items-center gap-3">
                       <ShareButton
@@ -463,7 +432,7 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
                         className="!bg-[#002147] !border-[#002147] hover:!bg-[#07345e] !text-white"
                       />
                       <Link
-                        href={`/activity/${act.id}`}
+                        href={`/activity/${safeActId}`}
                         className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#002147] hover:text-[#a17f15] transition-colors"
                       >
                         Open full activity <ArrowRight size={14} />
