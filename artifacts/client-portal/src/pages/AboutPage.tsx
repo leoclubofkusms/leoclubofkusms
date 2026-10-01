@@ -204,39 +204,107 @@ export default function AboutPage() {
           )}
         </section>
 
+        {/* ── WHAT OUR LEADERS SAY — premium cards ── */}
         {(loading || quotes.length > 0) && (
           <section>
-            <h2 className="text-2xl font-bold text-[#002147] mb-2 text-center">What Our Leaders Say</h2>
-            <p className="text-gray-500 text-center text-sm mb-8">Voices from our current and past leadership.</p>
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 bg-[#D4AF37]/15 border border-[#D4AF37]/30 rounded-full px-4 py-1.5 text-[#8d7014] text-xs font-bold uppercase tracking-[0.16em] mb-4">
+                <Quote size={12} /> Leadership Voices
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-[#002147] tracking-[-0.02em]">What Our Leaders Say</h2>
+              <p className="text-gray-500 mt-2 text-sm md:text-base">Voices from our current and past leadership.</p>
+            </div>
+
             {!loading && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {quotes.map((q) => (
-                  <div key={q.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6 hover:shadow-md transition-shadow relative overflow-hidden">
-                    <Quote size={64} className="absolute -top-2 -right-2 text-[#D4AF37]/10 rotate-180 pointer-events-none" />
-                    <div className="flex items-start gap-4">
-                      {q.photoUrl ? (
-                        <img src={q.photoUrl} alt={q.name} className="w-14 h-14 md:w-16 md:h-16 rounded-xl object-cover object-center border-2 border-[#D4AF37]/30 shrink-0" />
-                      ) : (
-                        <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-[#002147] text-white flex items-center justify-center font-bold text-xl shrink-0">
-                          {q.name.charAt(0)}
+                  <article
+                    key={q.id}
+                    className="group relative bg-white rounded-3xl border border-gray-100 shadow-[0_10px_30px_-15px_rgba(0,33,71,0.15)] hover:shadow-[0_25px_50px_-20px_rgba(0,33,71,0.25)] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
+                  >
+                    {/* Gold accent bar */}
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#F0D77A] via-[#D4AF37] to-[#B8912A]" />
+
+                    <div className="flex flex-col sm:flex-row">
+                      {/* Photo — LARGE */}
+                      <div className="sm:w-40 md:w-48 shrink-0 relative">
+                        <div className="aspect-[4/5] sm:aspect-auto sm:h-full bg-gradient-to-br from-[#001a38] to-[#003575]">
+                          {q.photoUrl ? (
+                            <img
+                              src={q.photoUrl}
+                              alt={q.name}
+                              className="w-full h-full object-cover object-center"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-6xl md:text-7xl font-bold text-[#D4AF37]">
+                                {q.name.charAt(0)}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-[#002147]">{q.name}</div>
-                        <div className="text-xs text-[#D4AF37] font-semibold mb-3">
-                          {q.role}{q.leoYear ? ` · ${q.leoYear}` : ""}
+                        {/* Gold frame line */}
+                        <div className="absolute inset-0 border-r-0 sm:border-r-2 border-b-2 sm:border-b-0 border-[#D4AF37]/40 pointer-events-none" />
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 p-6 md:p-7 relative">
+                        <Quote
+                          size={80}
+                          className="absolute top-2 right-2 text-[#D4AF37]/8 rotate-180 pointer-events-none"
+                        />
+
+                        <div className="relative">
+                          <div className="text-lg md:text-xl font-bold text-[#002147] leading-tight">
+                            {q.name}
+                          </div>
+                          <div className="mt-1 inline-flex items-center gap-2 flex-wrap">
+                            <span className="text-xs md:text-sm font-bold text-[#8d7014] uppercase tracking-[0.1em]">
+                              {q.role}
+                            </span>
+                            {q.leoYear && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-[#D4AF37]/60" />
+                                <span className="text-xs font-semibold text-gray-400 bg-gray-50 border border-gray-100 rounded-full px-2 py-0.5">
+                                  {q.leoYear}
+                                </span>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Bigger quote text */}
+                          <blockquote className="mt-5 text-gray-700 text-base md:text-lg leading-relaxed italic relative">
+                            <span className="text-[#D4AF37] text-2xl leading-none font-serif mr-1">“</span>
+                            {q.quote}
+                            <span className="text-[#D4AF37] text-2xl leading-none font-serif ml-1">”</span>
+                          </blockquote>
+
+                          {q.introduction && (
+                            <p className="text-gray-400 text-xs md:text-sm leading-relaxed mt-4 pt-4 border-t border-gray-100">
+                              {q.introduction}
+                            </p>
+                          )}
+
+                          {q.audioUrl && (
+                            <button
+                              onClick={() => toggleAudio(q)}
+                              className={`mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all ${
+                                playingId === q.id
+                                  ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md"
+                                  : "bg-[#002147] text-white hover:bg-[#003575] shadow-sm"
+                              }`}
+                            >
+                              {playingId === q.id ? (
+                                <><Pause size={14} /> Stop audio</>
+                              ) : (
+                                <><Play size={14} /> Listen to {q.name.split(" ")[0]}</>
+                              )}
+                            </button>
+                          )}
                         </div>
-                        <p className="text-gray-600 text-sm leading-relaxed italic">"{q.quote}"</p>
-                        {q.introduction && <p className="text-gray-400 text-xs leading-relaxed mt-2">{q.introduction}</p>}
-                        {q.audioUrl && (
-                          <button onClick={() => toggleAudio(q)}
-                            className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${playingId === q.id ? "bg-green-100 text-green-700 border border-green-200" : "bg-[#002147]/8 text-[#002147] border border-[#002147]/10 hover:bg-[#002147]/15"}`}>
-                            {playingId === q.id ? <><Pause size={12} /> Stop audio</> : <><Play size={12} /> Listen</>}
-                          </button>
-                        )}
                       </div>
                     </div>
-                  </div>
+                  </article>
                 ))}
               </div>
             )}
