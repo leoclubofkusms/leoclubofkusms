@@ -280,6 +280,113 @@ function FeaturedCarousel({ activities }: { activities: Activity[] }) {
   );
 }
 
+// ── Featured Awards Carousel ──────────────────────────────────────────────────
+function FeaturedAwardsCarousel({ awards }: { awards: AwardType[] }) {
+  const [current, setCurrent] = useState(0);
+  const [fading, setFading] = useState(false);
+
+  const goTo = useCallback(
+    (idx: number) => {
+      if (idx === current) return;
+      setFading(true);
+      setTimeout(() => {
+        setCurrent(idx);
+        setFading(false);
+      }, 300);
+    },
+    [current]
+  );
+
+  const prev = () => goTo((current - 1 + awards.length) % awards.length);
+  const next = useCallback(() => goTo((current + 1) % awards.length), [current, goTo, awards.length]);
+
+  useEffect(() => {
+    if (awards.length <= 1) return;
+    const timer = setInterval(() => next(), 4500);
+    return () => clearInterval(timer);
+  }, [next, awards.length]);
+
+  useEffect(() => {
+    if (current >= awards.length) setCurrent(0);
+  }, [awards.length, current]);
+
+  if (!awards.length) return null;
+  const award = awards[current];
+  const awardUrl = typeof window !== "undefined"
+    ? `${window.location.origin}${import.meta.env.BASE_URL}awards#${award.id}`
+    : "";
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#D4AF37] to-[#B8912A] text-[#002147] shadow-2xl">
+      {award.photoUrl && (
+        <div className="absolute inset-0">
+          <img src={award.photoUrl} alt={award.recipientName} className="w-full h-full object-cover opacity-15" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#D4AF37]/95 via-[#D4AF37]/85 to-transparent" />
+        </div>
+      )}
+
+      <div className="relative px-8 py-10 md:px-12 md:py-14">
+        <div className="transition-all duration-300" style={{ opacity: fading ? 0 : 1, transform: fading ? "translateY(8px)" : "translateY(0)" }}>
+          <div className="inline-flex items-center gap-1.5 bg-[#002147] text-[#D4AF37] rounded-full px-3 py-1 text-xs font-bold mb-5">
+            <Trophy size={11} /> Featured Award · {award.month} {award.year}
+          </div>
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-[#002147]/15 text-[#002147] px-2.5 py-1 rounded-full">
+              {award.type === "member" ? <><Star size={10} /> Member Award</> : <><Shield size={10} /> Club Award</>}
+            </span>
+          </div>
+          <div className="text-sm font-bold uppercase tracking-[0.14em] text-[#002147]/70 mb-2">
+            {award.title}
+          </div>
+          <h3 className="text-2xl md:text-3xl font-bold mb-3 leading-tight max-w-xl">{award.recipientName}</h3>
+          {award.awardedBy && (
+            <p className="text-[#002147]/70 text-sm mb-2">
+              Awarded by <span className="font-semibold">{award.awardedBy}</span>
+            </p>
+          )}
+          {award.description && (
+            <p className="text-[#002147]/80 text-base leading-relaxed max-w-lg mb-6 line-clamp-3">
+              {award.description}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-3">
+            <Link href="/awards"
+              className="inline-flex items-center gap-2 bg-[#002147] text-[#D4AF37] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#003575] transition-colors">
+              View All Awards <ArrowRight size={15} />
+            </Link>
+            <ShareButton
+              url={awardUrl}
+              title={`${award.title} — ${award.recipientName}`}
+              description={award.description || `${award.type === "member" ? "Member" : "Club"} award by Leo Club of KUSMS`}
+              meta={`${award.month} · Leo Year ${award.year}`}
+              variant="full"
+              label="Share"
+              className="!bg-[#002147] !border-[#002147] !text-white hover:!bg-[#003575]"
+            />
+          </div>
+        </div>
+      </div>
+
+      {awards.length > 1 && (
+        <>
+          <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#002147]/15 hover:bg-[#002147]/25 flex items-center justify-center transition-colors text-[#002147]">
+            <ChevronLeft size={18} />
+          </button>
+          <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#002147]/15 hover:bg-[#002147]/25 flex items-center justify-center transition-colors text-[#002147]">
+            <ChevronRight size={18} />
+          </button>
+          <div className="absolute bottom-5 right-8 flex gap-2">
+            {awards.map((_, i) => (
+              <button key={i} onClick={() => goTo(i)}
+                className={`rounded-full transition-all duration-300 ${i === current ? "w-6 h-2 bg-[#002147]" : "w-2 h-2 bg-[#002147]/30 hover:bg-[#002147]/60"}`} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Featured Events Carousel ──────────────────────────────────────────────────
 function FeaturedEventsCarousel({ events }: { events: ClubEvent[] }) {
   const [current, setCurrent] = useState(0);
@@ -479,7 +586,7 @@ function AnnouncementBanner({
             rel={isExternal ? "noopener noreferrer" : undefined}
             className={`inline-flex items-center gap-1.5 mt-3 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${typeColors.btn}`}
           >
-            {ann.linkLabel} <ArrowRight size={12} />
+            {ann.label || ann.linkLabel} <ArrowRight size={12} />
           </a>
         )}
       </div>
@@ -530,6 +637,19 @@ export default function HomePage() {
     (a) => !dismissedAnnouncements.has(a.id) && !isAnnouncementExpired(a)
   );
   const president = bod[0] ?? null;
+
+  // Featured awards — featured flag OR the 3 most recent if none explicitly featured
+  const featuredAwards = (() => {
+    const explicit = awards.filter((a) => a.featured);
+    if (explicit.length > 0) return explicit;
+    return [...awards]
+      .sort((a, b) => {
+        const y = (b.year ?? "").localeCompare(a.year ?? "");
+        if (y !== 0) return y;
+        return MONTHS.indexOf(b.month) - MONTHS.indexOf(a.month);
+      })
+      .slice(0, 3);
+  })();
 
   const today = new Date().toISOString().split("T")[0];
   const featuredEvents = events
@@ -684,6 +804,22 @@ export default function HomePage() {
               </Link>
             </div>
             <FeaturedCarousel activities={featuredActivities} />
+          </section>
+        )}
+
+        {/* ═══ 7.5 FEATURED AWARDS ═══ */}
+        {featuredAwards.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-[#002147]">Featured Awards</h2>
+                <p className="text-gray-500 text-sm mt-1">Recognition of our members and club achievements</p>
+              </div>
+              <Link href="/awards" className="text-sm text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1">
+                All Awards <ArrowRight size={14} />
+              </Link>
+            </div>
+            <FeaturedAwardsCarousel awards={featuredAwards} />
           </section>
         )}
 
