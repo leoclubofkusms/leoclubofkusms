@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { getAwards } from "@/lib/firestore";
 import type { Award } from "@/lib/types";
-import { Award as AwardIcon, Star, Building, ArrowLeft, Calendar } from "lucide-react";
+import { Award as AwardIcon, Star, Building, ArrowLeft, Calendar, X } from "lucide-react";
 import { Link } from "wouter";
+import ShareButton from "@/components/ShareButton";
 
 export default function AwardsPage() {
   const [awards, setAwards] = useState<Award[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "member" | "club">("all");
+  const [lightbox, setLightbox] = useState<Award | null>(null);
 
   useEffect(() => {
     getAwards().then(setAwards).catch(console.error).finally(() => setLoading(false));
@@ -24,6 +26,18 @@ export default function AwardsPage() {
     byYear[a.year].push(a);
   });
 
+  // Close lightbox on Escape
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setLightbox(null);
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [lightbox]);
+
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <div className="bg-[#002147] text-white">
@@ -35,7 +49,7 @@ export default function AwardsPage() {
             <div className="w-10 h-10 rounded-xl bg-[#D4AF37] flex items-center justify-center">
               <AwardIcon size={20} className="text-[#002147]" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold">Awards & Recognition</h1>
+            <h1 className="text-3xl md:text-4xl font-bold">Awards &amp; Recognition</h1>
           </div>
           <p className="text-white/70">Celebrating outstanding members and the club's achievements.</p>
           <div className="flex gap-6 mt-6">
@@ -78,32 +92,98 @@ export default function AwardsPage() {
                   <span className="text-sm text-gray-400">{byYear[year].length} award{byYear[year].length !== 1 ? "s" : ""}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {byYear[year].map((a) => (
-                    <div key={a.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow ${a.featured ? "border-[#D4AF37]/40" : "border-gray-100"}`}>
-                      {a.photoUrl && <img src={a.photoUrl} alt={a.recipientName} className="w-full h-36 object-cover" />}
-                      <div className="p-5">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium ${a.type === "member" ? "bg-[#D4AF37]/20 text-[#002147]" : "bg-[#002147]/10 text-[#002147]"}`}>
-                            {a.type === "member" ? <><Star size={11} /> Member Award</> : <><Building size={11} /> Club Award</>}
-                          </span>
-                          {a.featured && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Featured</span>}
-                        </div>
-                        <div className="text-[#D4AF37] font-bold text-sm mb-1">{a.title}</div>
-                        <div className="font-bold text-[#002147] text-lg">{a.recipientName}</div>
-                        {a.awardedBy && <div className="text-xs text-gray-400 mt-0.5">By {a.awardedBy}</div>}
-                        {a.description && <p className="text-sm text-gray-500 mt-2 line-clamp-2">{a.description}</p>}
-                        <div className="flex items-center gap-1 text-xs text-gray-400 mt-3">
-                          <Calendar size={11} /> {a.month} · Leo Year {a.year}
+                  {byYear[year].map((a) => {
+                    const awardUrl = typeof window !== "undefined"
+                      ? `${window.location.origin}${import.meta.env.BASE_URL}awards#${a.id}`
+                      : "";
+                    return (
+                      <div key={a.id} id={a.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow ${a.featured ? "border-[#D4AF37]/40" : "border-gray-100"}`}>
+                        {a.photoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setLightbox(a)}
+                            className="relative w-full h-56 sm:h-60 bg-gray-50 overflow-hidden group cursor-zoom-in"
+                            aria-label="View full photo"
+                          >
+                            <img
+                              src={a.photoUrl}
+                              alt={a.recipientName}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <span className="absolute bottom-3 right-3 text-[10px] font-semibold text-white bg-black/50 backdrop-blur-sm rounded-full px-2.5 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              Tap to enlarge
+                            </span>
+                          </button>
+                        )}
+                        <div className="p-5">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium ${a.type === "member" ? "bg-[#D4AF37]/20 text-[#002147]" : "bg-[#002147]/10 text-[#002147]"}`}>
+                              {a.type === "member" ? <><Star size={11} /> Member Award</> : <><Building size={11} /> Club Award</>}
+                            </span>
+                            {a.featured && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Featured</span>}
+                          </div>
+                          <div className="text-[#D4AF37] font-bold text-sm mb-1">{a.title}</div>
+                          <div className="font-bold text-[#002147] text-lg">{a.recipientName}</div>
+                          {a.awardedBy && <div className="text-xs text-gray-400 mt-0.5">By {a.awardedBy}</div>}
+                          {a.description && <p className="text-sm text-gray-500 mt-2 line-clamp-2">{a.description}</p>}
+                          <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-gray-100">
+                            <div className="flex items-center gap-1 text-xs text-gray-400">
+                              <Calendar size={11} /> {a.month} · Leo Year {a.year}
+                            </div>
+                            <ShareButton
+                              url={awardUrl}
+                              title={`${a.title} — ${a.recipientName}`}
+                              description={a.description || `${a.type === "member" ? "Member" : "Club"} award by Leo Club of KUSMS`}
+                              meta={`${a.month} · Leo Year ${a.year}`}
+                              variant="icon"
+                              className="!bg-[#002147]/5 !text-[#002147] hover:!bg-[#002147]/15"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* ── Lightbox ── */}
+      {lightbox && lightbox.photoUrl && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+          <div
+            className="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightbox.photoUrl}
+              alt={lightbox.recipientName}
+              className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl"
+            />
+            <div className="text-center text-white px-4">
+              <div className="text-[#D4AF37] font-bold text-sm">{lightbox.title}</div>
+              <div className="font-bold text-lg mt-1">{lightbox.recipientName}</div>
+              <div className="text-white/60 text-xs mt-1">
+                {lightbox.month} · Leo Year {lightbox.year}
+                {lightbox.awardedBy ? ` · By ${lightbox.awardedBy}` : ""}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
