@@ -807,21 +807,171 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ═══ 7.5 FEATURED AWARDS ═══ */}
-        {featuredAwards.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-[#002147]">Featured Awards</h2>
-                <p className="text-gray-500 text-sm mt-1">Recognition of our members and club achievements</p>
+        // ── Featured Awards Carousel ──────────────────────────────────────────────────
+function FeaturedAwardsCarousel({ awards }: { awards: AwardType[] }) {
+  const [current, setCurrent] = useState(0);
+  const [fading, setFading] = useState(false);
+
+  const goTo = useCallback(
+    (idx: number) => {
+      if (idx === current) return;
+      setFading(true);
+      setTimeout(() => {
+        setCurrent(idx);
+        setFading(false);
+      }, 300);
+    },
+    [current]
+  );
+
+  const prev = () => goTo((current - 1 + awards.length) % awards.length);
+  const next = useCallback(() => goTo((current + 1) % awards.length), [current, goTo, awards.length]);
+
+  useEffect(() => {
+    if (awards.length <= 1) return;
+    const timer = setInterval(() => next(), 5000);
+    return () => clearInterval(timer);
+  }, [next, awards.length]);
+
+  useEffect(() => {
+    if (current >= awards.length) setCurrent(0);
+  }, [awards.length, current]);
+
+  if (!awards.length) return null;
+  const award = awards[current];
+  const awardUrl = typeof window !== "undefined"
+    ? `${window.location.origin}${import.meta.env.BASE_URL}awards#${award.id}`
+    : "";
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#002147] via-[#002c5f] to-[#003575] text-white shadow-2xl border-2 border-[#D4AF37]/30">
+      {/* Subtle radial glow */}
+      <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-[#D4AF37]/10 pointer-events-none" />
+      <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-[#D4AF37]/5 pointer-events-none" />
+
+      <div className="relative grid grid-cols-1 md:grid-cols-2 gap-0">
+        {/* ── Left: Large clear photo ── */}
+        <div className="relative aspect-[4/3] md:aspect-auto md:min-h-[420px] bg-[#001a38]">
+          <div
+            className="absolute inset-0 transition-all duration-500"
+            style={{ opacity: fading ? 0 : 1, transform: fading ? "scale(1.02)" : "scale(1)" }}
+          >
+            {award.photoUrl ? (
+              <img
+                src={award.photoUrl}
+                alt={award.recipientName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#D4AF37] to-[#B8912A]">
+                <Trophy size={72} className="text-[#002147]/70" />
               </div>
-              <Link href="/awards" className="text-sm text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors flex items-center gap-1">
-                All Awards <ArrowRight size={14} />
-              </Link>
+            )}
+          </div>
+
+          {/* Soft vignette on edges only */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#002147]/70 via-transparent to-transparent md:bg-gradient-to-r md:from-transparent md:via-transparent md:to-[#002147]/40 pointer-events-none" />
+
+          {/* Trophy badge overlay (top-left) */}
+          <div className="absolute top-4 left-4 inline-flex items-center gap-1.5 bg-[#D4AF37] text-[#002147] rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider shadow-lg">
+            <Trophy size={11} /> Featured Award
+          </div>
+
+          {/* Type badge (top-right) */}
+          <div className="absolute top-4 right-4 inline-flex items-center gap-1.5 bg-white/95 text-[#002147] rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider shadow-lg">
+            {award.type === "member" ? <><Star size={10} /> Member</> : <><Shield size={10} /> Club</>}
+          </div>
+        </div>
+
+        {/* ── Right: Content ── */}
+        <div className="relative p-6 sm:p-8 md:p-10 flex flex-col justify-center">
+          <div
+            className="transition-all duration-300"
+            style={{ opacity: fading ? 0 : 1, transform: fading ? "translateY(8px)" : "translateY(0)" }}
+          >
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#D4AF37]">
+                {award.month} · Leo Year {award.year}
+              </span>
             </div>
-            <FeaturedAwardsCarousel awards={featuredAwards} />
-          </section>
-        )}
+
+            <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#D4AF37]/80 mb-2">
+              {award.title}
+            </div>
+
+            <h3 className="text-2xl md:text-3xl font-bold mb-3 leading-tight">
+              {award.recipientName}
+            </h3>
+
+            {award.awardedBy && (
+              <p className="text-white/60 text-sm mb-3">
+                Awarded by <span className="font-semibold text-white/85">{award.awardedBy}</span>
+              </p>
+            )}
+
+            {award.description && (
+              <p className="text-white/70 text-sm md:text-base leading-relaxed mb-6 line-clamp-4">
+                {award.description}
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/awards"
+                className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#e1c25a] transition-colors shadow-md"
+              >
+                View All Awards <ArrowRight size={15} />
+              </Link>
+              <ShareButton
+                url={awardUrl}
+                title={`${award.title} — ${award.recipientName}`}
+                description={award.description || `${award.type === "member" ? "Member" : "Club"} award by Leo Club of KUSMS`}
+                meta={`${award.month} · Leo Year ${award.year}`}
+                variant="full"
+                label="Share"
+                className="!bg-white/10 !border-white/25 !text-white hover:!bg-white/20"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Navigation ── */}
+      {awards.length > 1 && (
+        <>
+          <button
+            onClick={prev}
+            className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm flex items-center justify-center transition-colors text-white z-10"
+            aria-label="Previous award"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <button
+            onClick={next}
+            className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm flex items-center justify-center transition-colors text-white z-10"
+            aria-label="Next award"
+          >
+            <ChevronRight size={20} />
+          </button>
+
+          {/* Dots (bottom right) */}
+          <div className="absolute bottom-4 right-4 md:bottom-5 md:right-8 flex gap-2 z-10">
+            {awards.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                aria-label={`Go to award ${i + 1}`}
+                className={`rounded-full transition-all duration-300 ${
+                  i === current ? "w-6 h-2 bg-[#D4AF37]" : "w-2 h-2 bg-white/40 hover:bg-white/70"
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
         {/* ═══ 8. BECOME A LEO ═══ */}
         <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
