@@ -507,7 +507,7 @@ export async function updateLeaderQuote(id: string, data: Partial<LeaderQuote>):
 }
 
 export async function deleteLeaderQuote(id: string): Promise<void> {
-  await deleteDoc(doc Feature(db, "leaderQuotes", id));
+  await deleteDoc(doc(db, "leaderQuotes", id));
 }
 
 // ── Past Leaders Preservation ──────────────────────────────────────────────────────────────
