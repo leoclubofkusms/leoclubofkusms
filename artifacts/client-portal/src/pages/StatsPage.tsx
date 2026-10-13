@@ -72,11 +72,11 @@ function SectionHeading({
   );
 }
 
-function pickTopMember(
+function pickTopMembers(
   members: Member[],
   activitiesInScope: Activity[],
   bodMemberIds: Set<string>
-): { member: Member; count: number } | null {
+): { member: Member; count: number }[] {
   const counts: Record<string, number> = {};
   activitiesInScope.forEach((a) => {
     (a.participants ?? []).forEach((p) => {
@@ -92,9 +92,78 @@ function pickTopMember(
       if (diff !== 0) return diff;
       return a.name.localeCompare(b.name);
     });
-  const top = eligible[0];
-  if (!top) return null;
-  return { member: top, count: counts[top.memberId] ?? 0 };
+  return eligible.slice(0, 5).map((member) => ({
+    member,
+    count: counts[member.memberId] ?? 0,
+  }));
+}
+
+function NominationCard({
+  title,
+  period,
+  candidates,
+  countLabel,
+  icon: Icon,
+}: {
+  title: string;
+  period: string;
+  candidates: { member: Member; count: number }[];
+  countLabel: string;
+  icon: typeof Flame;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/30 bg-gradient-to-br from-[#001a38] via-[#002147] to-[#003575] p-5 text-white shadow-lg sm:p-6">
+      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full border border-[#D4AF37]/20" />
+      <div className="relative">
+        <div className="mb-5 flex items-center gap-2">
+          <Icon size={16} className="text-[#D4AF37]" />
+          <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#D4AF37]">{title}</span>
+          <span className="ml-auto text-right text-xs text-white/55">{period}</span>
+        </div>
+        <div className="space-y-2">
+          {candidates.map(({ member, count }, index) => (
+            <Link
+              key={member.memberId}
+              href={`/members/${member.memberId}`}
+              className={`group flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 px-3 py-2.5 transition-colors hover:border-[#D4AF37]/50 hover:bg-white/10 ${
+                index === 0 ? "bg-white/[0.08]" : "bg-white/[0.035]"
+              }`}
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#D4AF37] text-xs font-bold text-[#002147]">
+                {index + 1}
+              </span>
+              {member.photoUrl ? (
+                <img
+                  src={member.photoUrl}
+                  alt={member.name}
+                  className={`shrink-0 rounded-xl object-cover ring-1 ring-[#D4AF37]/60 ${
+                    index === 0 ? "h-12 w-12" : "h-10 w-10"
+                  }`}
+                />
+              ) : (
+                <span className={`flex shrink-0 items-center justify-center rounded-xl bg-[#D4AF37]/15 font-bold text-[#D4AF37] ${
+                  index === 0 ? "h-12 w-12 text-lg" : "h-10 w-10 text-sm"
+                }`}>
+                  {member.name.charAt(0)}
+                </span>
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold text-white group-hover:text-[#F0D77A]">
+                  {member.name}
+                </span>
+                <span className="block truncate text-xs text-white/50">
+                  {member.currentRole || "Leo Member"}
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-[#D4AF37]/15 px-2.5 py-1 text-[10px] font-semibold text-[#F0D77A]">
+                {count} {countLabel}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function StatsPage() {
@@ -171,11 +240,11 @@ export default function StatsPage() {
     [activities, currentLeoYear]
   );
   const leoOfMonth = useMemo(
-    () => pickTopMember(members, monthActivities, bodMemberIds),
+    () => pickTopMembers(members, monthActivities, bodMemberIds),
     [members, monthActivities, bodMemberIds]
   );
   const leoOfYear = useMemo(
-    () => pickTopMember(members, yearActivities, bodMemberIds),
+    () => pickTopMembers(members, yearActivities, bodMemberIds),
     [members, yearActivities, bodMemberIds]
   );
 
@@ -534,81 +603,27 @@ export default function StatsPage() {
         )}
 
         {/* ── Leo of Month / Year ── */}
-        {(leoOfMonth || leoOfYear) && (
+        {(leoOfMonth.length > 0 || leoOfYear.length > 0) && (
           <section>
-            <SectionHeading icon={Flame} title="Suggested Leo of the Month & Year" subtitle="Recognizing outstanding non-BOD contributors" />
+            <SectionHeading icon={Flame} title="Top Leo of the Month & Year" subtitle="Five suggested non-BOD contributors, ranked by recorded participation" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {leoOfMonth && (
-                <div className="relative rounded-3xl overflow-hidden shadow-lg border border-[#D4AF37]/30">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#001a38] via-[#002147] to-[#003575]" />
-                  <div className="absolute inset-0 opacity-50" style={{ background: "radial-gradient(400px 140px at 100% 0%, rgba(212,175,55,0.20), transparent 60%)" }} />
-                  <div className="relative p-5 sm:p-6 text-white">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Flame size={15} className="text-[#D4AF37]" />
-                      <span className="text-[#D4AF37] font-bold text-xs uppercase tracking-[0.16em]">Leo of the Month</span>
-                      <span className="ml-auto text-xs text-white/40">{currentMonthName} {currentCalendarYear}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {leoOfMonth.member.photoUrl ? (
-                        <img src={leoOfMonth.member.photoUrl} alt={leoOfMonth.member.name}
-                          className="w-16 h-16 rounded-2xl object-cover ring-2 ring-[#D4AF37] ring-offset-2 ring-offset-[#002147] shrink-0" />
-                      ) : (
-                        <div className="w-16 h-16 rounded-2xl bg-[#D4AF37]/20 ring-2 ring-[#D4AF37]/40 flex items-center justify-center shrink-0">
-                          <span className="text-2xl font-bold text-[#D4AF37]">{leoOfMonth.member.name[0]}</span>
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="text-lg font-bold truncate">{leoOfMonth.member.name}</div>
-                        <div className="text-white/55 text-xs truncate">{leoOfMonth.member.currentRole || "Leo Member"}</div>
-                        <div className="mt-2 flex items-center gap-2 flex-wrap">
-                          <span className="bg-gradient-to-r from-[#F0D77A] to-[#D4AF37] text-[#002147] text-xs font-bold px-3 py-1 rounded-full shadow-sm">
-                            {leoOfMonth.count} activit{leoOfMonth.count === 1 ? "y" : "ies"} this month
-                          </span>
-                          <Link href={`/members/${leoOfMonth.member.memberId}`}
-                            className="text-xs text-white/60 hover:text-white transition-colors underline underline-offset-2">
-                            View Profile
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {leoOfMonth.length > 0 && (
+                <NominationCard
+                  title="Leo of the Month"
+                  period={`${currentMonthName} ${currentCalendarYear}`}
+                  candidates={leoOfMonth}
+                  countLabel="activities"
+                  icon={Flame}
+                />
               )}
-
-              {leoOfYear && (
-                <div className="relative rounded-3xl overflow-hidden shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#F0D77A] via-[#D4AF37] to-[#B8912A]" />
-                  <div className="relative p-5 sm:p-6 text-[#002147]">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Trophy size={15} className="text-[#002147]" />
-                      <span className="font-bold text-xs uppercase tracking-[0.16em]">Leo of the Year</span>
-                      <span className="ml-auto text-xs text-[#002147]/60">Leo Year {currentLeoYear}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {leoOfYear.member.photoUrl ? (
-                        <img src={leoOfYear.member.photoUrl} alt={leoOfYear.member.name}
-                          className="w-16 h-16 rounded-2xl object-cover ring-2 ring-[#002147] ring-offset-2 ring-offset-[#D4AF37] shrink-0" />
-                      ) : (
-                        <div className="w-16 h-16 rounded-2xl bg-[#002147]/15 ring-2 ring-[#002147]/30 flex items-center justify-center shrink-0">
-                          <span className="text-2xl font-bold text-[#002147]">{leoOfYear.member.name[0]}</span>
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="text-lg font-bold truncate">{leoOfYear.member.name}</div>
-                        <div className="text-[#002147]/70 text-xs truncate">{leoOfYear.member.currentRole || "Leo Member"}</div>
-                        <div className="mt-2 flex items-center gap-2 flex-wrap">
-                          <span className="bg-[#002147] text-[#F0D77A] text-xs font-bold px-3 py-1 rounded-full shadow-sm">
-                            {leoOfYear.count} activit{leoOfYear.count === 1 ? "y" : "ies"} this year
-                          </span>
-                          <Link href={`/members/${leoOfYear.member.memberId}`}
-                            className="text-xs text-[#002147]/70 hover:text-[#002147] transition-colors underline underline-offset-2">
-                            View Profile
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {leoOfYear.length > 0 && (
+                <NominationCard
+                  title="Leo of the Year"
+                  period={`Leo Year ${currentLeoYear}`}
+                  candidates={leoOfYear}
+                  countLabel="activities"
+                  icon={Trophy}
+                />
               )}
             </div>
             <p className="text-xs text-gray-400 mt-3 text-center">

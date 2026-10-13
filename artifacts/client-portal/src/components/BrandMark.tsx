@@ -14,6 +14,7 @@ export default function BrandMark({ size = "md", className = "" }: BrandMarkProp
     <img
       src="/logo.png"
       alt="Leo Club of KUSMS"
+      data-photo-viewer="off"
       className={`${sizeClasses[size]} shrink-0 object-contain rounded-full ${className}`}
     />
   );

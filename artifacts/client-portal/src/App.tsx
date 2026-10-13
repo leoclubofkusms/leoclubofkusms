@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import GlobalPhotoViewer from "@/components/GlobalPhotoViewer";
 import HomePage from "@/pages/HomePage";
 import AdminLoginPage from "@/pages/AdminLoginPage";
 import AdminDashboard from "@/pages/AdminDashboard";
@@ -206,6 +207,7 @@ function App() {
           {showSplash && <SplashScreen onEnter={() => setShowSplash(false)} />}
           <SeoManager />
           <AppLayout />
+          <GlobalPhotoViewer />
         </WouterRouter>
       </AuthProvider>
     </QueryClientProvider>

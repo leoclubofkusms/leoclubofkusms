@@ -290,6 +290,22 @@ export function getCurrentLeoYearLabel(): string {
   return `Leo Year ${getCurrentLeoYear()}`;
 }
 
+export function getCurrentLeoMonth(): string {
+  return MONTHS[new Date().getMonth()];
+}
+
+export function formatPresidentSlogan(slogan?: string): string {
+  let value = slogan?.trim() ?? "";
+  const quotePairs = [["“", "”"], ['"', '"'], ["‘", "’"], ["'", "'"]] as const;
+  for (const [opening, closing] of quotePairs) {
+    if (value.startsWith(opening) && value.endsWith(closing) && value.length >= 2) {
+      value = value.slice(opening.length, -closing.length).trim();
+      break;
+    }
+  }
+  return value;
+}
+
 export function leoMonthToCalendarYear(leoYear: string, month: string): number {
   const startYear = parseInt((leoYear ?? "").split("/")[0], 10);
   if (isNaN(startYear)) return new Date().getFullYear();

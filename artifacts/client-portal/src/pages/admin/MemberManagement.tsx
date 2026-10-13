@@ -9,7 +9,7 @@ import {
   toggleMemberActive,
 } from "@/lib/firestore";
 import type { Member, MemberActivity, MemberRole } from "@/lib/types";
-import { LEO_YEARS, MONTHS, FACULTIES, BATCH_YEARS } from "@/lib/types";
+import { LEO_YEARS, MONTHS, FACULTIES, BATCH_YEARS, getCurrentLeoYear } from "@/lib/types";
 import {
   Plus,
   Pencil,
@@ -27,6 +27,7 @@ import {
   Clock,
   CheckCircle,
   Download,
+  Search,
 } from "lucide-react";
 
 const EMPTY_MEMBER: Member = {
@@ -40,14 +41,14 @@ const EMPTY_MEMBER: Member = {
   email: "",
   activities: [],
   isActive: true,
-  joinedLeoYear: LEO_YEARS[0],
+  joinedLeoYear: getCurrentLeoYear(),
   leftLeoYear: "",
   bio: "",
   roleHistory: [],
 };
 
 const EMPTY_ACHIEVEMENT = {
-  year: LEO_YEARS[0],
+  year: getCurrentLeoYear(),
   month: MONTHS[0],
   title: "",
   description: "",
@@ -375,6 +376,26 @@ export default function MemberManagement() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [directorySearch, setDirectorySearch] = useState("");
+
+  const normalizedFormId = form.memberId.trim().toLocaleLowerCase();
+  const duplicateMember = normalizedFormId
+    ? members.find((member) =>
+        member.memberId.trim().toLocaleLowerCase() === normalizedFormId &&
+        member.memberId.trim().toLocaleLowerCase() !== editing?.memberId.trim().toLocaleLowerCase()
+      )
+    : undefined;
+  const matchingMembers = memberSearch.trim()
+    ? members.filter((member) =>
+        [member.memberId, member.name, member.rollNo, member.batch, member.faculty]
+          .some((value) => value?.toLocaleLowerCase().includes(memberSearch.trim().toLocaleLowerCase()))
+      ).slice(0, 5)
+    : [];
+  const visibleMembers = members.filter((member) =>
+    [member.memberId, member.name, member.rollNo, member.batch, member.faculty, member.currentRole]
+      .some((value) => value?.toLocaleLowerCase().includes(directorySearch.trim().toLocaleLowerCase()))
+  );
 
   async function load() {
     setLoading(true);
@@ -393,6 +414,7 @@ export default function MemberManagement() {
   function openAdd() {
     setEditing(null);
     setForm(EMPTY_MEMBER);
+    setMemberSearch("");
     setError("");
     setShowForm(true);
   }
@@ -400,6 +422,7 @@ export default function MemberManagement() {
   function openEdit(member: Member) {
     setEditing(member);
     setForm({ ...member, roleHistory: member.roleHistory ?? [] });
+    setMemberSearch("");
     setError("");
     setShowForm(true);
   }
@@ -408,6 +431,14 @@ export default function MemberManagement() {
     e.preventDefault();
     if (!form.memberId.trim()) { setError("Member ID is required."); return; }
     const nextMemberId = form.memberId.trim();
+    const duplicate = members.find((member) =>
+      member.memberId.trim().toLocaleLowerCase() === nextMemberId.toLocaleLowerCase() &&
+      member.memberId.trim().toLocaleLowerCase() !== editing?.memberId.trim().toLocaleLowerCase()
+    );
+    if (duplicate) {
+      setError(`Membership ID ${duplicate.memberId} already belongs to ${duplicate.name}.`);
+      return;
+    }
     const changingMemberId = Boolean(editing && editing.memberId !== nextMemberId);
     if (changingMemberId && !window.confirm(
       "Change this membership ID? Existing activities, awards, and leadership links will be moved to the new ID."
@@ -505,6 +536,36 @@ export default function MemberManagement() {
             </button>
           </div>
 
+          {!editing && (
+            <div className="mb-5 rounded-xl border border-[#D4AF37]/30 bg-[#D4AF37]/5 p-4">
+              <label className="mb-2 block text-xs font-semibold text-[#002147]">
+                Check the member directory first
+              </label>
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="search"
+                  value={memberSearch}
+                  onChange={(event) => setMemberSearch(event.target.value)}
+                  placeholder="Search by name, membership ID, roll number, or batch"
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm focus:border-[#002147] focus:outline-none"
+                />
+              </div>
+              {memberSearch.trim() && (
+                <div className="mt-2 space-y-1">
+                  {matchingMembers.length > 0 ? matchingMembers.map((member) => (
+                    <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-xs">
+                      <span className="font-semibold text-[#002147]">{member.name}</span>
+                      <span className="text-gray-500">{member.memberId} · {member.rollNo} · {member.batch}</span>
+                    </div>
+                  )) : (
+                    <p className="px-1 pt-1 text-xs text-gray-500">No existing member matches that search.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -514,16 +575,28 @@ export default function MemberManagement() {
                 <input
                   type="text"
                   value={form.memberId}
-                  onChange={(e) => setForm({ ...form, memberId: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, memberId: e.target.value }); setError(""); }}
                   placeholder="e.g. MBBS2101"
                   required
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
                 />
+                {duplicateMember ? (
+                  <p className="mt-1 text-xs font-medium text-red-600" role="alert">
+                    Already registered: {duplicateMember.name} ({duplicateMember.memberId})
+                  </p>
+                ) : form.memberId.trim() ? (
+                  <p className="mt-1 text-xs text-green-700">
+                    {editing && normalizedFormId === editing.memberId.trim().toLocaleLowerCase()
+                      ? "This is the current member's ID."
+                      : "No existing member uses this membership ID."}
+                  </p>
+                ) : (
                 <p className="text-xs text-gray-400 mt-1">
                   {editing
                     ? "You can change this later. Existing activities, awards, and leadership links will follow the new ID."
-                    : "Format: Faculty + Batch + Number (e.g. MBBS2101 = MBBS batch 21, member 01)"}
+                    : "Format: Faculty + Batch + Number (for example, MBBS2101 = MBBS batch 21, member 01)"}
                 </p>
+                )}
               </div>
 
               <div>
@@ -593,7 +666,7 @@ export default function MemberManagement() {
                   <button type="button"
                     onClick={() => setForm((current) => ({
                       ...current,
-                      roleHistory: [...(current.roleHistory ?? []), { leoYear: LEO_YEARS[0], role: "General Member", source: "manual" as const } satisfies MemberRole],
+                      roleHistory: [...(current.roleHistory ?? []), { leoYear: getCurrentLeoYear(), role: "General Member", source: "manual" as const } satisfies MemberRole],
                     }))}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-[#002147] hover:text-[#D4AF37]">
                     <PlusCircle size={13} /> Add year
@@ -733,7 +806,7 @@ export default function MemberManagement() {
             <div className="flex gap-3">
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || Boolean(duplicateMember)}
                 className="flex-1 bg-[#002147] text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-[#003575] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {submitting ? (
@@ -759,6 +832,18 @@ export default function MemberManagement() {
       )}
 
       {/* Members list */}
+      {!loading && members.length > 0 && (
+        <div className="relative mb-4">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="search"
+            value={directorySearch}
+            onChange={(event) => setDirectorySearch(event.target.value)}
+            placeholder="Search members by name, membership ID, roll number, batch, or role"
+            className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm focus:border-[#002147] focus:outline-none"
+          />
+        </div>
+      )}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -779,9 +864,13 @@ export default function MemberManagement() {
           <User size={40} className="mx-auto mb-3 opacity-30" />
           <p>No members yet. Add your first member.</p>
         </div>
+      ) : visibleMembers.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-12 text-center text-sm text-gray-500">
+          No members match “{directorySearch}”.
+        </div>
       ) : (
         <div className="space-y-3">
-          {members.map((m) => (
+          {visibleMembers.map((m) => (
             <div
               key={m.memberId}
               className="bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm transition-shadow"

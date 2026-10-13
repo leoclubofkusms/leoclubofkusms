@@ -19,6 +19,7 @@ import {
   Calendar, Trash2, Eye, Users, Pin, PinOff,
   Pencil, Check, X, Loader2, QrCode, Download,
   ArrowLeft, Plus, FolderOpen,
+  Search,
 } from "lucide-react";
 import ActivityForm from "./ActivityForm";
 import ShareButton from "@/components/ShareButton";
@@ -60,6 +61,8 @@ export default function ActivitiesManager() {
   });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+  const [participantSearch, setParticipantSearch] = useState("");
+  const [participantSearchOpen, setParticipantSearchOpen] = useState(false);
   const [qrActivity, setQrActivity] = useState<Activity | null>(null);
   const qrRef = useRef<HTMLDivElement>(null);
 
@@ -136,6 +139,8 @@ export default function ActivitiesManager() {
       photoInput: safePhotos(act).join("\n"),
       participants: [...safeParticipants(act)],
     });
+    setParticipantSearch("");
+    setParticipantSearchOpen(false);
     setEditError("");
     try {
       setMembers((await getMembers()) ?? []);
@@ -211,6 +216,12 @@ export default function ActivitiesManager() {
   }
 
   const qrUrl = qrActivity ? safeActivityUrl(qrActivity.id) : "";
+  const availableMembers = members.filter((member) => {
+    if (editForm.participants.some((participant) => participant.memberId === member.memberId)) return false;
+    const query = participantSearch.trim().toLocaleLowerCase();
+    return !query || [member.name, member.memberId, member.rollNo, member.batch]
+      .some((value) => value.toLocaleLowerCase().includes(query));
+  });
 
   if (showAddForm && selectedMonth) {
     const addCalendarYear = leoMonthToCalendarYear(selectedYear, selectedMonth);
@@ -394,32 +405,48 @@ export default function ActivitiesManager() {
                         <label className="text-xs text-gray-500 font-medium mb-1 block">
                           Participating members
                         </label>
-                        <select
-                          value=""
-                          onChange={(e) => {
-                            const memberId = e.target.value;
-                            if (!memberId) return;
-                            setEditForm((f) => ({
-                              ...f,
-                              participants: f.participants.some((p) => p.memberId === memberId)
-                                ? f.participants
-                                : [...f.participants, { memberId, awardTitle: "" }],
-                            }));
-                          }}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#002147] bg-white"
-                        >
-                          <option value="">Add a member…</option>
-                          {members
-                            .filter(
-                              (m) =>
-                                !editForm.participants.some((p) => p.memberId === m.memberId)
-                            )
-                            .map((m) => (
-                              <option key={m.memberId} value={m.memberId}>
-                                {m.name} · {m.memberId}
-                              </option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="search"
+                            value={participantSearch}
+                            onChange={(event) => {
+                              setParticipantSearch(event.target.value);
+                              setParticipantSearchOpen(true);
+                            }}
+                            onFocus={() => setParticipantSearchOpen(true)}
+                            onBlur={() => window.setTimeout(() => setParticipantSearchOpen(false), 150)}
+                            placeholder="Search by name, member ID, roll number, or batch"
+                            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm focus:border-[#002147] focus:outline-none"
+                          />
+                          {participantSearchOpen && (
+                            <div className="absolute top-full z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                              {availableMembers.length > 0 ? availableMembers.map((member) => (
+                                <button
+                                  key={member.memberId}
+                                  type="button"
+                                  onMouseDown={(event) => event.preventDefault()}
+                                  onClick={() => {
+                                    setEditForm((current) => ({
+                                      ...current,
+                                      participants: [...current.participants, { memberId: member.memberId, awardTitle: "" }],
+                                    }));
+                                    setParticipantSearch("");
+                                    setParticipantSearchOpen(false);
+                                  }}
+                                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[#002147]/5"
+                                >
+                                  <span className="truncate text-sm font-medium text-[#002147]">{member.name}</span>
+                                  <span className="shrink-0 text-xs text-gray-500">{member.memberId} · {member.rollNo}</span>
+                                </button>
+                              )) : (
+                                <p className="px-3 py-3 text-center text-xs text-gray-500">
+                                  {participantSearch ? "No matching available members." : "All members are already tagged."}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         {editForm.participants.length > 0 && (
                           <div className="mt-2 space-y-1.5">
                             {editForm.participants.map((participant) => {
@@ -433,6 +460,7 @@ export default function ActivitiesManager() {
                                 >
                                   <span className="text-xs text-gray-700 flex-1 truncate">
                                     {member?.name ?? participant.memberId}
+                                    {member?.memberId && <span className="ml-1 text-gray-400">· {member.memberId}</span>}
                                   </span>
                                   <input
                                     value={participant.awardTitle ?? ""}

@@ -43,7 +43,7 @@ export default function ArchiveIndexPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f4f6f5] text-[#002147]">
+    <div className="min-h-screen bg-[#F8FAFC] text-[#002147]">
       <header className="relative overflow-hidden bg-[#002147] text-white">
         <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full border border-[#D4AF37]/20" />
         <div className="absolute -right-10 -top-14 h-44 w-44 rounded-full border border-[#D4AF37]/15" />
@@ -95,22 +95,22 @@ export default function ArchiveIndexPage() {
             {[1, 2, 3].map((item) => (
               <div key={item} className="animate-pulse">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-2xl bg-[#dce3e5]" />
+                  <div className="h-11 w-11 rounded-2xl bg-slate-200" />
                   <div>
-                    <div className="h-5 w-32 rounded bg-[#dce3e5]" />
-                    <div className="mt-2 h-3 w-44 rounded bg-[#e4e9ea]" />
+                    <div className="h-5 w-32 rounded bg-slate-200" />
+                    <div className="mt-2 h-3 w-44 rounded bg-slate-200" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                   {[1, 2, 3, 4].map((card) => (
-                    <div key={card} className="h-28 rounded-2xl bg-[#e3e8e8]" />
+                    <div key={card} className="h-28 rounded-2xl bg-slate-200" />
                   ))}
                 </div>
               </div>
             ))}
           </div>
         ) : yearsWithData.length === 0 ? (
-          <div className="rounded-[2rem] border border-dashed border-[#cbd5d7] bg-[#fffdf8] px-6 py-20 text-center text-[#617078] shadow-[0_16px_40px_rgba(0,33,71,0.04)]">
+          <div className="rounded-[2rem] border border-dashed border-gray-200 bg-white px-6 py-20 text-center text-gray-600 shadow-[0_16px_40px_rgba(0,33,71,0.04)]">
             <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#002147] text-[#D4AF37]">
               <FolderOpen size={27} strokeWidth={1.6} />
             </div>

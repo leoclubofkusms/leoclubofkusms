@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { LEO_YEARS, MONTHS } from "@/lib/types";
@@ -11,15 +11,34 @@ import BrandMark from "@/components/BrandMark";
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [location] = useLocation();
   const { isAdmin, isOperator, signOut } = useAuth();
   const isLoggedIn = isAdmin || isOperator;
+  const membersMenuRef = useRef<HTMLDivElement>(null);
 
   // Close mobile menu when route changes
   useEffect(() => {
     setOpen(false);
     setArchiveOpen(false);
+    setMembersOpen(false);
   }, [location]);
+
+  useEffect(() => {
+    if (!membersOpen) return;
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!membersMenuRef.current?.contains(event.target as Node)) setMembersOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setMembersOpen(false);
+    }
+    document.addEventListener("click", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("click", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [membersOpen]);
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
@@ -52,7 +71,7 @@ export default function Navbar() {
           </Link>
 
           {/* ── Desktop nav ── */}
-          <div className="hidden lg:flex items-center gap-6 flex-1 justify-center">
+          <div className="hidden xl:flex items-center gap-6 flex-1 justify-center">
             <Link href="/" className={linkClass("/")}>
               Home
               {isActive("/") && <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-[#D4AF37] rounded-full" />}
@@ -63,25 +82,32 @@ export default function Navbar() {
             </Link>
 
             {/* Members dropdown */}
-            <div className="relative group">
-              <button className={`flex items-center gap-1 py-1.5 text-sm font-medium transition-colors ${
+            <div className="relative" ref={membersMenuRef}>
+              <button
+                type="button"
+                onClick={() => setMembersOpen((value) => !value)}
+                aria-haspopup="true"
+                aria-expanded={membersOpen}
+                className={`flex items-center gap-1 py-1.5 text-sm font-medium transition-colors ${
                 isActive("/members") || isActive("/past-members")
                   ? "text-[#D4AF37]"
                   : "text-white/90 hover:text-[#D4AF37]"
               }`}>
                 Members
-                <ChevronDown size={13} className="group-hover:rotate-180 transition-transform duration-200" />
+                <ChevronDown size={13} className={`transition-transform duration-200 ${membersOpen ? "rotate-180" : ""}`} />
               </button>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-150">
+              {membersOpen && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-50">
                 <div className="bg-white text-[#002147] rounded-xl shadow-xl border border-gray-100 w-52 py-1.5 overflow-hidden">
-                  <Link href="/members" className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-[#002147] hover:text-white transition-colors">
+                  <Link href="/members" onClick={() => setMembersOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-[#002147] hover:text-white transition-colors">
                     <Award size={14} className="text-[#D4AF37]" /> Active Members
                   </Link>
-                  <Link href="/past-members" className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-[#002147] hover:text-white transition-colors">
+                  <Link href="/past-members" onClick={() => setMembersOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-[#002147] hover:text-white transition-colors">
                     <Clock size={14} className="text-[#D4AF37]" /> Past Members
                   </Link>
                 </div>
               </div>
+              )}
             </div>
 
             <Link href="/events" className={linkClass("/events")}>
@@ -151,7 +177,7 @@ export default function Navbar() {
           </div>
 
           {/* ── Desktop right side: auth only ── */}
-          <div className="hidden lg:flex items-center gap-3 shrink-0">
+          <div className="hidden xl:flex items-center gap-3 shrink-0">
             {isLoggedIn ? (
               <>
                 <Link
@@ -179,7 +205,7 @@ export default function Navbar() {
 
           {/* ── Mobile hamburger ── */}
           <button
-            className="lg:hidden p-2 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+            className="xl:hidden p-2 rounded-lg hover:bg-white/10 transition-colors shrink-0"
             onClick={() => setOpen(!open)}
             aria-label="Toggle menu"
           >
@@ -190,7 +216,7 @@ export default function Navbar() {
 
       {/* ── Mobile menu — full-screen overlay ── */}
       {open && (
-        <div className="lg:hidden fixed inset-0 top-16 bg-[#002147] z-40 overflow-y-auto">
+        <div className="xl:hidden fixed inset-0 top-16 bg-[#002147] z-40 overflow-y-auto">
           <div className="px-5 py-6 space-y-1">
 
             <Link href="/" onClick={() => setOpen(false)} className={`flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-colors ${isActive("/") ? "bg-[#D4AF37] text-[#002147]" : "hover:bg-white/10"}`}>

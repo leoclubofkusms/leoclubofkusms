@@ -10,7 +10,7 @@ import {
 import { useEffect, useState } from "react";
 import { getClubSettings } from "@/lib/firestore";
 import type { ClubSettings } from "@/lib/types";
-import { getCurrentLeoYear } from "@/lib/types";
+import { formatPresidentSlogan, getCurrentLeoYear } from "@/lib/types";
 
 export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
   const [exiting, setExiting] = useState(false);
@@ -139,6 +139,7 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
             <img
               src="/logo.png"
               alt="Leo Club of KUSMS"
+              data-photo-viewer="off"
               className="h-12 w-12 sm:h-14 sm:w-14 object-contain drop-shadow-[0_4px_14px_rgba(212,175,55,0.4)]"
             />
             <div className="text-left">
@@ -210,7 +211,8 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                       President&apos;s Slogan · {getCurrentLeoYear()}
                     </p>
                     <p className="mt-2 text-xl font-medium italic leading-tight tracking-[-0.01em] text-white sm:text-2xl">
-                      &ldquo;{settings.presidentSlogan}&rdquo;
+                      <span aria-hidden="true" className="mr-1 font-serif text-3xl text-[#D4AF37]">“</span>
+                      {formatPresidentSlogan(settings.presidentSlogan)}
                     </p>
                     {settings.presidentSloganPhotoUrl && (
                       <p className="mt-2 text-xs uppercase tracking-[0.16em] text-white/45">

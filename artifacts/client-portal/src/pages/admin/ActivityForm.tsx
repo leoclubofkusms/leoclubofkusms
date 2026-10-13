@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getMembers, createActivity } from "@/lib/firestore";
 import type { Member, ActivityParticipant } from "@/lib/types";
-import { LEO_YEARS, getMonthsInLeoOrder, leoMonthYearLabel } from "@/lib/types";
+import { LEO_YEARS, getCurrentLeoYear, getMonthsInLeoOrder, leoMonthYearLabel } from "@/lib/types";
 import { Plus, X, Search, Check, ChevronDown } from "lucide-react";
 
 export default function ActivityForm({
@@ -15,7 +15,7 @@ export default function ActivityForm({
 }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [form, setForm] = useState({
-    year: defaultYear ?? LEO_YEARS[0],
+    year: defaultYear ?? getCurrentLeoYear(),
     month: defaultMonth ?? "July",
     title: "",
     description: "",
@@ -46,7 +46,8 @@ export default function ActivityForm({
   const filteredMembers = members.filter(
     (m) =>
       !participants.some((p) => p.memberId === m.memberId) &&
-      (m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
+      (m.memberId.toLowerCase().includes(memberSearch.toLowerCase()) ||
+        m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
         m.rollNo.toLowerCase().includes(memberSearch.toLowerCase()) ||
         m.batch.toLowerCase().includes(memberSearch.toLowerCase()))
   );
@@ -90,7 +91,7 @@ export default function ActivityForm({
       });
       setSuccess(true);
       setForm({
-        year: defaultYear ?? LEO_YEARS[0],
+        year: defaultYear ?? getCurrentLeoYear(),
         month: defaultMonth ?? "July",
         title: "",
         description: "",
@@ -156,7 +157,7 @@ export default function ActivityForm({
           type="text"
           value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
-          placeholder="e.g. Blood Donation Camp 2026"
+          placeholder="e.g. Blood Donation Camp"
           required
           className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] focus:ring-2 focus:ring-[#002147]/10"
         />
@@ -203,7 +204,7 @@ export default function ActivityForm({
               value={memberSearch}
               onChange={(e) => { setMemberSearch(e.target.value); setDropdownOpen(true); }}
               onFocus={() => setDropdownOpen(true)}
-              placeholder="Search member by name, roll no, batch..."
+              placeholder="Search member by name, membership ID, roll no, or batch..."
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#002147] focus:ring-2 focus:ring-[#002147]/10"
             />
             <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -222,7 +223,7 @@ export default function ActivityForm({
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-800">{m.name}</div>
-                    <div className="text-xs text-gray-400">{m.rollNo} · {m.batch}</div>
+                    <div className="text-xs text-gray-400">{m.memberId} · {m.rollNo} · {m.batch}</div>
                   </div>
                 </button>
               ))}

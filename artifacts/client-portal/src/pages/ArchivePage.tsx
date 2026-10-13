@@ -246,10 +246,9 @@ export default function ArchivePage({ year, month }: ArchivePageProps) {
               Try again
             </button>
           </div>
-        ) :a activities.length === 0 ? (
-          <div] className="rounded-[2">
-rem] border border-dashed                            border-[#cbd5d7] bg-[#fff <df8] px-6 py-24 text-center">
-            <divspan className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e9eef0] text-[#66808a]">
+        ) : activities.length === 0 ? (
+          <div className="rounded-[2rem] border border-dashed border-gray-200 bg-white px-6 py-24 text-center">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#002147]/5 text-[#002147]">
               <Calendar size={29} strokeWidth={1.6} />
             </div>
             <h3 className="text-xl font-semibold tracking-[-0.02em] text-[#002147]">No activities this month</h3>
@@ -258,7 +257,7 @@ rem] border border-dashed                            border-[#cbd5d7] bg-[#fff <
             </p>
             <Link
               href="/archive"
-              className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-[#a17f15] hover:text-[#002147]"
+              className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-[#B8912A] hover:text-[#002147]"
             >
               Browse the full archive <ChevronRight size={15} />
             </Link>
@@ -276,16 +275,17 @@ rem] border border-dashed                            border-[#cbd5d7] bg-[#fff <
                 <div
                   key={act.id || activityIndex}
                   id={slugify(safeTitle)}
-                  className="overflow-hidden rounded-[1.5rem] border border-[#dfe6e3] bg-[#fffdf8] shadow-[0_12px_30px_rgba(0,33,71,0.06)]"
+                  className="overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-[0_12px_30px_rgba(0,33,71,0.06)]"
                 >
-                  <div className="border-b border-[#e5e9e6] p-6 sm:p-8">
+                  <div className="border-b border-gray-100 p-6 sm:p-8">
                     <div className="flex items-start gap-4">
-                      <div className="hidden shrink-0 pt-1 text-3xl font-semibold tracking-[-0.05em] text-[#d5dcd9] sm:block">
+                      <div className="hidden shrink-0 pt-1 text-3xl font-semibold tracking-[-0.05em] text-gray-200 sm:block">
                         {String(activityIndex + 1).padStart(2, "0")}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#7b898 className="inline-flex items-center gap-1.5 text-[#a07f1c]">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">
+                            <span className="inline-flex items-center gap-1.5 text-[#B8912A]">
                               <Calendar size={12} /> {displayMonth} {displayCalendarYear}
                             </span>
                             <span className="h-1 w-1 rounded-full bg-[#cbd3d0]" />
