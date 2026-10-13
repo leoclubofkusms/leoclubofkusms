@@ -175,7 +175,7 @@ function JamaraTimeline({ index }: { index: number }) {
         })}
       </div>
       <p className="mt-2 text-xs text-white/55">
-        Day {index + 1} of 15 · jamara grows with each day
+        Day {index + 1} of 15 · Jamara grows with each day
       </p>
     </div>
   );
@@ -449,7 +449,7 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                       </div>
 
                       <p className="mt-5 text-xs leading-5 text-white/40">
-                        Leo Club of KUSMS · Lions Clubs International · District 325L · Club #172194
+                        Leo Club of Kathmandu University School of Medical Sciences • District 325L • Club id: 172194
                       </p>
                     </div>
                   </div>
