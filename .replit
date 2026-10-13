@@ -33,3 +33,7 @@ externalPort = 3000
 
 [nix]
 packages = ["timetrap"]
+
+[userenv]
+
+[userenv.shared]

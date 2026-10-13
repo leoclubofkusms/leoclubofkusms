@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   getMembers,
   setMember,
@@ -9,7 +9,7 @@ import {
   toggleMemberActive,
 } from "@/lib/firestore";
 import type { Member, MemberActivity, MemberRole } from "@/lib/types";
-import { LEO_YEARS, MONTHS, FACULTIES, BATCH_YEARS, getCurrentLeoYear } from "@/lib/types";
+import { LEO_YEARS, MONTHS, FACULTIES, BATCH_YEARS } from "@/lib/types";
 import {
   Plus,
   Pencil,
@@ -28,6 +28,7 @@ import {
   CheckCircle,
   Download,
   Search,
+  AlertCircle,
 } from "lucide-react";
 
 const EMPTY_MEMBER: Member = {
@@ -41,14 +42,14 @@ const EMPTY_MEMBER: Member = {
   email: "",
   activities: [],
   isActive: true,
-  joinedLeoYear: getCurrentLeoYear(),
+  joinedLeoYear: LEO_YEARS[0],
   leftLeoYear: "",
   bio: "",
   roleHistory: [],
 };
 
 const EMPTY_ACHIEVEMENT = {
-  year: getCurrentLeoYear(),
+  year: LEO_YEARS[0],
   month: MONTHS[0],
   title: "",
   description: "",
@@ -76,7 +77,6 @@ function PhotoPicker({
     <div>
       <label className="block text-xs font-medium text-gray-600 mb-1.5">Photo</label>
 
-      {/* Mode toggle */}
       <div className="flex gap-1 mb-2 bg-gray-100 rounded-lg p-1 w-fit">
         <button
           type="button"
@@ -103,7 +103,6 @@ function PhotoPicker({
       </div>
 
       <div className="flex items-start gap-3">
-        {/* Preview */}
         <div className="shrink-0">
           {value ? (
             <img
@@ -210,7 +209,6 @@ function AchievementPanel({
 
   return (
     <div className="border-t border-gray-100 mt-3 pt-3">
-      {/* Toggle button */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -226,7 +224,6 @@ function AchievementPanel({
 
       {open && (
         <div className="mt-3 space-y-2">
-          {/* Existing achievements */}
           {acts.length === 0 && !showForm && (
             <p className="text-xs text-gray-400 italic">No achievements recorded yet.</p>
           )}
@@ -259,7 +256,6 @@ function AchievementPanel({
             </div>
           ))}
 
-          {/* Add achievement form */}
           {showForm ? (
             <div className="bg-[#002147]/5 border border-[#002147]/10 rounded-xl p-4 mt-2">
               <form onSubmit={handleAdd} className="space-y-3">
@@ -365,6 +361,36 @@ function AchievementPanel({
   );
 }
 
+// ── CSV Export (safe for missing fields) ──────────────────────────────────────
+function exportMembersCsv(list: Member[]) {
+  const headers = [
+    "Member ID", "Name", "Roll No", "Faculty", "Batch",
+    "Current Role", "Joined Leo Year", "Left Leo Year", "Active", "Activities",
+  ];
+  const rows = list.map((m) => [
+    m.memberId ?? "",
+    m.name ?? "",
+    m.rollNo ?? "",
+    m.faculty ?? "",
+    m.batch ?? "",
+    m.currentRole ?? "",
+    m.joinedLeoYear ?? "",
+    m.leftLeoYear ?? "",
+    m.isActive === false ? "Past" : "Active",
+    String(m.activities?.length ?? 0),
+  ]);
+  const csv = [headers, ...rows]
+    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `leo-club-members-${new Date().toISOString().split("T")[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function MemberManagement() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -376,26 +402,7 @@ export default function MemberManagement() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [memberSearch, setMemberSearch] = useState("");
-  const [directorySearch, setDirectorySearch] = useState("");
-
-  const normalizedFormId = form.memberId.trim().toLocaleLowerCase();
-  const duplicateMember = normalizedFormId
-    ? members.find((member) =>
-        member.memberId.trim().toLocaleLowerCase() === normalizedFormId &&
-        member.memberId.trim().toLocaleLowerCase() !== editing?.memberId.trim().toLocaleLowerCase()
-      )
-    : undefined;
-  const matchingMembers = memberSearch.trim()
-    ? members.filter((member) =>
-        [member.memberId, member.name, member.rollNo, member.batch, member.faculty]
-          .some((value) => value?.toLocaleLowerCase().includes(memberSearch.trim().toLocaleLowerCase()))
-      ).slice(0, 5)
-    : [];
-  const visibleMembers = members.filter((member) =>
-    [member.memberId, member.name, member.rollNo, member.batch, member.faculty, member.currentRole]
-      .some((value) => value?.toLocaleLowerCase().includes(directorySearch.trim().toLocaleLowerCase()))
-  );
+  const [search, setSearch] = useState("");
 
   async function load() {
     setLoading(true);
@@ -411,10 +418,35 @@ export default function MemberManagement() {
 
   useEffect(() => { load(); }, []);
 
+  // ── Filtered list ─────────────────────────────────────────────────────────
+  const filteredMembers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter((m) => {
+      const hay = [
+        m.name,
+        m.memberId,
+        m.rollNo,
+        m.faculty ?? "",
+        m.batch,
+        m.currentRole ?? "",
+      ].join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [members, search]);
+
+  // ── Duplicate Membership ID check ─────────────────────────────────────────
+  // Returns the existing member if the typed ID matches someone else.
+  const duplicateMemberId = useMemo(() => {
+    const typed = form.memberId.trim();
+    if (!typed) return null;
+    const editingId = editing?.memberId;
+    return members.find((m) => m.memberId === typed && m.memberId !== editingId) ?? null;
+  }, [form.memberId, members, editing]);
+
   function openAdd() {
     setEditing(null);
     setForm(EMPTY_MEMBER);
-    setMemberSearch("");
     setError("");
     setShowForm(true);
   }
@@ -422,7 +454,6 @@ export default function MemberManagement() {
   function openEdit(member: Member) {
     setEditing(member);
     setForm({ ...member, roleHistory: member.roleHistory ?? [] });
-    setMemberSearch("");
     setError("");
     setShowForm(true);
   }
@@ -430,15 +461,11 @@ export default function MemberManagement() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.memberId.trim()) { setError("Member ID is required."); return; }
-    const nextMemberId = form.memberId.trim();
-    const duplicate = members.find((member) =>
-      member.memberId.trim().toLocaleLowerCase() === nextMemberId.toLocaleLowerCase() &&
-      member.memberId.trim().toLocaleLowerCase() !== editing?.memberId.trim().toLocaleLowerCase()
-    );
-    if (duplicate) {
-      setError(`Membership ID ${duplicate.memberId} already belongs to ${duplicate.name}.`);
+    if (duplicateMemberId) {
+      setError(`Membership ID "${form.memberId.trim()}" is already used by ${duplicateMemberId.name}. Please use a unique ID.`);
       return;
     }
+    const nextMemberId = form.memberId.trim();
     const changingMemberId = Boolean(editing && editing.memberId !== nextMemberId);
     if (changingMemberId && !window.confirm(
       "Change this membership ID? Existing activities, awards, and leadership links will be moved to the new ID."
@@ -478,32 +505,20 @@ export default function MemberManagement() {
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h3 className="text-lg font-bold text-[#002147]">Members</h3>
-          <p className="text-sm text-gray-500">{members.length} members registered</p>
+          <p className="text-sm text-gray-500">
+            {search.trim()
+              ? `${filteredMembers.length} of ${members.length} members match "${search}"`
+              : `${members.length} members registered`}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {members.length > 0 && (
             <button
-              onClick={() => {
-                const headers = ["Member ID", "Name", "Roll No", "Faculty", "Batch", "Current Role", "Joined Leo Year", "Left Leo Year", "Active", "Activities"];
-                const rows = members.map((m) => [
-                  m.memberId, m.name, m.rollNo, m.faculty ?? "", m.batch,
-                  m.currentRole ?? "", m.joinedLeoYear ?? "", m.leftLeoYear ?? "",
-                  m.isActive === false ? "Past" : "Active",
-                  m.activities?.length ?? 0,
-                ]);
-                const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-                const blob = new Blob([csv], { type: "text/csv" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `leo-club-members-${new Date().toISOString().split("T")[0]}.csv`;
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
+              onClick={() => exportMembersCsv(filteredMembers)}
               className="inline-flex items-center gap-2 border border-gray-200 text-gray-600 px-3 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
-              title="Export all members as CSV"
+              title={search.trim() ? "Export filtered members as CSV" : "Export all members as CSV"}
             >
-              <Download size={14} /> Export CSV
+              <Download size={14} /> Export CSV{search.trim() ? " (filtered)" : ""}
             </button>
           )}
           <button
@@ -518,6 +533,32 @@ export default function MemberManagement() {
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2 mb-4">
           <Check size={15} /> {success}
+        </div>
+      )}
+
+      {/* Search bar */}
+      {members.length > 0 && (
+        <div className="mb-4">
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, member ID, roll no, faculty, batch, or role…"
+              className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#002147]"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 rounded-md"
+                aria-label="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -536,36 +577,6 @@ export default function MemberManagement() {
             </button>
           </div>
 
-          {!editing && (
-            <div className="mb-5 rounded-xl border border-[#D4AF37]/30 bg-[#D4AF37]/5 p-4">
-              <label className="mb-2 block text-xs font-semibold text-[#002147]">
-                Check the member directory first
-              </label>
-              <div className="relative">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="search"
-                  value={memberSearch}
-                  onChange={(event) => setMemberSearch(event.target.value)}
-                  placeholder="Search by name, membership ID, roll number, or batch"
-                  className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm focus:border-[#002147] focus:outline-none"
-                />
-              </div>
-              {memberSearch.trim() && (
-                <div className="mt-2 space-y-1">
-                  {matchingMembers.length > 0 ? matchingMembers.map((member) => (
-                    <div key={member.memberId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-xs">
-                      <span className="font-semibold text-[#002147]">{member.name}</span>
-                      <span className="text-gray-500">{member.memberId} · {member.rollNo} · {member.batch}</span>
-                    </div>
-                  )) : (
-                    <p className="px-1 pt-1 text-xs text-gray-500">No existing member matches that search.</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -575,27 +586,29 @@ export default function MemberManagement() {
                 <input
                   type="text"
                   value={form.memberId}
-                  onChange={(e) => { setForm({ ...form, memberId: e.target.value }); setError(""); }}
+                  onChange={(e) => setForm({ ...form, memberId: e.target.value })}
                   placeholder="e.g. MBBS2101"
                   required
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+                  className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none ${
+                    duplicateMemberId
+                      ? "border-red-300 focus:border-red-500 bg-red-50"
+                      : "border-gray-200 focus:border-[#002147]"
+                  }`}
                 />
-                {duplicateMember ? (
-                  <p className="mt-1 text-xs font-medium text-red-600" role="alert">
-                    Already registered: {duplicateMember.name} ({duplicateMember.memberId})
-                  </p>
-                ) : form.memberId.trim() ? (
-                  <p className="mt-1 text-xs text-green-700">
-                    {editing && normalizedFormId === editing.memberId.trim().toLocaleLowerCase()
-                      ? "This is the current member's ID."
-                      : "No existing member uses this membership ID."}
+                {duplicateMemberId ? (
+                  <p className="text-xs text-red-600 mt-1 flex items-start gap-1">
+                    <AlertCircle size={11} className="mt-0.5 shrink-0" />
+                    <span>
+                      This ID already belongs to <strong>{duplicateMemberId.name}</strong> ({duplicateMemberId.memberId}).
+                      Use a unique ID.
+                    </span>
                   </p>
                 ) : (
-                <p className="text-xs text-gray-400 mt-1">
-                  {editing
-                    ? "You can change this later. Existing activities, awards, and leadership links will follow the new ID."
-                    : "Format: Faculty + Batch + Number (for example, MBBS2101 = MBBS batch 21, member 01)"}
-                </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {editing
+                      ? "You can change this later. Existing activities, awards, and leadership links will follow the new ID."
+                      : "Format: Faculty + Batch + Number (e.g. MBBS2101 = MBBS batch 21, member 01)"}
+                  </p>
                 )}
               </div>
 
@@ -666,7 +679,7 @@ export default function MemberManagement() {
                   <button type="button"
                     onClick={() => setForm((current) => ({
                       ...current,
-                      roleHistory: [...(current.roleHistory ?? []), { leoYear: getCurrentLeoYear(), role: "General Member", source: "manual" as const } satisfies MemberRole],
+                      roleHistory: [...(current.roleHistory ?? []), { leoYear: LEO_YEARS[0], role: "General Member", source: "manual" as const } satisfies MemberRole],
                     }))}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-[#002147] hover:text-[#D4AF37]">
                     <PlusCircle size={13} /> Add year
@@ -791,22 +804,22 @@ export default function MemberManagement() {
               </div>
             </div>
 
-            {/* Photo picker — full width */}
             <PhotoPicker
               value={form.photoUrl}
               onChange={(url) => setForm({ ...form, photoUrl: url })}
             />
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
-                {error}
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-start gap-2">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
             <div className="flex gap-3">
               <button
                 type="submit"
-                disabled={submitting || Boolean(duplicateMember)}
+                disabled={submitting || !!duplicateMemberId}
                 className="flex-1 bg-[#002147] text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-[#003575] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {submitting ? (
@@ -832,18 +845,6 @@ export default function MemberManagement() {
       )}
 
       {/* Members list */}
-      {!loading && members.length > 0 && (
-        <div className="relative mb-4">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="search"
-            value={directorySearch}
-            onChange={(event) => setDirectorySearch(event.target.value)}
-            placeholder="Search members by name, membership ID, roll number, batch, or role"
-            className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm focus:border-[#002147] focus:outline-none"
-          />
-        </div>
-      )}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -864,18 +865,24 @@ export default function MemberManagement() {
           <User size={40} className="mx-auto mb-3 opacity-30" />
           <p>No members yet. Add your first member.</p>
         </div>
-      ) : visibleMembers.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-12 text-center text-sm text-gray-500">
-          No members match “{directorySearch}”.
+      ) : filteredMembers.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <Search size={40} className="mx-auto mb-3 opacity-30" />
+          <p>No members match &ldquo;{search}&rdquo;.</p>
+          <button
+            onClick={() => setSearch("")}
+            className="mt-4 text-sm text-[#002147] font-semibold hover:text-[#D4AF37] underline underline-offset-2"
+          >
+            Clear search
+          </button>
         </div>
       ) : (
         <div className="space-y-3">
-          {visibleMembers.map((m) => (
+          {filteredMembers.map((m) => (
             <div
               key={m.memberId}
               className="bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-sm transition-shadow"
             >
-              {/* Member row */}
               <div className="flex items-center gap-4">
                 {m.photoUrl ? (
                   <img
@@ -963,7 +970,6 @@ export default function MemberManagement() {
                 </div>
               </div>
 
-              {/* Achievement panel lives inside each card */}
               <AchievementPanel member={m} onUpdated={load} />
             </div>
           ))}

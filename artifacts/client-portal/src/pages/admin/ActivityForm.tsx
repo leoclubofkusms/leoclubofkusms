@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getMembers, createActivity } from "@/lib/firestore";
 import type { Member, ActivityParticipant } from "@/lib/types";
-import { LEO_YEARS, getCurrentLeoYear, getMonthsInLeoOrder, leoMonthYearLabel } from "@/lib/types";
+import { LEO_YEARS, getMonthsInLeoOrder, leoMonthYearLabel } from "@/lib/types";
 import { Plus, X, Search, Check, ChevronDown } from "lucide-react";
 
 export default function ActivityForm({
@@ -15,7 +15,7 @@ export default function ActivityForm({
 }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [form, setForm] = useState({
-    year: defaultYear ?? getCurrentLeoYear(),
+    year: defaultYear ?? LEO_YEARS[0],
     month: defaultMonth ?? "July",
     title: "",
     description: "",
@@ -27,12 +27,12 @@ export default function ActivityForm({
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const searchWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getMembers().then(setMembers).catch(console.error);
   }, []);
 
-  // Sync default year/month if they change after mount
   useEffect(() => {
     if (defaultYear || defaultMonth) {
       setForm((f) => ({
@@ -43,14 +43,29 @@ export default function ActivityForm({
     }
   }, [defaultYear, defaultMonth]);
 
-  const filteredMembers = members.filter(
-    (m) =>
-      !participants.some((p) => p.memberId === m.memberId) &&
-      (m.memberId.toLowerCase().includes(memberSearch.toLowerCase()) ||
-        m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
-        m.rollNo.toLowerCase().includes(memberSearch.toLowerCase()) ||
-        m.batch.toLowerCase().includes(memberSearch.toLowerCase()))
-  );
+  // Close dropdown on click outside
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  // ── Filtered members — searches name + rollNo + batch + memberId ────────
+  const filteredMembers = members.filter((m) => {
+    if (participants.some((p) => p.memberId === m.memberId)) return false;
+    const q = memberSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      m.name.toLowerCase().includes(q) ||
+      m.rollNo.toLowerCase().includes(q) ||
+      m.batch.toLowerCase().includes(q) ||
+      m.memberId.toLowerCase().includes(q)
+    );
+  });
 
   function addParticipant(member: Member) {
     setParticipants((prev) => [...prev, { memberId: member.memberId, awardTitle: "" }]);
@@ -72,6 +87,20 @@ export default function ActivityForm({
     return members.find((m) => m.memberId === memberId)?.name ?? memberId;
   }
 
+  // ── Keyboard: Escape closes, Enter picks first match ─────────────────────
+  function handleSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Escape") {
+      setDropdownOpen(false);
+      (e.target as HTMLInputElement).blur();
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const first = filteredMembers[0];
+      if (dropdownOpen && first) addParticipant(first);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -91,7 +120,7 @@ export default function ActivityForm({
       });
       setSuccess(true);
       setForm({
-        year: defaultYear ?? getCurrentLeoYear(),
+        year: defaultYear ?? LEO_YEARS[0],
         month: defaultMonth ?? "July",
         title: "",
         description: "",
@@ -112,7 +141,6 @@ export default function ActivityForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Leo Year */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Leo Year</label>
           <select
@@ -125,7 +153,6 @@ export default function ActivityForm({
             ))}
           </select>
         </div>
-        {/* Month — in Leo Year order (July → June), with real calendar year hint */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Month</label>
           <select
@@ -141,7 +168,6 @@ export default function ActivityForm({
         </div>
       </div>
 
-      {/* Confirmation hint */}
       <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl px-4 py-3 text-sm text-[#002147] flex items-start gap-2">
         <span className="text-[#D4AF37] font-bold mt-0.5">ℹ</span>
         <span>
@@ -150,20 +176,18 @@ export default function ActivityForm({
         </span>
       </div>
 
-      {/* Title */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1.5">Activity Title</label>
         <input
           type="text"
           value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
-          placeholder="e.g. Blood Donation Camp"
+          placeholder="e.g. Blood Donation Camp 2026"
           required
           className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] focus:ring-2 focus:ring-[#002147]/10"
         />
       </div>
 
-      {/* Description */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
         <textarea
@@ -176,7 +200,6 @@ export default function ActivityForm({
         />
       </div>
 
-      {/* Image URLs */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1.5">
           Image URLs <span className="text-gray-400 font-normal">(comma separated)</span>
@@ -195,8 +218,7 @@ export default function ActivityForm({
         <label className="block text-sm font-medium text-gray-700 mb-1.5">
           Tag Members
         </label>
-        {/* Search dropdown */}
-        <div className="relative mb-3">
+        <div className="relative mb-3" ref={searchWrapRef}>
           <div className="relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -204,13 +226,14 @@ export default function ActivityForm({
               value={memberSearch}
               onChange={(e) => { setMemberSearch(e.target.value); setDropdownOpen(true); }}
               onFocus={() => setDropdownOpen(true)}
-              placeholder="Search member by name, membership ID, roll no, or batch..."
+              onKeyDown={handleSearchKey}
+              placeholder="Search by name, member ID, roll no, or batch…"
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#002147] focus:ring-2 focus:ring-[#002147]/10"
             />
             <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
           </div>
           {dropdownOpen && filteredMembers.length > 0 && (
-            <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-20 mt-1 max-h-52 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-20 mt-1 max-h-60 overflow-y-auto">
               {filteredMembers.map((m) => (
                 <button
                   key={m.memberId}
@@ -218,12 +241,18 @@ export default function ActivityForm({
                   onClick={() => addParticipant(m)}
                   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#002147]/5 transition-colors text-left"
                 >
-                  <div className="w-8 h-8 rounded-full bg-[#002147] text-white flex items-center justify-center text-xs font-bold shrink-0">
-                    {m.name.charAt(0)}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-800">{m.name}</div>
-                    <div className="text-xs text-gray-400">{m.memberId} · {m.rollNo} · {m.batch}</div>
+                  {m.photoUrl ? (
+                    <img src={m.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-[#002147] text-white flex items-center justify-center text-xs font-bold shrink-0">
+                      {m.name.charAt(0)}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-gray-800 truncate">{m.name}</div>
+                    <div className="text-xs text-gray-400 truncate">
+                      <span className="font-mono text-[#002147]/70">{m.memberId}</span> · {m.rollNo} · {m.batch}
+                    </div>
                   </div>
                 </button>
               ))}
@@ -236,7 +265,6 @@ export default function ActivityForm({
           )}
         </div>
 
-        {/* Selected participants */}
         {participants.length > 0 && (
           <div className="space-y-2">
             {participants.map((p) => (
@@ -244,9 +272,12 @@ export default function ActivityForm({
                 <div className="w-7 h-7 rounded-full bg-[#002147] text-white flex items-center justify-center text-xs font-bold shrink-0">
                   {getMemberName(p.memberId).charAt(0)}
                 </div>
-                <span className="text-sm font-medium text-gray-700 flex-1 min-w-0 truncate">
-                  {getMemberName(p.memberId)}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-700 truncate">
+                    {getMemberName(p.memberId)}
+                  </div>
+                  <div className="text-[10px] text-gray-400 font-mono truncate">{p.memberId}</div>
+                </div>
                 <input
                   type="text"
                   value={p.awardTitle}
