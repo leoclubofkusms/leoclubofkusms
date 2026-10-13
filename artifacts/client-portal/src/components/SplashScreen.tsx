@@ -405,37 +405,37 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
 
                     <div className="my-6 h-px bg-gradient-to-r from-[#d4af37]/70 via-white/15 to-transparent" />
 
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { number: "01", label: "Serve", sub: "Community First", Icon: HandHeart, delay: "leo-delay-1" },
-                        { number: "02", label: "Lead", sub: "Build Leaders", Icon: Users, delay: "leo-delay-2" },
-                        { number: "03", label: "Grow", sub: "Lifelong Bonds-", Icon: TrendingUp, delay: "leo-delay500-3" group },
-                      ].map(({ number, label-h, sub, Icon, delay }) => (
-                        <overdiv
-                          key={number:}
-                          className={`group leo-rise ${delay} relative overflow-hidden rounded-2xl border border-[#d4af37]/25 bg-gradient-to-b from-[#d4af37]/[0.08] via-white/[0.03] to-black/30 p-3 text-center transition-all duration-500 active:scale-95 hover:-translate-y-1.5 hover:border-[#d4af37]/70 hover:from-[#d4af37]/15 hover:shadow-[0_20px_45px_-8px_rgba(212,175,55,0.35)]`}
-                        >
-                          <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-[#d4af37]/25 to-transparent transition-transform duration-[900ms] ease-out group-hover:translate-x-full" />
-                          <div className="pointer-events-none absolute left-1/2 top-6 h-16 w-16 -translate-x-1/2 rounded-full bg-[#d4af37]/15 blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-                          <div className="absolute right-2 top-2 text-[9px] font-bold tracking-widest text-[#d4af37]/40 transition-colors group-hover:text-[#d4af37]/70">
-                            {number}
-                          </div>
-                          <div className="relative mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#d4af37]/20 to-[#d4af37]/5 ring-1 ring-[#d4af37]/30 transition-all duration-500 group-hover:scale-110 group-hover:ring-[#d4af37]/60">
-                            <Icon
-                              size={18}
-                              className="text-[#e8c766] transition-all durationdrop-shadow-[0_0_10px_rgba(212,175,55,0.8)]"
-                            />
-                          </div>
-                          <p className="relative mt-2.5 text-xs font-semibold tracking-tight text-white transition-colors group-hover:text-[#f1d77f] sm:text-sm">
-                            {label}
-                          </p>
-                          <p className="relative mt-0.5 text-[8px] font-medium uppercase tracking-[0.12em] text-white/35 transition-colors group-hover:text-white/60">
-                            {sub}
-                          </p>
-                          <div className="pointer-events-none absolute bottom-0 left-1/2 h-px w-0 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent transition-all duration-500 group-hover:w-3/4" />
-                        </div>
-                      ))}
-                    </div>
+                  <div className="grid grid-cols-3 gap-3">
+                       {[
+                         { number: "01", label: "Serve", sub: "Community First", Icon: HandHeart, delay: "leo-delay-1" },
+                         { number: "02", label: "Lead", sub: "Build Leaders", Icon: Users, delay: "leo-delay-2" },
+                         { number: "03", label: "Grow", sub: "Lifelong Bonds", Icon: TrendingUp, delay: "leo-delay-3" },
+                       ].map(({ number, label, sub, Icon, delay }) => (
+                         <div
+                           key={number}
+                           className={`group leo-rise ${delay} relative overflow-hidden rounded-2xl border border-[#d4af37]/25 bg-gradient-to-b from-[#d4af37]/[0.08] via-white/[0.03] to-black/30 p-3 text-center transition-all duration-500 active:scale-95 hover:-translate-y-1.5 hover:border-[#d4af37]/70 hover:from-[#d4af37]/15 hover:shadow-[0_20px_45px_-8px_rgba(212,175,55,0.35)]`}
+                         >
+                           <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-[#d4af37]/25 to-transparent transition-transform duration-[900ms] ease-out group-hover:translate-x-full" />
+                           <div className="pointer-events-none absolute left-1/2 top-6 h-16 w-16 -translate-x-1/2 rounded-full bg-[#d4af37]/15 blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                           <div className="absolute right-2 top-2 text-[9px] font-bold tracking-widest text-[#d4af37]/40 transition-colors group-hover:text-[#d4af37]/70">
+                             {number}
+                           </div>
+                           <div className="relative mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#d4af37]/20 to-[#d4af37]/5 ring-1 ring-[#d4af37]/30 transition-all duration-500 group-hover:scale-110 group-hover:ring-[#d4af37]/60">
+                             <Icon
+                               size={18}
+                               className="text-[#e8c766] transition-all duration-500 group-hover:drop-shadow-[0_0_10px_rgba(212,175,55,0.8)]"
+                             />
+                           </div>
+                           <p className="relative mt-2.5 text-xs font-semibold tracking-tight text-white transition-colors group-hover:text-[#f1d77f] sm:text-sm">
+                             {label}
+                           </p>
+                           <p className="relative mt-0.5 text-[8px] font-medium uppercase tracking-[0.12em] text-white/35 transition-colors group-hover:text-white/60">
+                             {sub}
+                           </p>
+                           <div className="pointer-events-none absolute bottom-0 left-1/2 h-px w-0 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent transition-all duration-500 group-hover:w-3/4" />
+                         </div>
+                       ))}
+                     </div>
 
                     <p className="mt-6 text-xs leading-5 text-white/35">
                       Lions Clubs International · District 325L · Club #172194
