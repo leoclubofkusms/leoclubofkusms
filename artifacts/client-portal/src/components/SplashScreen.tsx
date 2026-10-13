@@ -15,25 +15,11 @@ import { getClubSettings } from "@/lib/firestore";
 import type { ClubSettings } from "@/lib/types";
 import { formatPresidentSlogan, getCurrentLeoYear } from "@/lib/types";
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// FESTIVAL BANNER TOGGLE
-// ═══════════════════════════════════════════════════════════════════════════════
-// Set ACTIVE_FESTIVAL to:
-//   "dashain"  → shows Dashain 2083 card (active now)
-//   "tihar"    → shows Tihar card (add content later when Tihar is near)
-//   null       → shows the default "Make an Impact" card (revert after festivals)
-//
-// To remove after Dashain ends: change "dashain" to null and push.
-// To re-add for Tihar: change null to "tihar" and push.
-// ═══════════════════════════════════════════════════════════════════════════════
 const ACTIVE_FESTIVAL: "dashain" | "tihar" | null = "dashain";
 
-// ── Dashain 2083 date schedule (English dates, IST) ─────────────────────────
-// Each entry: { from, to, tithi, description }
-// Based on the official Dashain 2083 schedule you provided.
 type DashainDay = {
-  from: string; // YYYY-MM-DD (inclusive)
-  to: string;   // YYYY-MM-DD (inclusive)
+  from: string;
+  to: string;
   tithi: string;
   description: string;
 };
@@ -58,8 +44,32 @@ const DASHAIN_2083: DashainDay[] = [
 
 function getTodaysDashainDay(): DashainDay | null {
   const today = new Date();
-  const iso = today.toISOString().split("T")[0]; // YYYY-MM-DD
+  const iso = today.toISOString().split("T")[0];
   return DASHAIN_2083.find((d) => iso >= d.from && iso <= d.to) ?? null;
+}
+
+function Marigold({ size = 12 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="3.2" fill="#f5a623" />
+      <circle cx="12" cy="12" r="1.4" fill="#ffd17a" />
+      <ellipse cx="12" cy="5.5" rx="2.4" ry="3" fill="#f7b733" opacity="0.95" />
+      <ellipse cx="12" cy="18.5" rx="2.4" ry="3" fill="#f7b733" opacity="0.95" />
+      <ellipse cx="5.5" cy="12" rx="3" ry="2.4" fill="#f7b733" opacity="0.95" />
+      <ellipse cx="18.5" cy="12" rx="3" ry="2.4" fill="#f7b733" opacity="0.95" />
+      <ellipse cx="7.4" cy="7.4" rx="2.2" ry="2.8" transform="rotate(-45 7.4 7.4)" fill="#f9c74f" opacity="0.9" />
+      <ellipse cx="16.6" cy="16.6" rx="2.2" ry="2.8" transform="rotate(-45 16.6 16.6)" fill="#f9c74f" opacity="0.9" />
+      <ellipse cx="16.6" cy="7.4" rx="2.2" ry="2.8" transform="rotate(45 16.6 7.4)" fill="#f9c74f" opacity="0.9" />
+      <ellipse cx="7.4" cy="16.6" rx="2.2" ry="2.8" transform="rotate(45 7.4 16.6)" fill="#f9c74f" opacity="0.9" />
+    </svg>
+  );
 }
 
 export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
@@ -100,13 +110,19 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
   }, [exiting]);
 
   const presidentName = settings.presidentSloganName || "Leo Club Leadership";
-  const presidentRole =
-    settings.presidentSloganRole || "Service · Leadership · Opportunity";
 
-  // ── Festival state ────────────────────────────────────────────────────────
   const todaysDashainDay = getTodaysDashainDay();
   const showDashain =
     ACTIVE_FESTIVAL === "dashain" && todaysDashainDay !== null;
+
+  const marigolds = [
+    { left: "6%",  delay: "0s",   duration: "9s",   size: 14, drift: "12px"  },
+    { left: "20%", delay: "1.5s", duration: "11s",  size: 10, drift: "-8px"  },
+    { left: "38%", delay: "3s",   duration: "10s",  size: 12, drift: "10px"  },
+    { left: "58%", delay: "0.8s", duration: "12s",  size: 9,  drift: "-12px" },
+    { left: "76%", delay: "2.2s", duration: "9.5s", size: 13, drift: "8px"   },
+    { left: "90%", delay: "4s",   duration: "10.5s", size: 11, drift: "-10px" },
+  ];
 
   return (
     <div
@@ -144,6 +160,25 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
           45% { opacity: 0.85; transform: scale(0.96); }
           55% { opacity: 1; transform: scale(1.02); }
         }
+        @keyframes leo-marigold-fall {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, -30px, 0) rotate(0deg) scale(0.8);
+          }
+          10% { opacity: 0.9; }
+          50% {
+            transform: translate3d(var(--drift, 10px), 40%, 0) rotate(180deg) scale(1);
+          }
+          90% { opacity: 0.65; }
+          100% {
+            opacity: 0;
+            transform: translate3d(calc(var(--drift, 10px) * -1), 100%, 0) rotate(360deg) scale(0.9);
+          }
+        }
+        @keyframes leo-ray-spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
         .leo-rise { animation: leo-rise 800ms cubic-bezier(.22,1,.36,1) both; }
         .leo-float { animation: leo-float 5s ease-in-out infinite; }
         .leo-pulse { animation: leo-pulse 2.8s ease-in-out infinite; }
@@ -161,12 +196,23 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
           -webkit-text-fill-color: transparent;
           animation: leo-shimmer 3.4s linear infinite;
         }
+        .leo-marigold {
+          position: absolute;
+          top: -8%;
+          animation: leo-marigold-fall var(--duration, 10s) linear infinite;
+          animation-delay: var(--delay, 0s);
+          will-change: transform, opacity;
+        }
+        .leo-rays {
+          animation: leo-ray-spin 24s linear infinite;
+          transform-origin: center;
+        }
         @media (prefers-reduced-motion: reduce) {
-          .leo-rise, .leo-float, .leo-pulse, .leo-shimmer-text, .leo-flicker { animation: none !important; }
+          .leo-rise, .leo-float, .leo-pulse, .leo-shimmer-text,
+          .leo-flicker, .leo-marigold, .leo-rays { animation: none !important; }
         }
       `}</style>
 
-      {/* Background decorations */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-32 -top-36 h-[28rem] w-[28rem] rounded-full bg-[#0d4d84]/30 blur-3xl" />
         <div className="absolute -bottom-48 -right-40 h-[32rem] w-[32rem] rounded-full bg-[#a47d16]/20 blur-3xl" />
@@ -194,7 +240,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
       </div>
 
       <div className="relative mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-5 py-5 sm:px-8 sm:py-8 lg:px-12">
-        {/* Top bar: Logo + Club Name + Year */}
         <div className="flex items-center justify-between border-b border-white/10 pb-4 sm:pb-5">
           <div className="flex items-center gap-3">
             <img
@@ -217,12 +262,9 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
           </div>
         </div>
 
-        {/* Main content */}
         <div className="flex flex-1 items-center py-8 sm:py-12 lg:py-16">
           <div className="grid w-full items-center gap-10 lg:grid-cols-[1.05fr_.95fr] lg:gap-16">
-            {/* LEFT SIDE */}
             <div className="text-center lg:text-left">
-              {/* Welcome chip */}
               <div
                 className={`leo-rise inline-flex items-center gap-2 rounded-full border border-[#d4af37]/25 bg-[#d4af37]/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#f3d77e] sm:text-xs ${
                   entered ? "" : "opacity-0"
@@ -232,7 +274,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                 Welcome to Leo Club of KUSMS
               </div>
 
-              {/* Big headline */}
               <div className={`leo-rise leo-delay-1 mt-6 ${entered ? "" : "opacity-0"}`}>
                 <h1 className="text-4xl font-semibold leading-[1.05] tracking-[-0.045em] text-white sm:text-6xl lg:text-[4.5rem]">
                   Leadership
@@ -240,7 +281,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                 </h1>
               </div>
 
-              {/* Tagline */}
               <p
                 className={`leo-rise leo-delay-2 mx-auto mt-6 max-w-xl text-sm leading-7 text-white/55 sm:text-base lg:mx-0 ${
                   entered ? "" : "opacity-0"
@@ -250,7 +290,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                 Leo Club of Kathmandu University School of Medical Sciences.
               </p>
 
-              {/* Slogan + photo side by side */}
               {settings.presidentSlogan && (
                 <div
                   className={`leo-rise leo-delay-3 mt-8 flex flex-col items-center gap-5 lg:flex-row lg:items-center lg:justify-start ${
@@ -272,7 +311,7 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                       President&apos;s Slogan · {getCurrentLeoYear()}
                     </p>
                     <p className="mt-2 text-xl font-medium italic leading-tight tracking-[-0.01em] text-white sm:text-2xl">
-                      <span aria-hidden="true" className="mr-1 font-serif text-3xl text-[#D4AF37]">"</span>
+                      <span aria-hidden="true" className="mr-1 font-serif text-3xl text-[#D4AF37]">&ldquo;</span>
                       {formatPresidentSlogan(settings.presidentSlogan)}
                     </p>
                     {settings.presidentSloganPhotoUrl && (
@@ -284,7 +323,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                 </div>
               )}
 
-              {/* CTA */}
               <div
                 className={`leo-rise leo-delay-4 mt-9 flex flex-col items-center gap-4 sm:flex-row lg:justify-start ${
                   entered ? "" : "opacity-0"
@@ -308,7 +346,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
               </div>
             </div>
 
-            {/* RIGHT SIDE: Festival or Chapter card */}
             <div
               className={`leo-rise leo-delay-3 relative mx-auto w-full max-w-md lg:mx-0 lg:ml-auto ${
                 entered ? "" : "opacity-0"
@@ -317,47 +354,135 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
               <div className="absolute -inset-6 rounded-[2.5rem] bg-[#d4af37]/10 blur-3xl" />
               <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-white/[0.07] p-5 shadow-[0_30px_90px_rgba(0,0,0,.38)] backdrop-blur-xl sm:p-7">
 
-                {/* ═══════════════════════════════════════════════════════
-                    DASHAIN CARD — shown when ACTIVE_FESTIVAL === "dashain"
-                    AND today's date is within the Dashain 2083 schedule.
-                    ═══════════════════════════════════════════════════════ */}
                 {showDashain && todaysDashainDay ? (
+                  <div className="relative">
+                    <div
+                      className="pointer-events-none absolute -top-32 left-1/2 h-64 w-[110%] -translate-x-1/2 rounded-full bg-[#ffa940]/12 blur-3xl"
+                      aria-hidden="true"
+                    />
+
+                    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[2rem]">
+                      {marigolds.map((m, i) => (
+                        <div
+                          key={i}
+                          className="leo-marigold"
+                          style={
+                            {
+                              left: m.left,
+                              "--delay": m.delay,
+                              "--duration": m.duration,
+                              "--drift": m.drift,
+                            } as React.CSSProperties
+                          }
+                        >
+                          <Marigold size={m.size} />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="relative">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.23em] text-[#d4af37]">
+                            Dashain 2083 · {todaysDashainDay.tithi}
+                          </p>
+                          <h2 className="mt-2 text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl">
+                            Happy <span className="leo-shimmer-text">Dashain</span>{" "}
+                            <span className="text-[#f5e5a8]">2083</span>
+                          </h2>
+                          <p className="mt-2 text-xs leading-5 text-white/65 sm:text-sm">
+                            {todaysDashainDay.description}
+                          </p>
+                        </div>
+
+                        <div className="shrink-0 relative">
+                          <div className="absolute -inset-4 rounded-full bg-[#ffa940]/25 blur-xl" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div
+                              className="leo-rays h-20 w-20 rounded-full opacity-40"
+                              style={{
+                                background:
+                                  "conic-gradient(from 0deg, rgba(255,169,64,0.35) 0deg, transparent 25deg, rgba(255,169,64,0.35) 50deg, transparent 75deg, rgba(255,169,64,0.35) 100deg, transparent 125deg, rgba(255,169,64,0.35) 150deg, transparent 175deg, rgba(255,169,64,0.35) 200deg, transparent 225deg, rgba(255,169,64,0.35) 250deg, transparent 275deg, rgba(255,169,64,0.35) 300deg, transparent 325deg, rgba(255,169,64,0.35) 350deg, transparent 360deg)",
+                              }}
+                            />
+                          </div>
+                          <div className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[#d4af37]/50 bg-gradient-to-br from-[#ffa940]/25 to-[#d4af37]/10 shadow-[0_0_25px_rgba(255,169,64,0.35)]">
+                            <Flame size={20} className="text-[#ffc96b] leo-flicker" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="my-6 h-px bg-gradient-to-r from-[#d4af37]/70 via-[#ffa940]/30 to-transparent" />
+
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { emoji: "\uD83E\uDE94", label: "Celebrate", sub: "With family",  Icon: Flame },
+                          { emoji: "\uD83C\uDF3E", label: "Bless",     sub: "Tika & Jamara", Icon: Flower2 },
+                          { emoji: "\uD83E\uDD1D", label: "Share",     sub: "Joy with all", Icon: Heart },
+                        ].map(({ emoji, label, sub, Icon }) => (
+                          <div
+                            key={label}
+                            className="group relative overflow-hidden rounded-2xl border border-[#d4af37]/25 bg-gradient-to-b from-[#d4af37]/[0.08] via-white/[0.03] to-black/30 p-3 text-center transition-all duration-500 active:scale-95 hover:-translate-y-1.5 hover:border-[#ffa940]/70 hover:from-[#ffa940]/15 hover:shadow-[0_20px_45px_-8px_rgba(255,169,64,0.35)]"
+                          >
+                            <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-[#d4af37]/25 to-transparent transition-transform duration-[900ms] ease-out group-hover:translate-x-full" />
+                            <div className="absolute right-2 top-2 text-[12px]">
+                              {emoji}
+                            </div>
+                            <div className="relative mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#d4af37]/20 to-[#d4af37]/5 ring-1 ring-[#d4af37]/30 transition-all duration-500 group-hover:scale-110 group-hover:ring-[#ffa940]/60">
+                              <Icon
+                                size={18}
+                                className="text-[#e8c766] transition-all duration-500 group-hover:drop-shadow-[0_0_10px_rgba(255,169,64,0.8)]"
+                              />
+                            </div>
+                            <p className="relative mt-2.5 text-xs font-semibold tracking-tight text-white transition-colors group-hover:text-[#ffc96b] sm:text-sm">
+                              {label}
+                            </p>
+                            <p className="relative mt-0.5 text-[8px] font-medium uppercase tracking-[0.12em] text-white/35 transition-colors group-hover:text-white/60">
+                              {sub}
+                            </p>
+                            <div className="pointer-events-none absolute bottom-0 left-1/2 h-px w-0 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent transition-all duration-500 group-hover:w-3/4" />
+                          </div>
+                        ))}
+                      </div>
+
+                      <p className="mt-6 text-xs leading-5 text-white/35">
+                        From Leo Club of KUSMS · Lions Clubs International · District 325L · Club #172194
+                      </p>
+                    </div>
+                  </div>
+                ) : (
                   <>
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-[0.23em] text-[#d4af37]">
-                          Dashain 2083 · {todaysDashainDay.tithi}
+                          Our Chapter
                         </p>
                         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                          Happy <span className="leo-shimmer-text">Dashain</span>
+                          Make an Impact.
                         </h2>
-                        <p className="mt-2 text-xs leading-5 text-white/60 sm:text-sm">
-                          {todaysDashainDay.description}
+                        <p className="mt-2 text-xs leading-5 text-white/50 sm:text-sm">
+                          Join a community of future medical professionals driving real
+                          change in Nepal.
                         </p>
                       </div>
-                      <div className="shrink-0 relative">
-                        <div className="absolute -inset-3 rounded-full bg-[#d4af37]/30 blur-xl" />
-                        <div className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[#d4af37]/40 bg-[#d4af37]/10">
-                          <Flame size={20} className="text-[#f1d77f] leo-flicker" />
-                        </div>
-                      </div>
+                      <ShieldCheck className="text-[#e8c766] shrink-0" size={22} />
                     </div>
 
                     <div className="my-6 h-px bg-gradient-to-r from-[#d4af37]/70 via-white/15 to-transparent" />
 
-                    {/* Three Dashain-themed tiles */}
                     <div className="grid grid-cols-3 gap-3">
                       {[
-                        { number: "🪔", label: "Celebrate", sub: "With family", Icon: Flame },
-                        { number: "🌾", label: "Bless", sub: "Tika & Jamara", Icon: Flower2 },
-                        { number: "🤝", label: "Share", sub: "Joy with all", Icon: Heart },
-                      ].map(({ number, label, sub, Icon }) => (
+                        { number: "01", label: "Serve", sub: "Community First", Icon: HandHeart, delay: "leo-delay-1" },
+                        { number: "02", label: "Lead", sub: "Build Leaders", Icon: Users, delay: "leo-delay-2" },
+                        { number: "03", label: "Grow", sub: "Lifelong Bonds", Icon: TrendingUp, delay: "leo-delay-3" },
+                      ].map(({ number, label, sub, Icon, delay }) => (
                         <div
-                          key={label}
-                          className="group relative overflow-hidden rounded-2xl border border-[#d4af37]/25 bg-gradient-to-b from-[#d4af37]/[0.08] via-white/[0.03] to-black/30 p-3 text-center transition-all duration-500 active:scale-95 hover:-translate-y-1.5 hover:border-[#d4af37]/70 hover:from-[#d4af37]/15 hover:shadow-[0_20px_45px_-8px_rgba(212,175,55,0.35)]"
+                          key={number}
+                          className={`group leo-rise ${delay} relative overflow-hidden rounded-2xl border border-[#d4af37]/25 bg-gradient-to-b from-[#d4af37]/[0.08] via-white/[0.03] to-black/30 p-3 text-center transition-all duration-500 active:scale-95 hover:-translate-y-1.5 hover:border-[#d4af37]/70 hover:from-[#d4af37]/15 hover:shadow-[0_20px_45px_-8px_rgba(212,175,55,0.35)]`}
                         >
                           <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-[#d4af37]/25 to-transparent transition-transform duration-[900ms] ease-out group-hover:translate-x-full" />
-                          <div className="absolute right-2 top-2 text-[12px]">
+                          <div className="pointer-events-none absolute left-1/2 top-6 h-16 w-16 -translate-x-1/2 rounded-full bg-[#d4af37]/15 blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                          <div className="absolute right-2 top-2 text-[9px] font-bold tracking-widest text-[#d4af37]/40 transition-colors group-hover:text-[#d4af37]/70">
                             {number}
                           </div>
                           <div className="relative mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#d4af37]/20 to-[#d4af37]/5 ring-1 ring-[#d4af37]/30 transition-all duration-500 group-hover:scale-110 group-hover:ring-[#d4af37]/60">
@@ -378,66 +503,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                     </div>
 
                     <p className="mt-6 text-xs leading-5 text-white/35">
-                      From Leo Club of KUSMS · Lions Clubs International · District 325L · Club #172194
-                    </p>
-                  </>
-                ) : (
-                  /* ═══════════════════════════════════════════════════════
-                     DEFAULT CARD — "Make an Impact."
-                     Shown when no festival is active.
-                     ═══════════════════════════════════════════════════════ */
-                  <>
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.23em] text-[#d4af37]">
-                          Our Chapter
-                        </p>
-                        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                          Make an Impact.
-                        </h2>
-                        <p className="mt-2 text-xs leading-5 text-white/50 sm:text-sm">
-                          Join a community of future medical professionals driving real
-                          change in Nepal.
-                        </p>
-                      </div>
-                      <ShieldCheck className="text-[#e8c766] shrink-0" size={22} />
-                    </div>
-
-                    <div className="my-6 h-px bg-gradient-to-r from-[#d4af37]/70 via-white/15 to-transparent" />
-
-                  <div className="grid grid-cols-3 gap-3">
-                       {[
-                         { number: "01", label: "Serve", sub: "Community First", Icon: HandHeart, delay: "leo-delay-1" },
-                         { number: "02", label: "Lead", sub: "Build Leaders", Icon: Users, delay: "leo-delay-2" },
-                         { number: "03", label: "Grow", sub: "Lifelong Bonds", Icon: TrendingUp, delay: "leo-delay-3" },
-                       ].map(({ number, label, sub, Icon, delay }) => (
-                         <div
-                           key={number}
-                           className={`group leo-rise ${delay} relative overflow-hidden rounded-2xl border border-[#d4af37]/25 bg-gradient-to-b from-[#d4af37]/[0.08] via-white/[0.03] to-black/30 p-3 text-center transition-all duration-500 active:scale-95 hover:-translate-y-1.5 hover:border-[#d4af37]/70 hover:from-[#d4af37]/15 hover:shadow-[0_20px_45px_-8px_rgba(212,175,55,0.35)]`}
-                         >
-                           <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-[#d4af37]/25 to-transparent transition-transform duration-[900ms] ease-out group-hover:translate-x-full" />
-                           <div className="pointer-events-none absolute left-1/2 top-6 h-16 w-16 -translate-x-1/2 rounded-full bg-[#d4af37]/15 blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-                           <div className="absolute right-2 top-2 text-[9px] font-bold tracking-widest text-[#d4af37]/40 transition-colors group-hover:text-[#d4af37]/70">
-                             {number}
-                           </div>
-                           <div className="relative mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#d4af37]/20 to-[#d4af37]/5 ring-1 ring-[#d4af37]/30 transition-all duration-500 group-hover:scale-110 group-hover:ring-[#d4af37]/60">
-                             <Icon
-                               size={18}
-                               className="text-[#e8c766] transition-all duration-500 group-hover:drop-shadow-[0_0_10px_rgba(212,175,55,0.8)]"
-                             />
-                           </div>
-                           <p className="relative mt-2.5 text-xs font-semibold tracking-tight text-white transition-colors group-hover:text-[#f1d77f] sm:text-sm">
-                             {label}
-                           </p>
-                           <p className="relative mt-0.5 text-[8px] font-medium uppercase tracking-[0.12em] text-white/35 transition-colors group-hover:text-white/60">
-                             {sub}
-                           </p>
-                           <div className="pointer-events-none absolute bottom-0 left-1/2 h-px w-0 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent transition-all duration-500 group-hover:w-3/4" />
-                         </div>
-                       ))}
-                     </div>
-
-                    <p className="mt-6 text-xs leading-5 text-white/35">
                       Lions Clubs International · District 325L · Club #172194
                     </p>
                   </>
@@ -447,7 +512,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
           </div>
         </div>
 
-        {/* Bottom bar */}
         <div className="flex items-center justify-center border-t border-white/10 pt-4 text-center text-[10px] tracking-[0.15em] text-white/30 sm:justify-between sm:text-xs">
           <span>Leo Club of Kathmandu University School of Medical Sciences</span>
           <span className="hidden sm:inline">Dhulikhel, Nepal</span>
