@@ -125,18 +125,19 @@ function PresidentFeature({ p, settings }: { p: BodMember; settings: ClubSetting
   const wa = settings.presidentWhatsApp;
   return (
     <div className={`${NAVY} mb-8`}>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(40rem_22rem_at_100%_0%,rgba(212,175,55,.2),transparent_60%)]" />
-      <div className="relative grid items-center gap-8 p-6 sm:p-10 lg:grid-cols-[19rem_1fr] lg:gap-12 lg:p-12">
-        <div className="relative mx-auto w-full max-w-[17rem] lg:max-w-none">
-          <div className="absolute inset-0 translate-x-3 translate-y-3 rounded-2xl border border-[#D4AF37]/60" aria-hidden="true" />
-          <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-[#001a38] shadow-2xl ring-1 ring-white/10">
-            <Portrait src={p.photoUrl} name={p.name} />
-          </div>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(40rem_22rem_at_100%_0%,rgba(212,175,55,.18),transparent_60%)]" />
+      <div className="relative grid lg:grid-cols-[22rem_1fr]">
+        {/* Photo runs edge to edge: top of the card on phones, left column on desktop */}
+        <div className="relative aspect-[4/5] bg-[#001a38] sm:aspect-[16/11] lg:aspect-auto lg:min-h-[30rem]">
+          <Portrait src={p.photoUrl} name={p.name} />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#002147] via-[#002147]/60 to-transparent lg:hidden" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/3 bg-gradient-to-l from-[#002147] to-transparent lg:block" />
         </div>
-        <div className="text-center lg:text-left">
-          <p className="inline-flex items-center gap-1.5 rounded-full bg-[#D4AF37] px-3 py-1 text-xs font-bold text-[#002147]"><Award size={12} /> {p.role}</p>
-          <h3 className="font-display mt-4 text-3xl font-semibold leading-tight sm:text-5xl">{p.name}</h3>
-          {p.bio && <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-white/70 lg:mx-0">{p.bio}</p>}
+        <div className="relative -mt-20 px-6 pb-8 text-center sm:px-10 lg:mt-0 lg:flex lg:flex-col lg:justify-center lg:p-12 lg:text-left">
+          <p className="inline-flex w-fit items-center gap-1.5 self-center rounded-full bg-[#D4AF37] px-3 py-1 text-xs font-bold text-[#002147] lg:self-start"><Award size={12} /> {p.role}</p>
+          <h3 className="font-display mt-4 text-4xl font-semibold leading-tight sm:text-5xl">{p.name}</h3>
+          <div className="mx-auto mt-4 h-[3px] w-10 rounded-full bg-[#D4AF37] lg:mx-0" />
+          {p.bio && <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-white/75 lg:mx-0">{p.bio}</p>}
           <div className="mt-6 flex flex-wrap justify-center gap-2 lg:justify-start">
             {p.email && <a href={`mailto:${p.email}`} className={CHIP}><Mail size={13} className="text-[#D4AF37]" />{p.email}</a>}
             {p.phone && <a href={`tel:${p.phone}`} className={CHIP}><Phone size={13} className="text-[#D4AF37]" />{p.phone}</a>}
@@ -241,16 +242,20 @@ function QuoteStage({ quotes, player }: { quotes: LeaderQuote[]; player: ReturnT
 function PastLeaderTile({ l, player }: { l: PastLeader; player: ReturnType<typeof useSinglePlayer> }) {
   const pid = `p:${l.id}`;
   return (
-    <article className="overflow-hidden rounded-2xl border border-[#002147]/[0.06] bg-white shadow-[0_1px_2px_rgba(0,33,71,.04),0_12px_26px_-16px_rgba(0,33,71,.25)]">
-      <div className="aspect-[4/5] bg-[#001a38]">
-        <Portrait src={l.photoUrl} name={l.name} fallback={<Crown size={40} className="text-[#D4AF37]" />} />
+    <article className={`${CARD} overflow-hidden md:flex`}>
+      <div className="aspect-[4/3] bg-[#001a38] md:aspect-auto md:min-h-[18rem] md:w-72 md:shrink-0 lg:w-80">
+        <Portrait src={l.photoUrl} name={l.name} fallback={<Crown size={44} className="text-[#D4AF37]" />} />
       </div>
-      <div className="p-4">
-        <h4 className="font-display text-lg font-semibold leading-tight text-[#002147]">{l.name}</h4>
-        <p className="mt-0.5 text-sm font-semibold text-[#b8912a]">{l.role}</p>
-        {l.note && <p className="mt-2 line-clamp-2 text-xs italic leading-relaxed text-slate-500">{l.note}</p>}
-        {l.quote && <p className="mt-2 line-clamp-3 text-sm italic leading-relaxed text-slate-600">“{l.quote}”</p>}
-        {l.audioUrl && <div className="mt-3"><PlayButton playing={player.id === pid} onClick={() => player.toggle(pid, l.audioUrl!)} label={player.id === pid ? "Stop" : "Listen"} /></div>}
+      <div className="flex flex-col justify-center p-6 sm:p-8 md:flex-1">
+        <h4 className="font-display text-2xl font-semibold leading-tight text-[#002147]">{l.name}</h4>
+        <p className="mt-1 text-sm font-semibold text-[#b8912a]">{l.role}</p>
+        {l.note && <p className="mt-3 text-sm italic leading-relaxed text-slate-500">{l.note}</p>}
+        {l.quote && (
+          <blockquote className="mt-4 border-l-2 border-[#D4AF37] pl-4 font-display text-lg leading-relaxed text-slate-700">
+            {l.quote}
+          </blockquote>
+        )}
+        {l.audioUrl && <div className="mt-5"><PlayButton playing={player.id === pid} onClick={() => player.toggle(pid, l.audioUrl!)} label={player.id === pid ? "Stop" : "Listen to voice"} /></div>}
       </div>
     </article>
   );
@@ -274,7 +279,7 @@ function PastLeaderTimeline({ leaders, player }: { leaders: PastLeader[]; player
         <div key={year} className="relative">
           <span className="absolute -left-[31px] top-2 h-3 w-3 rounded-full bg-[#D4AF37] ring-4 ring-[#F6F8FB] sm:-left-[47px]" aria-hidden="true" />
           <h3 className="font-display mb-5 text-2xl font-semibold text-[#002147]">{year}</h3>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="space-y-6">
             {list.map((l) => <PastLeaderTile key={l.id} l={l} player={player} />)}
           </div>
         </div>
