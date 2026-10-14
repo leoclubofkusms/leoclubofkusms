@@ -1,332 +1,428 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { getBodMembers, getLeaderQuotes, getPastLeaders, getClubSettings } from "@/lib/firestore";
 import type { BodMember, LeaderQuote, PastLeader, ClubSettings } from "@/lib/types";
 import { CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK, CLUB_ID } from "@/lib/types";
-import { Mail, Phone, ArrowLeft, Award, Heart, Target, Users, Calendar, Facebook, ExternalLink, Quote, Crown, Play, Pause } from "lucide-react";
+import { Mail, Phone, ArrowLeft, Award, Heart, Target, Users, Calendar, Facebook, ExternalLink, Crown, Play, Pause, MessageCircle } from "lucide-react";
 
-export default function AboutPage() {
-  const [bod, setBod] = useState<BodMember[]>([]);
-  const [quotes, setQuotes] = useState<LeaderQuote[]>([]);
-  const [pastLeaders, setPastLeaders] = useState<PastLeader[]>([]);
-  const [clubSettings, setClubSettings] = useState<ClubSettings>({});
-  const [loading, setLoading] = useState(true);
-  const [playingId, setPlayingId] = useState<string | null>(null);
-  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
-  const [playingPastId, setPlayingPastId] = useState<string | null>(null);
-  const [pastAudio, setPastAudio] = useState<HTMLAudioElement | null>(null);
+/* ────────────────────────────────────────────────────────────────────────── */
+/*  Shared bits                                                               */
+/* ────────────────────────────────────────────────────────────────────────── */
 
+const CSS = `
+.font-display{font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;letter-spacing:-.015em}
+.gold-text{background:linear-gradient(100deg,#b8912a,#f1d77f 45%,#d4af37);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+@keyframes ab-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes ab-fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes ab-shimmer{to{background-position:-200% 0}}
+@keyframes ab-bar{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+.ab-rise{animation:ab-rise .8s cubic-bezier(.22,1,.36,1) both}
+.ab-fade{animation:ab-fade .45s ease both}
+.ab-bar{transform-origin:50% 100%;animation:ab-bar 900ms ease-in-out infinite}
+.ab-skel{background:linear-gradient(90deg,rgba(0,33,71,.06) 25%,rgba(0,33,71,.12) 50%,rgba(0,33,71,.06) 75%);background-size:200% 100%;animation:ab-shimmer 1.4s linear infinite}
+@media (prefers-reduced-motion:reduce){.ab-rise,.ab-fade,.ab-bar,.ab-skel{animation:none!important}}
+`;
+
+const LAZY = "[content-visibility:auto] [contain-intrinsic-size:auto_520px]";
+const CARD = "rounded-3xl border border-[#002147]/[0.06] bg-white shadow-[0_1px_2px_rgba(0,33,71,.04),0_18px_40px_-18px_rgba(0,33,71,.22)]";
+const NAVY = "relative overflow-hidden rounded-3xl bg-[#002147] text-white shadow-[0_24px_60px_-20px_rgba(0,33,71,.55)] ring-1 ring-[#D4AF37]/25";
+const BTN_GOLD = "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#e3c458] to-[#c9a432] px-5 py-2.5 text-sm font-semibold text-[#002147] shadow-[0_6px_18px_-6px_rgba(212,175,55,.6)] transition hover:brightness-105 active:scale-[.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D4AF37]";
+const BTN_GHOST = "inline-flex items-center justify-center gap-2 rounded-xl border border-white/25 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 active:scale-[.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
+const CHIP = "inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs transition hover:bg-white/20 sm:text-sm";
+
+/** Each query loads independently, so one slow collection never blocks the rest. */
+function useResource<T>(fn: () => Promise<T>, fallback: T) {
+  const [state, setState] = useState<{ data: T; loaded: boolean }>({ data: fallback, loaded: false });
   useEffect(() => {
-    Promise.allSettled([
-      getBodMembers(),
-      getLeaderQuotes(),
-      getPastLeaders(),
-      getClubSettings(),
-    ]).then(([b, q, p, s]) => {
-      if (b.status === "fulfilled") setBod(b.value);
-      if (q.status === "fulfilled") setQuotes(q.value);
-      if (p.status === "fulfilled") setPastLeaders(p.value);
-      if (s.status === "fulfilled") setClubSettings(s.value);
-    }).finally(() => setLoading(false));
+    let alive = true;
+    fn().catch(() => fallback).then((data) => alive && setState({ data, loaded: true }));
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return state;
+}
+
+/** One audio player for the whole page: starting a clip stops the previous one, and it stops on unmount. */
+function useSinglePlayer() {
+  const ref = useRef<HTMLAudioElement | null>(null);
+  const [id, setId] = useState<string | null>(null);
+
+  const stop = useCallback(() => {
+    ref.current?.pause();
+    ref.current = null;
+    setId(null);
   }, []);
 
-  const president = bod[0] ?? null;
-  const others = bod.slice(1);
+  useEffect(() => stop, [stop]);
 
-  const sortedPast = [...pastLeaders].sort((a, b) => {
-    const ay = a.leoYear ?? ""; const by = b.leoYear ?? "";
-    return ay.localeCompare(by) || (a.order - b.order);
-  });
+  const toggle = useCallback((nextId: string, url: string) => {
+    if (ref.current && id === nextId) { stop(); return; }
+    stop();
+    const a = new Audio(url);
+    a.preload = "none";
+    ref.current = a;
+    setId(nextId);
+    const done = () => { if (ref.current === a) stop(); };
+    a.onended = done;
+    a.onerror = done;
+    a.play().catch(done);
+  }, [id, stop]);
 
-  function toggleAudio(item: LeaderQuote) {
-    if (!item.audioUrl) return;
-    if (playingId === item.id) {
-      audio?.pause();
-      setPlayingId(null);
-      setAudio(null);
-    } else {
-      audio?.pause();
-      const a = new Audio(item.audioUrl);
-      a.play();
-      a.onended = () => { setPlayingId(null); setAudio(null); };
-      setPlayingId(item.id);
-      setAudio(a);
-    }
-  }
+  return { id, toggle, stop };
+}
 
-  function togglePastLeaderAudio(item: PastLeader) {
-    if (!item.audioUrl) return;
-    if (playingPastId === item.id) {
-      pastAudio?.pause();
-      setPlayingPastId(null);
-      setPastAudio(null);
-    } else {
-      pastAudio?.pause();
-      const a = new Audio(item.audioUrl);
-      a.play();
-      a.onended = () => { setPlayingPastId(null); setPastAudio(null); };
-      setPlayingPastId(item.id);
-      setPastAudio(a);
-    }
-  }
-
+function SectionTitle({ title, sub }: { title: string; sub?: string }) {
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-[#F8FAFC]">
-      <div className="bg-[#002147] text-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-          <Link href="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-8 transition-colors">
-            <ArrowLeft size={16} /> Back to Home
-          </Link>
-          <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/40 rounded-full px-4 py-1.5 text-[#D4AF37] text-sm font-medium mb-4">
-            <Award size={14} /> Lions Clubs International — District 325L · Club #172194
+    <div className="mb-10 text-center">
+      <h2 className="font-display text-3xl font-semibold text-[#002147] sm:text-4xl">{title}</h2>
+      <div className="mx-auto mt-3 h-[3px] w-10 rounded-full bg-[#D4AF37]" />
+      {sub && <p className="mx-auto mt-3 max-w-xl text-sm text-slate-500">{sub}</p>}
+    </div>
+  );
+}
+
+function Skeleton({ className = "h-72" }: { className?: string }) {
+  return <div className={`ab-skel rounded-3xl ${className}`} aria-hidden="true" />;
+}
+
+/** Portrait that keeps faces in frame (object-top) and falls back to an initial or icon. */
+function Portrait({ src, name, className = "", fallback }: { src?: string; name: string; className?: string; fallback?: ReactNode }) {
+  return src ? (
+    <img src={src} alt={name} loading="lazy" decoding="async" className={`h-full w-full object-cover object-top ${className}`} />
+  ) : (
+    <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br from-[#003575] to-[#001a38] ${className}`}>
+      {fallback ?? <span className="font-display text-6xl font-semibold text-[#D4AF37]">{name.charAt(0)}</span>}
+    </div>
+  );
+}
+
+function PlayButton({ playing, onClick, label, dark = false }: { playing: boolean; onClick: () => void; label: string; dark?: boolean }) {
+  return (
+    <button onClick={onClick} aria-pressed={playing}
+      className={`inline-flex items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-4 text-xs font-semibold transition ${
+        dark
+          ? "bg-white/10 text-white ring-1 ring-white/20 hover:bg-white/20"
+          : "bg-[#002147]/5 text-[#002147] ring-1 ring-[#002147]/10 hover:bg-[#002147]/10"
+      }`}>
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-b from-[#e3c458] to-[#c9a432] text-[#002147]">
+        {playing ? <Pause size={13} /> : <Play size={13} className="translate-x-px" />}
+      </span>
+      {playing ? (
+        <span className="flex h-4 items-end gap-[3px]" aria-hidden="true">
+          {[0, 1, 2, 3].map((k) => <span key={k} className="ab-bar block h-4 w-[3px] rounded-full bg-[#D4AF37]" style={{ animationDelay: `${k * 120}ms` }} />)}
+        </span>
+      ) : null}
+      {label}
+    </button>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/*  Board                                                                     */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+function PresidentFeature({ p, settings }: { p: BodMember; settings: ClubSettings }) {
+  const wa = settings.presidentWhatsApp;
+  return (
+    <div className={`${NAVY} mb-8`}>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(40rem_22rem_at_100%_0%,rgba(212,175,55,.2),transparent_60%)]" />
+      <div className="relative grid items-center gap-8 p-6 sm:p-10 lg:grid-cols-[19rem_1fr] lg:gap-12 lg:p-12">
+        <div className="relative mx-auto w-full max-w-[17rem] lg:max-w-none">
+          <div className="absolute inset-0 translate-x-3 translate-y-3 rounded-2xl border border-[#D4AF37]/60" aria-hidden="true" />
+          <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-[#001a38] shadow-2xl ring-1 ring-white/10">
+            <Portrait src={p.photoUrl} name={p.name} />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold mb-3">About Our Club</h1>
-          <p className="text-white/70 text-lg max-w-2xl mb-6">
-            Leo Club of Kathmandu University School of Medical Sciences (KUSMS) — a community of future healthcare leaders united by the spirit of service.
-          </p>
-          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm">
-            <Calendar size={14} className="text-[#D4AF37]" />
-            <span className="text-white/80">Officially chartered on</span>
-            <span className="font-bold text-white">{CLUB_ESTABLISHED}</span>
+        </div>
+        <div className="text-center lg:text-left">
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-[#D4AF37] px-3 py-1 text-xs font-bold text-[#002147]"><Award size={12} /> {p.role}</p>
+          <h3 className="font-display mt-4 text-3xl font-semibold leading-tight sm:text-5xl">{p.name}</h3>
+          {p.bio && <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-white/70 lg:mx-0">{p.bio}</p>}
+          <div className="mt-6 flex flex-wrap justify-center gap-2 lg:justify-start">
+            {p.email && <a href={`mailto:${p.email}`} className={CHIP}><Mail size={13} className="text-[#D4AF37]" />{p.email}</a>}
+            {p.phone && <a href={`tel:${p.phone}`} className={CHIP}><Phone size={13} className="text-[#D4AF37]" />{p.phone}</a>}
+            {wa && (
+              <a href={`https://wa.me/${wa.replace(/\D/g, "")}?text=${encodeURIComponent(settings.presidentWhatsAppMessage || "Hello President, I would like to connect with Leo Club of KUSMS.")}`}
+                target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-3 py-2 text-xs font-semibold transition hover:bg-[#20b858] sm:text-sm">
+                <MessageCircle size={13} /> WhatsApp president
+              </a>
+            )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
-        <section>
-          <h2 className="text-2xl font-bold text-[#002147] mb-8 text-center">Our Mission & Values</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { icon: Heart, title: "Service", desc: "We believe in putting community first — volunteering, health camps, blood drives, and outreach that makes a real difference." },
-              { icon: Target, title: "Leadership", desc: "We develop tomorrow's leaders through real responsibility, decision-making, and hands-on management of meaningful projects." },
-              { icon: Users, title: "Fellowship", desc: "We build lifelong bonds between medical students across batches, united by shared values and a passion for service." },
-            ].map((v) => (
-              <div key={v.title} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center hover:shadow-md transition-shadow">
-                <div className="w-14 h-14 rounded-2xl bg-[#002147] flex items-center justify-center mx-auto mb-4">
-                  <v.icon size={24} className="text-[#D4AF37]" />
-                </div>
-                <h3 className="font-bold text-[#002147] text-lg mb-2">{v.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{v.desc}</p>
+/** Portrait tile: the photo is the card, name sits on a gradient, nothing is cropped to a landscape box. */
+function BodTile({ m }: { m: BodMember }) {
+  return (
+    <article className="group overflow-hidden rounded-2xl border border-[#002147]/[0.06] bg-white shadow-[0_1px_2px_rgba(0,33,71,.04),0_14px_30px_-16px_rgba(0,33,71,.25)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_44px_-16px_rgba(0,33,71,.35)]">
+      <div className="relative aspect-[4/5] overflow-hidden bg-[#001a38]">
+        <div className="h-full w-full transition duration-500 group-hover:scale-[1.04]"><Portrait src={m.photoUrl} name={m.name} /></div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-[#001a38] via-[#001a38]/70 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+          <h3 className="font-display text-lg font-semibold leading-tight sm:text-xl">{m.name}</h3>
+          <p className="mt-0.5 text-xs font-semibold text-[#e3c458] sm:text-sm">{m.role}</p>
+        </div>
+      </div>
+      {(m.bio || m.email || m.phone) && (
+        <div className="p-4">
+          {m.bio && <p className="line-clamp-3 text-sm leading-relaxed text-slate-500">{m.bio}</p>}
+          {(m.email || m.phone) && (
+            <div className={`flex gap-2 ${m.bio ? "mt-3" : ""}`}>
+              {m.email && <a href={`mailto:${m.email}`} aria-label={`Email ${m.name}`} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-[#002147]"><Mail size={15} /></a>}
+              {m.phone && <a href={`tel:${m.phone}`} aria-label={`Call ${m.name}`} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-[#002147]"><Phone size={15} /></a>}
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/*  Leader voices: one spotlighted quote, picked from a row of faces          */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+function QuoteStage({ quotes, player }: { quotes: LeaderQuote[]; player: ReturnType<typeof useSinglePlayer> }) {
+  const [sel, setSel] = useState(0);
+  const q = quotes[sel % quotes.length];
+  const pid = `q:${q.id}`;
+
+  return (
+    <div className={NAVY}>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(36rem_20rem_at_0%_0%,rgba(212,175,55,.18),transparent_60%)]" />
+      <div key={q.id} className="ab-fade relative grid gap-8 p-6 sm:p-10 md:grid-cols-[15rem_1fr] md:items-center md:gap-12 lg:p-12">
+        <div className="mx-auto aspect-[4/5] w-44 overflow-hidden rounded-2xl bg-[#001a38] shadow-2xl ring-2 ring-[#D4AF37]/60 md:w-full">
+          <Portrait src={q.photoUrl} name={q.name} />
+        </div>
+        <div className="text-center md:text-left">
+          <span aria-hidden="true" className="font-display block h-12 text-7xl leading-none text-[#D4AF37]/80 sm:h-14 sm:text-8xl">“</span>
+          <blockquote className="font-display text-xl font-medium leading-snug sm:text-3xl">{q.quote}</blockquote>
+          <div className="mt-6">
+            <div className="font-semibold text-white">{q.name}</div>
+            <div className="text-sm text-[#e3c458]">{q.role}{q.leoYear ? ` · ${q.leoYear}` : ""}</div>
+            {q.introduction && <p className="mx-auto mt-3 max-w-lg text-xs leading-relaxed text-white/55 md:mx-0">{q.introduction}</p>}
+          </div>
+          {q.audioUrl && (
+            <div className="mt-5">
+              <PlayButton dark playing={player.id === pid} onClick={() => player.toggle(pid, q.audioUrl!)} label={player.id === pid ? "Stop" : "Hear it in their voice"} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {quotes.length > 1 && (
+        <div className="relative border-t border-white/10 bg-black/15 px-4 py-4 sm:px-8">
+          <div role="tablist" aria-label="Choose a leader" className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:none] sm:justify-center [&::-webkit-scrollbar]:hidden">
+            {quotes.map((x, k) => {
+              const on = k === sel % quotes.length;
+              return (
+                <button key={x.id} role="tab" aria-selected={on} aria-label={x.name}
+                  onClick={() => { if (!on) { player.stop(); setSel(k); } }}
+                  className={`group shrink-0 snap-center rounded-full p-0.5 transition ${on ? "bg-gradient-to-b from-[#f1d77f] to-[#c9a432]" : "bg-white/15 hover:bg-white/30"}`}>
+                  <span className={`block h-12 w-12 overflow-hidden rounded-full border-2 border-[#002147] transition sm:h-14 sm:w-14 ${on ? "" : "opacity-60 group-hover:opacity-100"}`}>
+                    <Portrait src={x.photoUrl} name={x.name} fallback={<span className="font-semibold text-[#D4AF37]">{x.name.charAt(0)}</span>} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/*  Past leaders: a timeline grouped by Leo year                              */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+function PastLeaderTile({ l, player }: { l: PastLeader; player: ReturnType<typeof useSinglePlayer> }) {
+  const pid = `p:${l.id}`;
+  return (
+    <article className="overflow-hidden rounded-2xl border border-[#002147]/[0.06] bg-white shadow-[0_1px_2px_rgba(0,33,71,.04),0_12px_26px_-16px_rgba(0,33,71,.25)]">
+      <div className="aspect-[4/5] bg-[#001a38]">
+        <Portrait src={l.photoUrl} name={l.name} fallback={<Crown size={40} className="text-[#D4AF37]" />} />
+      </div>
+      <div className="p-4">
+        <h4 className="font-display text-lg font-semibold leading-tight text-[#002147]">{l.name}</h4>
+        <p className="mt-0.5 text-sm font-semibold text-[#b8912a]">{l.role}</p>
+        {l.note && <p className="mt-2 line-clamp-2 text-xs italic leading-relaxed text-slate-500">{l.note}</p>}
+        {l.quote && <p className="mt-2 line-clamp-3 text-sm italic leading-relaxed text-slate-600">“{l.quote}”</p>}
+        {l.audioUrl && <div className="mt-3"><PlayButton playing={player.id === pid} onClick={() => player.toggle(pid, l.audioUrl!)} label={player.id === pid ? "Stop" : "Listen"} /></div>}
+      </div>
+    </article>
+  );
+}
+
+function PastLeaderTimeline({ leaders, player }: { leaders: PastLeader[]; player: ReturnType<typeof useSinglePlayer> }) {
+  const groups = useMemo(() => {
+    const sorted = [...leaders].sort((a, b) => (a.leoYear ?? "").localeCompare(b.leoYear ?? "") || a.order - b.order);
+    const map = new Map<string, PastLeader[]>();
+    for (const l of sorted) {
+      const key = l.leoYear || "Earlier";
+      const list = map.get(key);
+      if (list) list.push(l); else map.set(key, [l]);
+    }
+    return [...map];
+  }, [leaders]);
+
+  return (
+    <div className="relative ml-2 space-y-12 border-l border-[#D4AF37]/45 pl-6 sm:ml-4 sm:pl-10">
+      {groups.map(([year, list]) => (
+        <div key={year} className="relative">
+          <span className="absolute -left-[31px] top-2 h-3 w-3 rounded-full bg-[#D4AF37] ring-4 ring-[#F6F8FB] sm:-left-[47px]" aria-hidden="true" />
+          <h3 className="font-display mb-5 text-2xl font-semibold text-[#002147]">{year}</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {list.map((l) => <PastLeaderTile key={l.id} l={l} player={player} />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/*  Page                                                                      */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+const VALUES = [
+  { Icon: Heart, title: "Service", desc: "Community first — volunteering, health camps, blood drives, and outreach that makes a real difference." },
+  { Icon: Target, title: "Leadership", desc: "Tomorrow's leaders grow through real responsibility, decisions, and hands-on management of meaningful projects." },
+  { Icon: Users, title: "Fellowship", desc: "Lifelong bonds between medical students across batches, united by shared values and a passion for service." },
+];
+
+export default function AboutPage() {
+  const bodR = useResource(getBodMembers, [] as BodMember[]);
+  const quotesR = useResource(getLeaderQuotes, [] as LeaderQuote[]);
+  const pastR = useResource(getPastLeaders, [] as PastLeader[]);
+  const settingsR = useResource(getClubSettings, {} as ClubSettings);
+  const player = useSinglePlayer();
+
+  const settings = settingsR.data;
+  const president = bodR.data[0] ?? null;
+  const others = bodR.data.slice(1);
+
+  return (
+    <div className="min-h-screen w-full overflow-x-hidden bg-[#F6F8FB]">
+      <style>{CSS}</style>
+
+      {/* ═══ HERO ═══ */}
+      <header className="relative isolate overflow-hidden bg-[#001833] text-white">
+        <div className="absolute inset-0 -z-10" style={{
+          background: "radial-gradient(48rem 30rem at 90% -10%,rgba(212,175,55,.22),transparent 60%),radial-gradient(38rem 28rem at -5% 110%,rgba(0,86,170,.45),transparent 60%),linear-gradient(180deg,#002147,#001833)",
+        }} />
+        <div className="absolute inset-0 -z-10 opacity-[0.1]" style={{
+          backgroundImage: "linear-gradient(rgba(255,255,255,.7) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.7) 1px,transparent 1px)",
+          backgroundSize: "48px 48px",
+          WebkitMaskImage: "linear-gradient(to bottom,black,transparent 85%)",
+          maskImage: "linear-gradient(to bottom,black,transparent 85%)",
+        }} />
+        <div className="ab-rise mx-auto max-w-5xl px-4 pb-16 pt-12 sm:px-6 sm:pb-20 lg:px-8">
+          <Link href="/" className="mb-8 inline-flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-white"><ArrowLeft size={16} /> Back to home</Link>
+          <p className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/15 px-4 py-1.5 text-sm font-medium text-[#f1d77f]">
+            <Award size={14} /> Lions Clubs International · District 325L · Club #{CLUB_ID}
+          </p>
+          <h1 className="font-display mt-6 text-5xl font-semibold leading-[1.05] sm:text-7xl">About <span className="gold-text">our club</span></h1>
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-white/70">
+            Leo Club of Kathmandu University School of Medical Sciences — a community of future healthcare leaders united by the spirit of service.
+          </p>
+          <div className="mt-8 inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm">
+            <Calendar size={14} className="text-[#D4AF37]" />
+            <span className="text-white/75">Officially chartered on</span>
+            <span className="font-bold">{CLUB_ESTABLISHED}</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl space-y-24 px-4 py-16 sm:px-6 lg:px-8">
+
+        {/* ═══ MISSION ═══ */}
+        <section className={LAZY}>
+          <SectionTitle title="Our mission & values" />
+          <div className={`${CARD} grid divide-y divide-slate-100 md:grid-cols-3 md:divide-x md:divide-y-0`}>
+            {VALUES.map(({ Icon, title, desc }) => (
+              <div key={title} className="p-8 text-center">
+                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#003575] to-[#001a38] shadow-lg ring-1 ring-[#D4AF37]/30"><Icon size={24} className="text-[#D4AF37]" /></div>
+                <h3 className="font-display text-xl font-semibold text-[#002147]">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">{desc}</p>
               </div>
             ))}
           </div>
         </section>
 
+        {/* ═══ BOARD ═══ */}
         <section>
-          <h2 className="text-2xl font-bold text-[#002147] mb-8 text-center">Board of Directors</h2>
-          {loading ? (
-            <div className="space-y-4">
-              <div className="bg-white rounded-3xl border border-gray-100 p-8 animate-pulse h-52" />
-            </div>
-          ) : bod.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <Users size={40} className="mx-auto mb-3 opacity-30" />
-              <p>BOD information coming soon.</p>
-            </div>
+          <SectionTitle title="Board of directors" sub="The team guiding the club this Leo year." />
+          {!bodR.loaded ? (
+            <div className="space-y-6"><Skeleton className="h-80" /><div className="grid grid-cols-2 gap-5 lg:grid-cols-3"><Skeleton className="aspect-[4/5]" /><Skeleton className="aspect-[4/5]" /><Skeleton className="hidden aspect-[4/5] lg:block" /></div></div>
+          ) : bodR.data.length === 0 ? (
+            <div className="py-12 text-center text-slate-400"><Users size={40} className="mx-auto mb-3 opacity-30" /><p>Board information coming soon.</p></div>
           ) : (
             <>
-              {president && (
-                  <div className="bg-gradient-to-r from-[#002147] to-[#003575] text-white rounded-3xl overflow-hidden shadow-xl mb-6">
-                  <div className="p-4 sm:p-6 md:p-10 flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
-                    {president.photoUrl ? (
-                      <img src={president.photoUrl} alt={president.name}
-                        className="w-[min(100%,18rem)] sm:w-48 md:w-64 aspect-[3/4] rounded-2xl object-cover object-top border-2 md:border-4 border-[#D4AF37] shrink-0 shadow-2xl" />
-                    ) : (
-                      <div className="w-[min(100%,18rem)] sm:w-48 md:w-64 aspect-[3/4] rounded-2xl bg-[#D4AF37] flex items-center justify-center shrink-0 shadow-2xl">
-                        <span className="text-6xl md:text-8xl font-bold text-[#002147]">{president.name.charAt(0)}</span>
-                      </div>
-                    )}
-                    <div className="text-center md:text-left flex-1 min-w-0">
-                      <div className="inline-flex items-center gap-1.5 bg-[#D4AF37] text-[#002147] rounded-full px-3 py-1 text-xs font-bold mb-3">
-                        <Award size={12} /> {president.role}
-                      </div>
-                      <h3 className="text-2xl md:text-3xl font-bold mb-1">{president.name}</h3>
-                      {president.bio && <p className="text-white/70 text-sm md:text-base mb-4">{president.bio}</p>}
-                      <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-                        {president.email && (
-                          <a href={`mailto:${president.email}`} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-3 py-2 text-xs md:text-sm transition-colors">
-                            <Mail size={13} className="text-[#D4AF37]" /> {president.email}
-                          </a>
-                        )}
-                        {president.phone && (
-                          <a href={`tel:${president.phone}`} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-3 py-2 text-xs md:text-sm transition-colors">
-                            <Phone size={13} className="text-[#D4AF37]" /> {president.phone}
-                          </a>
-                        )}
-                        {clubSettings.presidentWhatsApp && (
-                          <a href={`https://wa.me/${clubSettings.presidentWhatsApp.replace(/\D/g, "")}?text=${encodeURIComponent(clubSettings.presidentWhatsAppMessage || "Hello President, I would like to connect with Leo Club of KUSMS.")}`}
-                            target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-2 bg-[#25D366] hover:bg-[#20b858] text-white rounded-xl px-3 py-2 text-xs md:text-sm font-semibold transition-colors">
-                            WhatsApp President
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
+              {president && <PresidentFeature p={president} settings={settings} />}
               {others.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  {others.map((m) => (
-                    <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                      <div className="w-full aspect-[4/3] bg-gray-50 shrink-0">
-                        {m.photoUrl ? (
-                            <img src={m.photoUrl} alt={m.name} className="w-full h-full object-cover object-top" />
-                        ) : (
-                          <div className="w-full h-full bg-[#002147] flex items-center justify-center">
-                            <span className="text-5xl font-bold text-[#D4AF37]">{m.name.charAt(0)}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-5">
-                        <div className="font-bold text-[#002147] text-lg">{m.name}</div>
-                        <div className="text-sm text-[#D4AF37] font-semibold mt-0.5">{m.role}</div>
-                        {m.bio && <p className="text-sm text-gray-500 mt-3 leading-relaxed">{m.bio}</p>}
-                        <div className="flex gap-2 mt-4">
-                          {m.email && (
-                            <a href={`mailto:${m.email}`} className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors">
-                              <Mail size={15} />
-                            </a>
-                          )}
-                          {m.phone && (
-                            <a href={`tel:${m.phone}`} className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors">
-                              <Phone size={15} />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3">
+                  {others.map((m) => <BodTile key={m.id} m={m} />)}
                 </div>
               )}
             </>
           )}
         </section>
 
-        {(loading || quotes.length > 0) && (
-          <section>
-            <h2 className="text-2xl font-bold text-[#002147] mb-2 text-center">What Our Leaders Say</h2>
-            <p className="text-gray-500 text-center text-sm mb-8">Voices from our current and past leadership.</p>
-            {!loading && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {quotes.map((q) => (
-                  <div key={q.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6 hover:shadow-md transition-shadow relative overflow-hidden">
-                    <Quote size={64} className="absolute -top-2 -right-2 text-[#D4AF37]/10 rotate-180 pointer-events-none" />
-                    <div className="flex items-start gap-4">
-                      {q.photoUrl ? (
-                        <img src={q.photoUrl} alt={q.name} className="w-14 h-14 md:w-16 md:h-16 rounded-xl object-cover object-center border-2 border-[#D4AF37]/30 shrink-0" />
-                      ) : (
-                        <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-[#002147] text-white flex items-center justify-center font-bold text-xl shrink-0">
-                          {q.name.charAt(0)}
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-[#002147]">{q.name}</div>
-                        <div className="text-xs text-[#D4AF37] font-semibold mb-3">
-                          {q.role}{q.leoYear ? ` · ${q.leoYear}` : ""}
-                        </div>
-                        <p className="text-gray-600 text-sm leading-relaxed italic">"{q.quote}"</p>
-                        {q.introduction && <p className="text-gray-400 text-xs leading-relaxed mt-2">{q.introduction}</p>}
-                        {q.audioUrl && (
-                          <button onClick={() => toggleAudio(q)}
-                            className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${playingId === q.id ? "bg-green-100 text-green-700 border border-green-200" : "bg-[#002147]/8 text-[#002147] border border-[#002147]/10 hover:bg-[#002147]/15"}`}>
-                            {playingId === q.id ? <><Pause size={12} /> Stop audio</> : <><Play size={12} /> Listen</>}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* ═══ LEADER VOICES ═══ */}
+        {!quotesR.loaded ? <Skeleton className="h-96" /> : quotesR.data.length > 0 && (
+          <section className={LAZY}>
+            <SectionTitle title="What our leaders say" sub="Voices from our current and past leadership." />
+            <QuoteStage quotes={quotesR.data} player={player} />
           </section>
         )}
 
-        {(loading || sortedPast.length > 0) && (
-          <section>
-            <h2 className="text-2xl font-bold text-[#002147] mb-2 text-center">Past Leaders</h2>
-            <p className="text-gray-500 text-center text-sm mb-8">Honoring those who led our journey from chartered year to present.</p>
-            {!loading && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                {sortedPast.map((leader) => (
-                  <div key={leader.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                    <div className="w-full aspect-[4/3] bg-gray-50 shrink-0">
-                      {leader.photoUrl ? (
-                        <img src={leader.photoUrl} alt={leader.name} className="w-full h-full object-cover object-center" />
-                      ) : (
-                        <div className="w-full h-full bg-[#D4AF37]/15 flex items-center justify-center">
-                          <Crown size={40} className="text-[#D4AF37]" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-5">
-                      <div className="font-bold text-[#002147] text-lg">{leader.name}</div>
-                      <div className="flex items-center flex-wrap gap-2 mt-1">
-                        <span className="text-sm text-[#D4AF37] font-semibold">{leader.role}</span>
-                        <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{leader.leoYear}</span>
-                      </div>
-                      {leader.note && <p className="text-sm text-gray-500 italic mt-3 leading-relaxed">{leader.note}</p>}
-                      {leader.quote && <p className="text-gray-600 text-sm leading-relaxed italic mt-3">"{leader.quote}"</p>}
-                      {leader.audioUrl && (
-                        <button onClick={() => togglePastLeaderAudio(leader)}
-                          className={`mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${playingPastId === leader.id ? "bg-green-100 text-green-700 border border-green-200" : "bg-[#002147]/8 text-[#002147] border border-[#002147]/10 hover:bg-[#002147]/15"}`}>
-                          {playingPastId === leader.id ? <><Pause size={12} /> Stop audio</> : <><Play size={12} /> Listen to voice</>}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* ═══ PAST LEADERS ═══ */}
+        {!pastR.loaded ? <Skeleton className="h-96" /> : pastR.data.length > 0 && (
+          <section className={LAZY}>
+            <SectionTitle title="Past leaders" sub="Honoring those who led our journey from the chartered year to today." />
+            <PastLeaderTimeline leaders={pastR.data} player={player} />
           </section>
         )}
 
-        {/* ── Official Charter ── */}
-        <section>
-          <div className="mb-6 text-center">
-            <h2 className="text-2xl font-bold text-[#002147]">Official Charter</h2>
-            <p className="text-gray-500 text-sm mt-1">Officially established by Lions Clubs International District 325L · Club #{CLUB_ID}</p>
-          </div>
-          <div className="bg-gradient-to-br from-[#002147] to-[#003575] rounded-3xl overflow-hidden shadow-xl text-white">
-            <div className="p-8 md:p-10 flex flex-col md:flex-row gap-8 items-center">
+        {/* ═══ CHARTER ═══ */}
+        <section className={LAZY}>
+          <SectionTitle title="Official charter" sub={`Established by Lions Clubs International · District 325L · Club #${CLUB_ID}`} />
+          <div className={NAVY}>
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(36rem_20rem_at_100%_100%,rgba(212,175,55,.2),transparent_60%)]" />
+            <div className="relative flex flex-col items-center gap-10 p-8 md:flex-row md:p-12">
               <div className="flex-1 text-center md:text-left">
-                <div className="inline-flex items-center gap-2 bg-[#D4AF37] text-[#002147] rounded-full px-3 py-1 text-xs font-bold mb-4">
-                  <Award size={12} /> Officially Chartered
-                </div>
-                <h3 className="text-2xl font-bold mb-2">Leo Club of KUSMS</h3>
-                <p className="text-white/70 text-sm mb-4 leading-relaxed">
-                  Chartered by Lions Clubs International under District 325L · Club #172194.<br />
-                  Handover ceremony held on <span className="text-[#D4AF37] font-semibold">{CLUB_ESTABLISHED}</span>.
+                <p className="inline-flex items-center gap-2 rounded-full bg-[#D4AF37] px-3 py-1 text-xs font-bold text-[#002147]"><Award size={12} /> Officially chartered</p>
+                <h3 className="font-display mt-4 text-3xl font-semibold">Leo Club of KUSMS</h3>
+                <p className="mt-3 text-sm leading-relaxed text-white/70">
+                  Chartered by Lions Clubs International under District 325L · Club #{CLUB_ID}. Handover ceremony held on <span className="font-semibold text-[#e3c458]">{CLUB_ESTABLISHED}</span>.
                 </p>
-                <div className="flex flex-wrap gap-3 justify-center md:justify-start text-sm">
-                  <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-                    <Calendar size={14} className="text-[#D4AF37]" /> <span>Established {CLUB_ESTABLISHED}</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-                    <Award size={14} className="text-[#D4AF37]" /> <span>District 325L · Club #{CLUB_ID}</span>
-                  </div>
+                <div className="mt-5 flex flex-wrap justify-center gap-3 text-sm md:justify-start">
+                  <span className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2"><Calendar size={14} className="text-[#D4AF37]" />Established {CLUB_ESTABLISHED}</span>
+                  <span className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2"><Award size={14} className="text-[#D4AF37]" />District 325L · Club #{CLUB_ID}</span>
                 </div>
               </div>
-              <div className="shrink-0 flex flex-col items-center gap-3">
-                {clubSettings.charteredCertificateUrl ? (
-                  <div className="bg-white rounded-2xl p-2 shadow-lg">
-                    {clubSettings.charteredCertificateType === "pdf" ? (
-                      <a href={clubSettings.charteredCertificateUrl} target="_blank" rel="noopener noreferrer"
-                        className="flex flex-col items-center gap-2 text-[#002147] p-6 hover:text-[#D4AF37] transition-colors">
-                        <Award size={40} />
-                        <span className="text-sm font-semibold">View Certificate (PDF)</span>
-                        <ExternalLink size={14} />
-                      </a>
-                    ) : (
-                      <img src={clubSettings.charteredCertificateUrl} alt="Chartered Certificate"
-                        className="max-w-[220px] max-h-[280px] rounded-xl object-contain" />
-                    )}
-                  </div>
+              <div className="shrink-0">
+                {settings.charteredCertificateUrl ? (
+                  settings.charteredCertificateType === "pdf" ? (
+                    <a href={settings.charteredCertificateUrl} target="_blank" rel="noopener noreferrer"
+                      className="flex flex-col items-center gap-2 rounded-2xl bg-white p-8 text-[#002147] shadow-xl transition hover:-translate-y-1">
+                      <Award size={40} className="text-[#b8912a]" />
+                      <span className="text-sm font-semibold">View certificate (PDF)</span>
+                      <ExternalLink size={14} />
+                    </a>
+                  ) : (
+                    <div className="rounded-2xl bg-gradient-to-b from-[#f1d77f] to-[#b8912a] p-1.5 shadow-2xl">
+                      <img src={settings.charteredCertificateUrl} alt="Chartered certificate" loading="lazy" decoding="async"
+                        className="max-h-[300px] max-w-[240px] rounded-xl bg-white object-contain" />
+                    </div>
+                  )
                 ) : (
-                  <div className="bg-white/10 border-2 border-dashed border-white/30 rounded-2xl p-8 flex flex-col items-center gap-3 text-white/50 text-center min-w-[180px]">
-                    <Award size={36} className="text-[#D4AF37]/50" />
-                    <p className="text-xs leading-relaxed">Chartered certificate will appear here.<br />Upload from Admin → Club Settings.</p>
+                  <div className="flex min-w-[180px] flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-white/25 bg-white/5 p-8 text-center text-white/55">
+                    <Award size={36} className="text-[#D4AF37]/60" />
+                    <p className="text-xs">Certificate coming soon.</p>
                   </div>
                 )}
               </div>
@@ -334,45 +430,35 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section>
-          <h2 className="text-2xl font-bold text-[#002147] mb-6 text-center">Follow Us</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto">
-            <a href={CLUB_FACEBOOK} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-[#1877F2]/30 transition-all group">
-              <div className="w-12 h-12 rounded-xl bg-[#1877F2] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                <Facebook size={22} className="text-white" />
-              </div>
-              <div>
-                <div className="font-bold text-[#002147]">Facebook</div>
-                <div className="text-xs text-gray-400">Official Page</div>
-              </div>
-              <ExternalLink size={14} className="text-gray-400 ml-auto" />
+        {/* ═══ FOLLOW + CONTACT ═══ */}
+        <section className={LAZY}>
+          <SectionTitle title="Stay connected" />
+          <div className="mx-auto grid max-w-xl gap-4 sm:grid-cols-2">
+            <a href={CLUB_FACEBOOK} target="_blank" rel="noopener noreferrer" className={`${CARD} group flex items-center gap-4 p-5 transition hover:-translate-y-0.5 hover:border-[#1877F2]/30`}>
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#1877F2] transition-transform group-hover:scale-110"><Facebook size={22} className="text-white" /></span>
+              <span><span className="block font-bold text-[#002147]">Facebook</span><span className="text-xs text-slate-400">Official page</span></span>
+              <ExternalLink size={14} className="ml-auto text-slate-400" />
             </a>
-            <a href={CLUB_TIKTOK} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-gray-300 transition-all group">
-              <div className="w-12 h-12 rounded-xl bg-black flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                <span className="text-white font-black text-lg">TT</span>
-              </div>
-              <div>
-                <div className="font-bold text-[#002147]">TikTok</div>
-                <div className="text-xs text-gray-400">@leoclub.kusms</div>
-              </div>
-              <ExternalLink size={14} className="text-gray-400 ml-auto" />
+            <a href={CLUB_TIKTOK} target="_blank" rel="noopener noreferrer" className={`${CARD} group flex items-center gap-4 p-5 transition hover:-translate-y-0.5 hover:border-slate-300`}>
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-black transition-transform group-hover:scale-110"><span className="text-lg font-black text-white">TT</span></span>
+              <span><span className="block font-bold text-[#002147]">TikTok</span><span className="text-xs text-slate-400">@leoclub.kusms</span></span>
+              <ExternalLink size={14} className="ml-auto text-slate-400" />
             </a>
           </div>
-        </section>
 
-        <section className="bg-[#002147] text-white rounded-3xl p-8 text-center">
-          <h2 className="text-2xl font-bold mb-2">Get In Touch</h2>
-          <p className="text-white/60 mb-6">Have a question or want to collaborate on a service project?</p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <a href="mailto:leoclubofkusms@gmail.com" className="flex items-center gap-2 bg-[#D4AF37] text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#c9a432] transition-colors">
-              <Mail size={16} /> leoclubofkusms@gmail.com
-            </a>
-            <Link href="/members" className="flex items-center gap-2 border border-white/30 px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-white/10 transition-colors">
-              <Users size={16} /> Browse Members
-            </Link>
+          <div className={`${NAVY} mt-8 p-8 text-center md:p-12`}>
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(34rem_16rem_at_50%_0%,rgba(212,175,55,.2),transparent_65%)]" />
+            <div className="relative">
+              <h2 className="font-display text-3xl font-semibold">Get in touch</h2>
+              <p className="mb-7 mt-2 text-white/60">Have a question or want to collaborate on a service project?</p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <a href="mailto:leoclubofkusms@gmail.com" className={BTN_GOLD}><Mail size={16} /> leoclubofkusms@gmail.com</a>
+                <Link href="/members" className={BTN_GHOST}><Users size={16} /> Browse members</Link>
+              </div>
+            </div>
           </div>
         </section>
-      </div>
+      </main>
     </div>
   );
 }
