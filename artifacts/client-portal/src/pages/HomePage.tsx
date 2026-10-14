@@ -18,13 +18,8 @@ import {
 } from "lucide-react";
 import ShareButton from "@/components/ShareButton";
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  Shared bits                                                               */
-/* ────────────────────────────────────────────────────────────────────────── */
-
-// Nepal is UTC+5:45; toISOString() is UTC and flips the date at the wrong hour.
 const npDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kathmandu" });
-const nepalToday = () => npDate.format(new Date()); // YYYY-MM-DD
+const nepalToday = () => npDate.format(new Date());
 
 const CSS = `
 .font-display{font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;letter-spacing:-.015em}
@@ -40,14 +35,12 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.hp-rise,.hp-fade,.hp-orbit,.hp-skel{animation:none!important}}
 `;
 
-// Off-screen sections skip layout/paint until near the viewport.
 const LAZY = "[content-visibility:auto] [contain-intrinsic-size:auto_560px]";
 const CARD = "rounded-3xl border border-[#002147]/[0.06] bg-white shadow-[0_1px_2px_rgba(0,33,71,.04),0_18px_40px_-18px_rgba(0,33,71,.22)]";
 const NAVY_PANEL = "relative overflow-hidden rounded-3xl bg-[#002147] text-white shadow-[0_24px_60px_-20px_rgba(0,33,71,.55)] ring-1 ring-[#D4AF37]/25";
 const BTN_GOLD = "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#e3c458] to-[#c9a432] px-5 py-2.5 text-sm font-semibold text-[#002147] shadow-[0_6px_18px_-6px_rgba(212,175,55,.6)] transition hover:brightness-105 active:scale-[.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D4AF37]";
 const BTN_GHOST = "inline-flex items-center justify-center gap-2 rounded-xl border border-white/25 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 active:scale-[.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
-/** Fetch one resource independently so the page renders as each piece arrives. */
 function useResource<T>(fn: () => Promise<T>, fallback: T) {
   const [state, setState] = useState<{ data: T; loaded: boolean }>({ data: fallback, loaded: false });
   useEffect(() => {
@@ -72,7 +65,6 @@ function useInView<T extends Element>() {
   return [ref, seen] as const;
 }
 
-/** Count-up that cleans up its frame, respects reduced motion, and re-animates if the target changes. */
 function useCountUp(target: number, start: boolean, duration = 1600) {
   const [value, setValue] = useState(0);
   const from = useRef(0);
@@ -117,10 +109,6 @@ function SectionHead({ title, sub, href, cta }: { title: string; sub: string; hr
 function Skeleton({ className = "h-72" }: { className?: string }) {
   return <div className={`hp-skel rounded-3xl ${className}`} aria-hidden="true" />;
 }
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  One carousel for activities, awards and events                            */
-/* ────────────────────────────────────────────────────────────────────────── */
 
 function Carousel<T>({ items, label, interval = 5000, render, className = "" }: {
   items: T[];
@@ -297,10 +285,6 @@ function EventSlide(ev: ClubEvent) {
   );
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  Service impact                                                            */
-/* ────────────────────────────────────────────────────────────────────────── */
-
 function ServiceImpactSection({ impact, activities, leoYear, memberCount, activityCount, ready }: {
   impact: ServiceImpact | null; activities: Activity[]; leoYear: string;
   memberCount: number; activityCount: number; ready: boolean;
@@ -327,7 +311,6 @@ function ServiceImpactSection({ impact, activities, leoYear, memberCount, activi
   const acts = useCountUp(activityCount, go);
   const yrs = useCountUp(years, go, 1200);
 
-  // Plain function, not a component: a component defined here would remount every animation frame.
   const val = (v: string) =>
     ready ? v : <span className="inline-block h-7 w-16 animate-pulse rounded bg-white/10 align-middle" />;
 
@@ -366,7 +349,7 @@ function ServiceImpactSection({ impact, activities, leoYear, memberCount, activi
           {tiles.map(({ label, value, Icon }, k) => (
             <div key={label} className={`rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-center ${k === 0 ? "col-span-2 md:col-span-1" : ""}`}>
               <div className="mx-auto mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[#D4AF37]/20"><Icon size={16} className="text-[#D4AF37]" /></div>
-              <div className="font-display break-words text-2xl font-semibold tabular-nums leading-tight sm:text-3xl">{val(value)}</div>
+              <div className="font-display whitespace-nowrap text-xl font-semibold tabular-nums leading-tight sm:text-2xl md:text-2xl lg:text-3xl">{val(value)}</div>
               <div className="mt-1 text-xs text-white/55">{label}</div>
             </div>
           ))}
@@ -396,10 +379,6 @@ function ServiceImpactSection({ impact, activities, leoYear, memberCount, activi
     </section>
   );
 }
-
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  President + announcements                                                 */
-/* ────────────────────────────────────────────────────────────────────────── */
 
 function PresidentCard({ president, whatsappNumber, whatsappMessage }: { president: BodMember; whatsappNumber?: string; whatsappMessage?: string }) {
   const photo = "h-72 w-full max-w-[18rem] rounded-2xl object-cover object-top shadow-2xl ring-2 ring-[#D4AF37] sm:h-96";
@@ -480,14 +459,9 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  Page                                                                      */
-/* ────────────────────────────────────────────────────────────────────────── */
-
 export default function HomePage() {
   const leoYear = getCurrentLeoYear();
 
-  // Each piece loads on its own; nothing waits on the slowest query.
   const settingsR = useResource(getClubSettings, {} as ClubSettings);
   const impactR = useResource(() => getServiceImpact(leoYear), null as ServiceImpact | null);
   const annR = useResource(getAnnouncements, [] as Announcement[]);
@@ -532,7 +506,6 @@ export default function HomePage() {
     <div className="min-h-screen w-full overflow-x-hidden bg-[#F6F8FB]">
       <style>{CSS}</style>
 
-      {/* ═══ HERO ═══ */}
       <header className="relative isolate overflow-hidden bg-[#001833] text-white">
         <div className="absolute inset-0 -z-10" style={{
           background:
@@ -565,7 +538,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Crest: pure CSS rings around the logo, no heavy image */}
           <div className="relative mx-auto hidden h-80 w-80 lg:block" aria-hidden="true">
             <div className="hp-orbit absolute inset-0 rounded-full border border-dashed border-[#D4AF37]/40" />
             <div className="absolute inset-6 rounded-full border border-[#D4AF37]/25" />
@@ -577,34 +549,31 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl space-y-16 px-4 pb-16 sm:px-6 lg:px-8">
-
-        {/* Club facts bar overlaps the hero edge */}
-        <div className={`${CARD} -mt-10 grid grid-cols-3 divide-x divide-slate-100 py-4 text-center`}>
+        <div className={`${CARD} relative z-10 -mt-10 grid grid-cols-3 divide-x divide-slate-100 py-4 text-center`}>
           {[
             { k: "Chartered", v: `${CLUB_ESTABLISHED}` },
             { k: "District", v: "325L" },
             { k: "Club ID", v: `#${CLUB_ID}` },
           ].map(({ k, v }) => (
-            <div key={k} className="px-2">
-              <div className="font-display text-lg font-semibold text-[#002147] sm:text-2xl">{v}</div>
-              <div className="text-xs text-slate-500">{k}</div>
+            <div key={k} className="px-1.5 sm:px-2">
+              <div className="font-display text-sm font-semibold leading-tight text-[#002147] sm:text-lg md:text-2xl">{v}</div>
+              <div className="mt-0.5 text-[10px] text-slate-500 sm:text-xs">{k}</div>
             </div>
           ))}
         </div>
 
-        {/* ═══ PRESIDENT'S SLOGAN ═══ */}
-        {settings.presidentSlogan && (
+        {settings.presidentSlogan ? (
           <section className={`${NAVY_PANEL} ${LAZY}`}>
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(40rem_20rem_at_90%_0%,rgba(212,175,55,.18),transparent_60%)]" />
             <div className="relative flex flex-col items-center gap-8 px-6 py-10 md:flex-row md:gap-12 md:px-12 md:py-12">
               {settings.presidentSloganPhotoUrl && (
-                <img src={settings.presidentSloganPhotoUrl} alt="President" width={176} height={176} loading="lazy" decoding="async"
+                <img src={settings.presidentSloganPhotoUrl} alt="President" loading="lazy" decoding="async"
                   className="h-32 w-32 shrink-0 rounded-3xl border border-[#D4AF37]/70 bg-white object-contain p-3 shadow-[0_16px_40px_rgba(0,0,0,.3)] sm:h-40 sm:w-40 md:h-44 md:w-44" />
               )}
               <div className="flex-1 text-center md:text-left">
                 <p className="text-sm font-medium text-[#D4AF37]">{getCurrentLeoYearLabel()} · President&apos;s slogan</p>
-                <div className="relative mt-4">
-                  <span aria-hidden="true" className="font-display absolute -left-1 -top-6 text-7xl leading-none text-[#D4AF37]/80 sm:-left-3 sm:-top-8 sm:text-8xl">“</span>
+                <div className="relative mt-6">
+                  <span aria-hidden="true" className="font-display absolute -left-1 top-0 text-6xl leading-none text-[#D4AF37]/80 sm:-left-3 sm:top-1 sm:text-7xl md:text-8xl">“</span>
                   <p className="font-display max-w-4xl pl-6 text-2xl font-semibold leading-snug sm:pl-9 sm:text-4xl lg:text-5xl">{slogan}</p>
                 </div>
                 {(settings.presidentSloganName || settings.presidentSloganRole) && (
@@ -616,9 +585,10 @@ export default function HomePage() {
               </div>
             </div>
           </section>
-        )}
+        ) : !settingsR.loaded ? (
+          <Skeleton className="h-56 sm:h-64" />
+        ) : null}
 
-        {/* ═══ SERVICE IMPACT ═══ */}
         <ServiceImpactSection
           impact={impactR.data}
           activities={activitiesR.data}
@@ -628,7 +598,6 @@ export default function HomePage() {
           ready={impactR.loaded && membersR.loaded && activitiesR.loaded}
         />
 
-        {/* ═══ ANNOUNCEMENTS ═══ */}
         {announcements.length > 0 && (
           <section className="space-y-3" aria-label="Announcements">
             {announcements.map((a) => (
@@ -637,7 +606,6 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ═══ EVENTS ═══ */}
         {!eventsR.loaded ? <Skeleton /> : featuredEvents.length > 0 && (
           <section className={LAZY}>
             <SectionHead title="Upcoming events" sub={featuredEvents.length === 1 ? "Our next big event" : "Featured events — don't miss these"} href="/events" cta="View all events" />
@@ -645,7 +613,6 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ═══ AWARDS ═══ */}
         {!awardsR.loaded ? <Skeleton className="h-96" /> : featuredAwards.length > 0 && (
           <section className={LAZY}>
             <SectionHead title="Featured awards" sub="Recognition of our members and club achievements" href="/awards" cta="All awards" />
@@ -653,7 +620,6 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ═══ LEADERSHIP ═══ */}
         {!bodR.loaded ? <Skeleton className="h-96" /> : president && (
           <section className={LAZY}>
             <SectionHead title="Our leadership" sub="The team guiding our club this year" href="/about" cta="View full board" />
@@ -661,7 +627,6 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ═══ ACTIVITIES ═══ */}
         {!featActR.loaded ? <Skeleton /> : featActR.data.length > 0 && (
           <section className={LAZY}>
             <SectionHead title="Featured activities" sub="Highlights from our recent service work" href="/archive" cta="Full archive" />
@@ -669,7 +634,6 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ═══ BECOME A LEO ═══ */}
         <section className={`${CARD} overflow-hidden ${LAZY}`}>
           <div className="grid grid-cols-1 md:grid-cols-2">
             <div className="p-8 md:p-10">
@@ -719,7 +683,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ═══ DONATE ═══ */}
         <section id="donate" className={`${CARD} scroll-mt-6 overflow-hidden ${LAZY}`}>
           <div className="grid grid-cols-1 md:grid-cols-2">
             <div className="flex flex-col justify-center p-8 md:p-10">
@@ -754,7 +717,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ═══ EXPLORE ═══ */}
         <section className={`${NAVY_PANEL} p-8 text-center md:p-12 ${LAZY}`}>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(34rem_16rem_at_50%_0%,rgba(212,175,55,.2),transparent_65%)]" />
           <div className="relative mx-auto max-w-2xl">
