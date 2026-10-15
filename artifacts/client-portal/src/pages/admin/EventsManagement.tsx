@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getClubEvents, addClubEvent, updateClubEvent, deleteClubEvent } from "@/lib/firestore";
 import type { ClubEvent, CustomQuestion } from "@/lib/types";
-import { CalendarDays, Plus, Trash2, Edit2, Check, X, Loader2, MapPin, Clock, Users, HelpCircle, Pin } from "lucide-react";
+import { CalendarDays, Plus, Trash2, Edit2, Check, X, Loader2, MapPin, Clock, Users, HelpCircle, Pin, Phone } from "lucide-react";
 
 const EVENT_TYPE_SUGGESTIONS = [
   "Service",
@@ -51,6 +51,8 @@ export default function EventsManagement() {
     paymentQrUrl: "",
     paymentNote: "",
     customQuestions: [],
+    coordinatorName: "",
+    coordinatorWhatsApp: "",
   };
 
   const [form, setForm] = useState<Omit<ClubEvent, "id">>(blankForm);
@@ -82,6 +84,8 @@ export default function EventsManagement() {
       paymentQrUrl: ev.paymentQrUrl ?? "",
       paymentNote: ev.paymentNote ?? "",
       customQuestions: ev.customQuestions ?? [],
+      coordinatorName: ev.coordinatorName ?? "",
+      coordinatorWhatsApp: ev.coordinatorWhatsApp ?? "",
     });
     setEditId(ev.id);
     setShowForm(true);
@@ -95,7 +99,6 @@ export default function EventsManagement() {
       setSaving(false);
       return;
     }
-    // If end date is provided, make sure it's on/after start date
     if (form.endDate && form.endDate < form.date) {
       setError("End Date cannot be earlier than Start Date.");
       setSaving(false);
@@ -135,6 +138,8 @@ export default function EventsManagement() {
       paymentQrUrl: (form.paymentQrUrl ?? "").trim(),
       paymentNote: (form.paymentNote ?? "").trim(),
       customQuestions: form.customQuestions ?? [],
+      coordinatorName: (form.coordinatorName ?? "").trim(),
+      coordinatorWhatsApp: (form.coordinatorWhatsApp ?? "").trim(),
     };
 
     try {
@@ -233,7 +238,6 @@ export default function EventsManagement() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Title */}
             <div className="sm:col-span-2">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Event Title *</label>
               <input type="text" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -241,7 +245,6 @@ export default function EventsManagement() {
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]" />
             </div>
 
-            {/* Event Type — free text with suggestions */}
             <div className="sm:col-span-2">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
                 Event Type
@@ -264,7 +267,6 @@ export default function EventsManagement() {
               </p>
             </div>
 
-            {/* Start Date */}
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
                 Start Date *
@@ -273,7 +275,6 @@ export default function EventsManagement() {
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]" />
             </div>
 
-            {/* End Date (optional) */}
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
                 End Date (leave empty for 1-day events)
@@ -284,338 +285,370 @@ export default function EventsManagement() {
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]" />
             </div>
 
-            {/* Location */}
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Location</label>
               <input type="text" value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
                 placeholder="KUSMS Campus, Dhulikhel…"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]" />
             </div>
-
-            {/* Status */}
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Status</label>
-              <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as ClubEvent["status"] }))}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]">
-                <option value="planned">Planned / Upcoming</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-
-            {/* Photo URL */}
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Photo URL (optional)</label>
-              <input type="url" value={form.photoUrl} onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
-                placeholder="https://…"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]" />
-            </div>
-
-            {/* Description */}
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Description</label>
-              <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                rows={3} placeholder="Brief description of the event…"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] resize-none" />
-            </div>
-
-            {/* Pin to homepage */}
-            <div className="sm:col-span-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.pinned ?? false}
-                  onChange={(e) => setForm((f) => ({ ...f, pinned: e.target.checked }))}
-                  className="w-4 h-4 rounded border-gray-300 text-[#D4AF37] focus:ring-[#D4AF37]"
-                />
-                <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                  <Pin size={14} className="text-[#D4AF37]" />
-                  Pin to homepage (shows in the "Upcoming Events" section)
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {/* Applications section */}
-          <div className="border-t border-gray-200 pt-5">
-            <label className="flex items-center gap-2 cursor-pointer mb-4">
-              <input
-                type="checkbox"
-                checked={form.applicationsEnabled ?? false}
-                onChange={(e) => setForm((f) => ({ ...f, applicationsEnabled: e.target.checked }))}
-                className="w-4 h-4 rounded border-gray-300 text-[#002147] focus:ring-[#002147]"
-              />
-              <span className="text-sm font-semibold text-[#002147] flex items-center gap-2">
-                <Users size={15} className="text-[#D4AF37]" />
-                Enable Applications (Volunteers / Participants / Donors)
-              </span>
-            </label>
-
-            {form.applicationsEnabled && (
-              <div className="space-y-4 pl-6 border-l-2 border-[#D4AF37]/30">
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
-                    What are you asking for? <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={form.applicationType ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, applicationType: e.target.value }))}
-                    placeholder='e.g. "Volunteers", "Blood Donors", "Sponsors", "Participants"'
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    This label appears on the Apply button.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
-                    Message shown above Apply button (optional)
-                  </label>
-                  <textarea
-                    value={form.applicationPrompt ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, applicationPrompt: e.target.value }))}
-                    rows={2}
-                    placeholder="e.g. We need 15 volunteers for this camp. Please apply by 10 August."
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] resize-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
-                    Application Deadline (optional)
-                  </label>
-                  <input
-                    type="date"
-                    value={form.applicationDeadline ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, applicationDeadline: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    After this date, the Apply button disappears from the public page.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
-                      Fee for Leo Members (NPR)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.feeLeo ?? 0}
-                      onChange={(e) => setForm((f) => ({ ...f, feeLeo: Number(e.target.value) || 0 }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">Enter 0 if free.</p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
-                      Fee for Non-Leo Members (NPR)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.feeNonLeo ?? 0}
-                      onChange={(e) => setForm((f) => ({ ...f, feeNonLeo: Number(e.target.value) || 0 }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">Enter 0 if free.</p>
-                  </div>
-                </div>
-
-                {((form.feeLeo ?? 0) > 0 || (form.feeNonLeo ?? 0) > 0) && (
-                  <div className="bg-[#D4AF37]/5 border border-[#D4AF37]/30 rounded-xl p-4 space-y-3">
-                    <div className="text-xs font-semibold text-[#002147] uppercase tracking-wider">
-                      Payment QR (required since a fee is set)
-                    </div>
-                    {form.paymentQrUrl && (
-                      <img
-                        src={form.paymentQrUrl}
-                        alt="Payment QR preview"
-                        className="max-h-32 rounded-lg object-contain border border-gray-200 bg-white p-2"
-                      />
-                    )}
-                    <input
-                      type="url"
-                      value={form.paymentQrUrl ?? ""}
-                      onChange={(e) => setForm((f) => ({ ...f, paymentQrUrl: e.target.value }))}
-                      placeholder="https://example.com/payment-qr.png"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
-                    />
-                    <input
-                      type="text"
-                      value={form.paymentNote ?? ""}
-                      onChange={(e) => setForm((f) => ({ ...f, paymentNote: e.target.value }))}
-                      placeholder='Note (e.g. "Send to eSewa 98XXXXXXXX · A/C name")'
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                      <HelpCircle size={13} className="text-[#D4AF37]" />
-                      Custom Questions (optional)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={addCustomQuestion}
-                      className="text-xs font-semibold text-[#002147] hover:text-[#D4AF37] flex items-center gap-1"
-                    >
-                      <Plus size={12} /> Add Question
-                    </button>
-                  </div>
-                  {(form.customQuestions ?? []).length === 0 ? (
-                    <p className="text-xs text-gray-400 italic">
-                      No custom questions. Applicants only fill the standard fields.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {(form.customQuestions ?? []).map((q) => (
-                        <div key={q.id} className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
+            {/* Event Coordinator — NEW */}
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1.5">
+                            <Phone size={12} className="text-[#D4AF37]" /> Coordinator Name
+                          </label>
                           <input
                             type="text"
-                            value={q.label}
-                            onChange={(e) => updateCustomQuestion(q.id, { label: e.target.value })}
-                            placeholder="e.g. Why do you want to volunteer?"
-                            className="flex-1 border-0 text-sm focus:outline-none bg-transparent"
+                            value={form.coordinatorName ?? ""}
+                            onChange={(e) => setForm((f) => ({ ...f, coordinatorName: e.target.value }))}
+                            placeholder="e.g. Leo Saurab Acharya"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
                           />
-                          <label className="flex items-center gap-1 text-xs text-gray-500 shrink-0">
+                          <p className="text-xs text-gray-400 mt-1">Shown on the public event page next to the Contact button.</p>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1.5">
+                            <Phone size={12} className="text-[#25D366]" /> Coordinator WhatsApp
+                          </label>
+                          <input
+                            type="tel"
+                            value={form.coordinatorWhatsApp ?? ""}
+                            onChange={(e) => setForm((f) => ({ ...f, coordinatorWhatsApp: e.target.value }))}
+                            placeholder="+977 98XXXXXXXX"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#25D366]"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Include country code (e.g. +977). Leave empty to hide the contact button.</p>
+                        </div>
+
+                        {/* Status */}
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Status</label>
+                          <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as ClubEvent["status"] }))}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]">
+                            <option value="planned">Planned / Upcoming</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </div>
+
+                        {/* Photo URL */}
+                        <div className="sm:col-span-2">
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Photo URL (optional)</label>
+                          <input type="url" value={form.photoUrl} onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
+                            placeholder="https://…"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]" />
+                        </div>
+
+                        {/* Description */}
+                        <div className="sm:col-span-2">
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">Description</label>
+                          <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                            rows={3} placeholder="Brief description of the event…"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] resize-none" />
+                        </div>
+
+                        {/* Pin to homepage */}
+                        <div className="sm:col-span-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={q.required}
-                              onChange={(e) => updateCustomQuestion(q.id, { required: e.target.checked })}
-                              className="w-3.5 h-3.5"
+                              checked={form.pinned ?? false}
+                              onChange={(e) => setForm((f) => ({ ...f, pinned: e.target.checked }))}
+                              className="w-4 h-4 rounded border-gray-300 text-[#D4AF37] focus:ring-[#D4AF37]"
                             />
-                            Required
+                            <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                              <Pin size={14} className="text-[#D4AF37]" />
+                              Pin to homepage (shows in the "Upcoming Events" section)
+                            </span>
                           </label>
-                          <button
-                            type="button"
-                            onClick={() => removeCustomQuestion(q.id)}
-                            className="text-gray-400 hover:text-red-500 shrink-0"
-                          >
-                            <X size={14} />
-                          </button>
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Applications section */}
+                      <div className="border-t border-gray-200 pt-5">
+                        <label className="flex items-center gap-2 cursor-pointer mb-4">
+                          <input
+                            type="checkbox"
+                            checked={form.applicationsEnabled ?? false}
+                            onChange={(e) => setForm((f) => ({ ...f, applicationsEnabled: e.target.checked }))}
+                            className="w-4 h-4 rounded border-gray-300 text-[#002147] focus:ring-[#002147]"
+                          />
+                          <span className="text-sm font-semibold text-[#002147] flex items-center gap-2">
+                            <Users size={15} className="text-[#D4AF37]" />
+                            Enable Applications (Volunteers / Participants / Donors)
+                          </span>
+                        </label>
+
+                        {form.applicationsEnabled && (
+                          <div className="space-y-4 pl-6 border-l-2 border-[#D4AF37]/30">
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
+                                What are you asking for? <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={form.applicationType ?? ""}
+                                onChange={(e) => setForm((f) => ({ ...f, applicationType: e.target.value }))}
+                                placeholder='e.g. "Volunteers", "Blood Donors", "Sponsors", "Participants"'
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+                              />
+                              <p className="text-xs text-gray-400 mt-1">
+                                This label appears on the Apply button.
+                              </p>
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
+                                Message shown above Apply button (optional)
+                              </label>
+                              <textarea
+                                value={form.applicationPrompt ?? ""}
+                                onChange={(e) => setForm((f) => ({ ...f, applicationPrompt: e.target.value }))}
+                                rows={2}
+                                placeholder="e.g. We need 15 volunteers for this camp. Please apply by 10 August."
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] resize-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
+                                Application Deadline (optional)
+                              </label>
+                              <input
+                                type="date"
+                                value={form.applicationDeadline ?? ""}
+                                onChange={(e) => setForm((f) => ({ ...f, applicationDeadline: e.target.value }))}
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+                              />
+                              <p className="text-xs text-gray-400 mt-1">
+                                After this date, the Apply button disappears from the public page.
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
+                                  Fee for Leo Members (NPR)
+                                </label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={form.feeLeo ?? 0}
+                                  onChange={(e) => setForm((f) => ({ ...f, feeLeo: Number(e.target.value) || 0 }))}
+                                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">Enter 0 if free.</p>
+                              </div>
+                              <div>
+                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 block">
+                                  Fee for Non-Leo Members (NPR)
+                                </label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={form.feeNonLeo ?? 0}
+                                  onChange={(e) => setForm((f) => ({ ...f, feeNonLeo: Number(e.target.value) || 0 }))}
+                                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">Enter 0 if free.</p>
+                              </div>
+                            </div>
+
+                            {((form.feeLeo ?? 0) > 0 || (form.feeNonLeo ?? 0) > 0) && (
+                              <div className="bg-[#D4AF37]/5 border border-[#D4AF37]/30 rounded-xl p-4 space-y-3">
+                                <div className="text-xs font-semibold text-[#002147] uppercase tracking-wider">
+                                  Payment QR (required since a fee is set)
+                                </div>
+                                {form.paymentQrUrl && (
+                                  <img
+                                    src={form.paymentQrUrl}
+                                    alt="Payment QR preview"
+                                    className="max-h-32 rounded-lg object-contain border border-gray-200 bg-white p-2"
+                                  />
+                                )}
+                                <input
+                                  type="url"
+                                  value={form.paymentQrUrl ?? ""}
+                                  onChange={(e) => setForm((f) => ({ ...f, paymentQrUrl: e.target.value }))}
+                                  placeholder="https://example.com/payment-qr.png"
+                                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
+                                />
+                                <input
+                                  type="text"
+                                  value={form.paymentNote ?? ""}
+                                  onChange={(e) => setForm((f) => ({ ...f, paymentNote: e.target.value }))}
+                                  placeholder='Note (e.g. "Send to eSewa 98XXXXXXXX · A/C name")'
+                                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white"
+                                />
+                              </div>
+                            )}
+
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                  <HelpCircle size={13} className="text-[#D4AF37]" />
+                                  Custom Questions (optional)
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={addCustomQuestion}
+                                  className="text-xs font-semibold text-[#002147] hover:text-[#D4AF37] flex items-center gap-1"
+                                >
+                                  <Plus size={12} /> Add Question
+                                </button>
+                              </div>
+                              {(form.customQuestions ?? []).length === 0 ? (
+                                <p className="text-xs text-gray-400 italic">
+                                  No custom questions. Applicants only fill the standard fields.
+                                </p>
+                              ) : (
+                                <div className="space-y-2">
+                                  {(form.customQuestions ?? []).map((q) => (
+                                    <div key={q.id} className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
+                                      <input
+                                        type="text"
+                                        value={q.label}
+                                        onChange={(e) => updateCustomQuestion(q.id, { label: e.target.value })}
+                                        placeholder="e.g. Why do you want to volunteer?"
+                                        className="flex-1 border-0 text-sm focus:outline-none bg-transparent"
+                                      />
+                                      <label className="flex items-center gap-1 text-xs text-gray-500 shrink-0">
+                                        <input
+                                          type="checkbox"
+                                          checked={q.required}
+                                          onChange={(e) => updateCustomQuestion(q.id, { required: e.target.checked })}
+                                          className="w-3.5 h-3.5"
+                                        />
+                                        Required
+                                      </label>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeCustomQuestion(q.id)}
+                                        className="text-gray-400 hover:text-red-500 shrink-0"
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {error && <p className="text-sm text-red-500">{error}</p>}
+
+                      <div className="flex gap-3 pt-1">
+                        <button type="submit" disabled={saving}
+                          className="flex items-center gap-2 bg-[#002147] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] disabled:opacity-60 transition-colors">
+                          {saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <><Check size={14} /> {editId ? "Update" : "Save Event"}</>}
+                        </button>
+                        <button type="button" onClick={resetForm} className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors">Cancel</button>
+                      </div>
+                    </form>
+                  )}
+
+                  {loading ? (
+                    <div className="space-y-3">{[1,2].map(i => <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />)}</div>
+                  ) : events.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400">
+                      <CalendarDays size={40} className="mx-auto mb-3 opacity-30" />
+                      <p>No events yet. Add upcoming or past events!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      {upcoming.length > 0 && (
+                        <div>
+                          <div className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <Clock size={12} /> Upcoming ({upcoming.length})
+                          </div>
+                          <div className="space-y-3">
+                            {upcoming.map((ev) => <EventRow key={ev.id} ev={ev} onEdit={startEdit} onDelete={handleDelete} onTogglePin={handleTogglePinned} />)}
+                          </div>
+                        </div>
+                      )}
+                      {past.length > 0 && (
+                        <div>
+                          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <CalendarDays size={12} /> Past / Completed ({past.length})
+                          </div>
+                          <div className="space-y-3">
+                            {[...past].reverse().map((ev) => <EventRow key={ev.id} ev={ev} onEdit={startEdit} onDelete={handleDelete} onTogglePin={handleTogglePinned} />)}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              </div>
-            )}
-          </div>
+              );
+            }
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+            function EventRow({
+              ev,
+              onEdit,
+              onDelete,
+              onTogglePin,
+            }: {
+              ev: ClubEvent;
+              onEdit: (e: ClubEvent) => void;
+              onDelete: (id: string) => void;
+              onTogglePin: (e: ClubEvent) => void;
+            }) {
+              const dateLabel = ev.endDate && ev.endDate !== ev.date
+                ? `${new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} – ${new Date(ev.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
+                : new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
-          <div className="flex gap-3 pt-1">
-            <button type="submit" disabled={saving}
-              className="flex items-center gap-2 bg-[#002147] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#003575] disabled:opacity-60 transition-colors">
-              {saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <><Check size={14} /> {editId ? "Update" : "Save Event"}</>}
-            </button>
-            <button type="button" onClick={resetForm} className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors">Cancel</button>
-          </div>
-        </form>
-      )}
-
-      {loading ? (
-        <div className="space-y-3">{[1,2].map(i => <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />)}</div>
-      ) : events.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <CalendarDays size={40} className="mx-auto mb-3 opacity-30" />
-          <p>No events yet. Add upcoming or past events!</p>
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {upcoming.length > 0 && (
-            <div>
-              <div className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Clock size={12} /> Upcoming ({upcoming.length})
-              </div>
-              <div className="space-y-3">
-                {upcoming.map((ev) => <EventRow key={ev.id} ev={ev} onEdit={startEdit} onDelete={handleDelete} onTogglePin={handleTogglePinned} />)}
-              </div>
-            </div>
-          )}
-          {past.length > 0 && (
-            <div>
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <CalendarDays size={12} /> Past / Completed ({past.length})
-              </div>
-              <div className="space-y-3">
-                {[...past].reverse().map((ev) => <EventRow key={ev.id} ev={ev} onEdit={startEdit} onDelete={handleDelete} onTogglePin={handleTogglePinned} />)}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function EventRow({
-  ev,
-  onEdit,
-  onDelete,
-  onTogglePin,
-}: {
-  ev: ClubEvent;
-  onEdit: (e: ClubEvent) => void;
-  onDelete: (id: string) => void;
-  onTogglePin: (e: ClubEvent) => void;
-}) {
-  const dateLabel = ev.endDate && ev.endDate !== ev.date
-    ? `${new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} – ${new Date(ev.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
-    : new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-
-  return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
-      {ev.photoUrl
-        ? <img src={ev.photoUrl} alt={ev.title} className="w-14 h-14 rounded-xl object-cover shrink-0" />
-        : <div className="w-14 h-14 rounded-xl bg-[#002147]/10 flex items-center justify-center shrink-0">
-            <CalendarDays size={22} className="text-[#002147]" />
-          </div>
-      }
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-bold text-[#002147]">{ev.title}</span>
-          {ev.pinned && (
-            <span className="text-xs bg-[#D4AF37] text-[#002147] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-              <Pin size={10} /> Pinned
-            </span>
-          )}
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[ev.status]}`}>{ev.status}</span>
-          {ev.eventType && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{ev.eventType}</span>}
-          {ev.applicationsEnabled && (
-            <span className="text-xs bg-[#D4AF37]/20 text-[#002147] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
-              <Users size={10} /> {ev.applicationType || "Applications open"}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">
-          <span className="flex items-center gap-1"><Clock size={11} /> {dateLabel}</span>
-          {ev.location && <span className="flex items-center gap-1"><MapPin size={11} /> {ev.location}</span>}
-        </div>
-        {ev.description && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{ev.description}</p>}
-      </div>
-      <div className="flex gap-2 shrink-0">
-        <button
-          onClick={() => onTogglePin(ev)}
-          title={ev.pinned ? "Unpin from homepage" : "Pin to homepage"}
-          className={`p-2 rounded-lg transition-colors ${ev.pinned ? "text-[#D4AF37] bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20" : "text-gray-400 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10"}`}
-        >
-          <Pin size={14} />
-        </button>
-        <button onClick={() => onEdit(ev)} className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors">
-          <Edit2 size={14} />
-        </button>
-        <button onClick={() => onDelete(ev.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-          <Trash2 size={14} />
-        </button>
-      </div>
-    </div>
-  );
-}
+              return (
+                <div className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
+                  {ev.photoUrl
+                    ? <img src={ev.photoUrl} alt={ev.title} className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                    : <div className="w-14 h-14 rounded-xl bg-[#002147]/10 flex items-center justify-center shrink-0">
+                        <CalendarDays size={22} className="text-[#002147]" />
+                      </div>
+                  }
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-[#002147]">{ev.title}</span>
+                      {ev.pinned && (
+                        <span className="text-xs bg-[#D4AF37] text-[#002147] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                          <Pin size={10} /> Pinned
+                        </span>
+                      )}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[ev.status]}`}>{ev.status}</span>
+                      {ev.eventType && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{ev.eventType}</span>}
+                      {ev.applicationsEnabled && (
+                        <span className="text-xs bg-[#D4AF37]/20 text-[#002147] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                          <Users size={10} /> {ev.applicationType || "Applications open"}
+                        </span>
+                      )}
+                      {ev.coordinatorWhatsApp && (
+                        <span className="text-xs bg-[#25D366]/15 text-[#0a7d3c] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                          <Phone size={10} /> Coordinator set
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">
+                      <span className="flex items-center gap-1"><Clock size={11} /> {dateLabel}</span>
+                      {ev.location && <span className="flex items-center gap-1"><MapPin size={11} /> {ev.location}</span>}
+                    </div>
+                    {ev.description && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{ev.description}</p>}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => onTogglePin(ev)}
+                      title={ev.pinned ? "Unpin from homepage" : "Pin to homepage"}
+                      className={`p-2 rounded-lg transition-colors ${ev.pinned ? "text-[#D4AF37] bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20" : "text-gray-400 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10"}`}
+                    >
+                      <Pin size={14} />
+                    </button>
+                    <button onClick={() => onEdit(ev)} className="p-2 text-gray-400 hover:text-[#002147] hover:bg-gray-100 rounded-lg transition-colors">
+                      <Edit2 size={14} />
+                    </button>
+                    <button onClick={() => onDelete(ev.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            }
