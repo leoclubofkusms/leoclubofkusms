@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getClubEvents } from "@/lib/firestore";
 import type { ClubEvent } from "@/lib/types";
-import { CalendarDays, MapPin, Clock, ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight, LayoutList, Calendar, Users, QrCode, Pin, Share2 } from "lucide-react";
+import { CalendarDays, MapPin, Clock, ArrowLeft, CheckCircle, XCircle, ChevronLeft, ChevronRight, LayoutList, Calendar, Users, QrCode, Pin, MessageCircle } from "lucide-react";
 import { Link } from "wouter";
 import ApplicationFormModal from "@/components/ApplicationFormModal";
 import ShareButton from "@/components/ShareButton";
@@ -22,6 +22,15 @@ function formatEventDate(ev: ClubEvent): string {
     return `${start} – ${end}`;
   }
   return new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function coordinatorHref(ev: ClubEvent): string | null {
+  if (!ev.coordinatorWhatsApp) return null;
+  const digits = ev.coordinatorWhatsApp.replace(/\D/g, "");
+  if (!digits) return null;
+  const name = ev.coordinatorName?.trim() || "the event coordinator";
+  const text = `Hello ${name}, I have a question about "${ev.title}".`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }
 
 function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: ClubEvent) => void }) {
@@ -146,6 +155,7 @@ function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: 
                 const cfg = STATUS_CONFIG[ev.status];
                 const StatusIcon = cfg.icon;
                 const evUrl = `${window.location.origin}${import.meta.env.BASE_URL}event/${ev.id}`;
+                const wa = coordinatorHref(ev);
                 return (
                   <div key={ev.id} className="bg-[#F8FAFC] rounded-xl border border-gray-100 p-4">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -170,21 +180,34 @@ function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: 
                     {ev.description && <p className="text-sm text-gray-500 mt-1">{ev.description}</p>}
                     {ev.location && <p className="flex items-center gap-1.5 text-xs text-gray-400 mt-2"><MapPin size={11} className="text-[#D4AF37]" /> {ev.location}</p>}
 
-                    {/* Actions row */}
                     <div className="flex items-center gap-2 mt-3">
                       <Link href={`/event/${ev.id}`} className="flex-1 flex items-center justify-center gap-2 bg-[#002147] hover:bg-[#003575] text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
                         View Full Event
                       </Link>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-2">
+                      {wa && (
+                        <a
+                          href={wa}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20b858] text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
+                        >
+                          <MessageCircle size={14} />
+                          Contact Coordinator
+                        </a>
+                      )}
                       <ShareButton
                         url={evUrl}
                         title={ev.title}
                         description={ev.description}
                         meta={formatEventDate(ev) + (ev.location ? ` · ${ev.location}` : "")}
                         variant="icon"
+                        className="!bg-[#002147]/8 !text-[#002147] hover:!bg-[#002147]/15 !py-2.5 !px-3"
                       />
                     </div>
 
-                    {/* Apply (inline) */}
                     {ev.applicationsEnabled && canApply(ev) && (
                       <button
                         onClick={() => onApply(ev)}
@@ -216,7 +239,6 @@ function CalendarView({ events, onApply }: { events: ClubEvent[]; onApply: (ev: 
     </div>
   );
 }
-
 export default function EventsPage() {
   const [events, setEvents] = useState<ClubEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -319,19 +341,9 @@ export default function EventsPage() {
               const feeShown = (ev.feeLeo || ev.feeNonLeo || 0) > 0;
               const isMultiDay = ev.endDate && ev.endDate !== ev.date;
               const evUrl = `${window.location.origin}${import.meta.env.BASE_URL}event/${ev.id}`;
+              const wa = coordinatorHref(ev);
               return (
-                <div key={ev.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col relative ${isPast ? "border-gray-100 opacity-80" : "border-[#D4AF37]/20"}`}>
-                  {/* Share icon — top-right floating */}
-                  <div className="absolute top-3 right-3 z-10">
-                    <ShareButton
-                      url={evUrl}
-                      title={ev.title}
-                      description={ev.description}
-                      meta={dateStr + (ev.location ? ` · ${ev.location}` : "")}
-                      variant="icon"
-                      className="!bg-[#002147]/80 backdrop-blur-sm hover:!bg-[#002147]"
-                    />
-                  </div>
+                <div key={ev.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col ${isPast ? "border-gray-100 opacity-80" : "border-[#D4AF37]/20"}`}>
                   {ev.photoUrl && (
                     <Link href={`/event/${ev.id}`}>
                       <img src={ev.photoUrl} alt={ev.title} className="w-full h-40 object-cover hover:opacity-95 transition-opacity" />
@@ -373,6 +385,29 @@ export default function EventsPage() {
                       >
                         View Full Event
                       </Link>
+
+                      {/* Coordinator + Share row */}
+                      <div className="flex items-center gap-2">
+                        {wa && (
+                          <a
+                            href={wa}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20b858] text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
+                          >
+                            <MessageCircle size={15} />
+                            Contact Coordinator
+                          </a>
+                        )}
+                        <ShareButton
+                          url={evUrl}
+                          title={ev.title}
+                          description={ev.description}
+                          meta={dateStr + (ev.location ? ` · ${ev.location}` : "")}
+                          variant="icon"
+                          className="!bg-[#002147]/8 !text-[#002147] hover:!bg-[#002147]/15 !py-2.5 !px-3"
+                        />
+                      </div>
 
                       {ev.applicationsEnabled && (
                         <>
