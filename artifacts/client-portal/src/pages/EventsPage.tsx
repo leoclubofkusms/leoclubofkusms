@@ -346,7 +346,13 @@ export default function EventsPage() {
                 <div key={ev.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col ${isPast ? "border-gray-100 opacity-80" : "border-[#D4AF37]/20"}`}>
                   {ev.photoUrl && (
                     <Link href={`/event/${ev.id}`}>
-                      <img src={ev.photoUrl} alt={ev.title} className="w-full h-40 object-cover hover:opacity-95 transition-opacity" />
+                      <div className="w-full bg-[#F6F8FB] flex items-center justify-center">
+                        <img
+                          src={ev.photoUrl}
+                          alt={ev.title}
+                          className="w-full max-h-72 object-contain hover:opacity-95 transition-opacity"
+                        />
+                      </div>
                     </Link>
                   )}
                   <div className="p-5 flex-1 flex flex-col">
