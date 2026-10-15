@@ -184,6 +184,9 @@ export interface ClubEvent {
   paymentNote?: string;
   customQuestions?: CustomQuestion[];
 }
+coordinatorName?: string;
+  coordinatorWhatsApp?: string;
+}
 
 export interface CustomQuestion {
   id: string;
