@@ -4,7 +4,7 @@ import { getClubEvents } from "@/lib/firestore";
 import type { ClubEvent } from "@/lib/types";
 import {
   ArrowLeft, CalendarDays, MapPin, Clock, CheckCircle, XCircle,
-  Users, QrCode, Pin, Share2,
+  Users, QrCode, Pin, Share2, MessageCircle,
 } from "lucide-react";
 import ShareButton from "@/components/ShareButton";
 import ApplicationFormModal from "@/components/ApplicationFormModal";
@@ -31,6 +31,15 @@ function formatEventDateShort(ev: ClubEvent): string {
     return `${start} – ${end}`;
   }
   return new Date(ev.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function coordinatorHref(ev: ClubEvent): string | null {
+  if (!ev.coordinatorWhatsApp) return null;
+  const digits = ev.coordinatorWhatsApp.replace(/\D/g, "");
+  if (!digits) return null;
+  const name = ev.coordinatorName?.trim() || "the event coordinator";
+  const text = `Hello ${name}, I have a question about "${ev.title}".`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }
 
 export default function EventDetailPage({ eventId }: { eventId: string }) {
@@ -84,10 +93,10 @@ export default function EventDetailPage({ eventId }: { eventId: string }) {
     (!event.applicationDeadline || event.applicationDeadline >= today);
   const isMultiDay = event.endDate && event.endDate !== event.date;
   const feeShown = (event.feeLeo || event.feeNonLeo || 0) > 0;
+  const wa = coordinatorHref(event);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Hero */}
       <div className="bg-[#002147] text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <Link href="/events" className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-6 transition-colors">
@@ -132,11 +141,15 @@ export default function EventDetailPage({ eventId }: { eventId: string }) {
                     <MapPin size={14} className="text-[#D4AF37]" /> {event.location}
                   </span>
                 )}
+                {wa && event.coordinatorName && (
+                  <span className="flex items-center gap-2">
+                    <Users size={14} className="text-[#D4AF37]" /> Coordinator: {event.coordinatorName}
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
-          {/* CTA row */}
           <div className="flex flex-wrap gap-3 mt-7">
             {canApply && (
               <button
@@ -146,6 +159,17 @@ export default function EventDetailPage({ eventId }: { eventId: string }) {
                 <Users size={16} />
                 Apply as {event.applicationType || "Applicant"}
               </button>
+            )}
+            {wa && (
+              <a
+                href={wa}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-[#25D366] text-white px-5 py-3 rounded-xl font-bold hover:bg-[#20b858] transition-colors shadow-lg"
+              >
+                <MessageCircle size={16} />
+                Contact Coordinator
+              </a>
             )}
             <ShareButton
               url={pageUrl}
@@ -158,17 +182,14 @@ export default function EventDetailPage({ eventId }: { eventId: string }) {
           </div>
         </div>
       </div>
-
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
 
-        {/* Photo */}
         {event.photoUrl && (
           <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
             <img src={event.photoUrl} alt={event.title} className="w-full h-auto object-cover max-h-[420px]" />
           </div>
         )}
 
-        {/* Details card */}
         <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
           <h2 className="text-lg font-bold text-[#002147] mb-4">Event Details</h2>
           <div className="space-y-3 text-sm">
@@ -202,7 +223,34 @@ export default function EventDetailPage({ eventId }: { eventId: string }) {
           </div>
         </section>
 
-        {/* Application section */}
+        {/* ═══ CONTACT COORDINATOR ═══ */}
+        {wa && (
+          <section className="bg-white rounded-2xl border border-[#25D366]/30 p-6 shadow-sm">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#25D366]/15">
+                <MessageCircle size={22} className="text-[#25D366]" />
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <h3 className="font-bold text-[#002147] text-lg">
+                  {event.coordinatorName ? `Contact ${event.coordinatorName}` : "Contact the Coordinator"}
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Have a question about this event? Message the coordinator directly on WhatsApp.
+                </p>
+              </div>
+              <a
+                href={wa}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20b858] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors"
+              >
+                <MessageCircle size={15} />
+                Message on WhatsApp
+              </a>
+            </div>
+          </section>
+        )}
+
         {event.applicationsEnabled && (
           <section className="bg-white rounded-2xl border-2 border-[#D4AF37]/30 p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
@@ -268,7 +316,6 @@ export default function EventDetailPage({ eventId }: { eventId: string }) {
           </section>
         )}
 
-        {/* Share again — bottom */}
         <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex-1 min-w-[200px]">
@@ -291,7 +338,6 @@ export default function EventDetailPage({ eventId }: { eventId: string }) {
           </div>
         </section>
 
-        {/* Back link */}
         <div className="pt-4 border-t border-gray-100">
           <Link href="/events" className="inline-flex items-center gap-2 text-[#002147] font-semibold hover:text-[#D4AF37] transition-colors text-sm">
             <ArrowLeft size={14} /> View all events
@@ -299,7 +345,6 @@ export default function EventDetailPage({ eventId }: { eventId: string }) {
         </div>
       </div>
 
-      {/* Application modal */}
       {applying && (
         <ApplicationFormModal event={event} onClose={() => setApplying(false)} />
       )}
