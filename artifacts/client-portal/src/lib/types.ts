@@ -183,8 +183,7 @@ export interface ClubEvent {
   paymentQrUrl?: string;
   paymentNote?: string;
   customQuestions?: CustomQuestion[];
-}
-coordinatorName?: string;
+  coordinatorName?: string;
   coordinatorWhatsApp?: string;
 }
 
