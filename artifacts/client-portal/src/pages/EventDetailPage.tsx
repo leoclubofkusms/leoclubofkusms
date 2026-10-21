@@ -62,6 +62,10 @@ export default function EventDetailPage({ eventId }: { eventId: string }) {
       .finally(() => setLoading(false));
   }, [eventId]);
 
+  useEffect(() => {
+    if (event) document.title = `${event.title} | Leo Club of KUSMS`;
+  }, [event]);
+
   if (loading) return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-[#002147] border-t-transparent rounded-full animate-spin" />

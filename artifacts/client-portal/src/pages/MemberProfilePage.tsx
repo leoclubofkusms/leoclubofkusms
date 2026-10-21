@@ -116,6 +116,10 @@ export default function MemberProfilePage({ memberId }: Props) {
       .finally(() => setLoading(false));
   }, [memberId]);
 
+  useEffect(() => {
+    if (member) document.title = `${member.name} | Leo Club of KUSMS Member`;
+  }, [member]);
+
   const verifyUrl = `${window.location.origin}${import.meta.env.BASE_URL}verify/member/${memberId}`;
 
   if (loading) return (

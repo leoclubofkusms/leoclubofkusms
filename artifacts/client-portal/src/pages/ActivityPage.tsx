@@ -66,6 +66,10 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
       .finally(() => setLoading(false));
   }, [activityId]);
 
+  useEffect(() => {
+    if (activity) document.title = `${activity.title} | Leo Club of KUSMS`;
+  }, [activity]);
+
   function getMemberName(id: string) {
     return members.find((m) => m.memberId === id)?.name ?? id;
   }

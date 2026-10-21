@@ -30,6 +30,7 @@ export interface Member {
   isActive?: boolean;
   joinedLeoYear?: string;
   leftLeoYear?: string;
+  nepaliBirthday?: string;
   bio?: string;
 }
 

@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  Cake,
   ShieldCheck,
   Sparkles,
   HandHeart,
@@ -11,8 +12,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getClubSettings } from "@/lib/firestore";
-import type { ClubSettings } from "@/lib/types";
+import { adToBs } from "nepali-date-picker-converter";
+import { getClubSettings, getMembers } from "@/lib/firestore";
+import type { ClubSettings, Member } from "@/lib/types";
 import { formatPresidentSlogan, getCurrentLeoYear } from "@/lib/types";
 
 /* -------------------------------------------------------------------------- */
@@ -50,6 +52,22 @@ const nepalFormatter = new Intl.DateTimeFormat("en-CA", {
   month: "2-digit",
   day: "2-digit",
 });
+
+function getTodayBsKey(): string | null {
+  const parts = nepalFormatter.formatToParts(new Date());
+  const getPart = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  const year = getPart("year");
+  const month = getPart("month");
+  const day = getPart("day");
+  if (!year || !month || !day) return null;
+
+  // Pass the Nepal-local calendar date as local date fields so the converter
+  // does not shift the date when the browser is in another time zone.
+  const bs = adToBs(new Date(year, month - 1, day));
+  return bs
+    ? `${bs.year}-${String(bs.month).padStart(2, "0")}-${String(bs.day).padStart(2, "0")}`
+    : null;
+}
 
 function getTodaysDashain(): { day: DashainDay; index: number } | null {
   const iso = nepalFormatter.format(new Date()); // YYYY-MM-DD
@@ -212,11 +230,79 @@ const PETALS = [
   { left: "90%", delay: "4.4s", dur: "10.5s", size: 12, drift: "8px" },
 ];
 
+function BirthdayCard({ members }: { members: Member[] }) {
+  const shownMembers = members.slice(0, 3);
+  return (
+    <div
+      className="relative isolate overflow-hidden"
+      style={{ background: "linear-gradient(145deg,rgba(125,35,77,.98),rgba(75,20,57,.98) 58%,rgba(39,18,48,.98))" }}
+    >
+      <div className="pointer-events-none absolute -right-16 -top-14 h-60 w-60 rounded-full border border-pink-200/15" />
+      <div className="pointer-events-none absolute -bottom-20 -left-16 h-56 w-56 rounded-full border border-rose-200/10" />
+      <div className="relative p-5 sm:p-7">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-pink-200/85">Leo family celebration</p>
+            <h2 className="mt-2 text-3xl font-bold leading-tight text-white sm:text-4xl">Happy Birthday!</h2>
+          </div>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-pink-100/30 bg-pink-100/10 text-pink-100 shadow-[0_0_25px_rgba(251,113,133,.18)]">
+            <Cake size={23} />
+          </div>
+        </div>
+
+        <div className="my-5 h-px bg-gradient-to-r from-pink-200/60 via-rose-200/25 to-transparent" />
+
+        <div className="space-y-3">
+          {shownMembers.map((member) => (
+            <div key={member.memberId} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.07] p-3">
+              {member.photoUrl ? (
+                <img
+                  src={member.photoUrl}
+                  alt={member.name}
+                  width={64}
+                  height={64}
+                  loading="eager"
+                  decoding="async"
+                  className="h-14 w-14 shrink-0 rounded-xl border border-pink-100/40 bg-white/10 object-cover"
+                />
+              ) : (
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-pink-100/30 bg-white/10 text-xl font-bold text-pink-100">
+                  {member.name.trim().charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <h3 className="truncate text-base font-bold text-white">{member.name}</h3>
+                <p className="mt-0.5 truncate text-sm text-pink-100/70">{member.currentRole || "Leo Club Member"}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {members.length > shownMembers.length && (
+          <p className="mt-3 text-center text-xs text-pink-100/70">
+            And {members.length - shownMembers.length} more member{members.length - shownMembers.length === 1 ? "" : "s"} celebrating today
+          </p>
+        )}
+
+        <p className="mt-5 text-sm leading-6 text-white/80">
+          Wishing you a year filled with happiness, meaningful moments, and new opportunities. With warm wishes from all of us at Leo Club of KUSMS.
+        </p>
+        <p className="mt-5 text-xs leading-5 text-white/45">
+          Leo Club of Kathmandu University School of Medical Sciences · District 325L
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
   const [exiting, setExiting] = useState(false);
   const [entered, setEntered] = useState(false);
   const [settings, setSettings] = useState<ClubSettings | null>(null);
+  const [birthdayMembers, setBirthdayMembers] = useState<Member[]>([]);
+  const [birthdayCheckComplete, setBirthdayCheckComplete] = useState(false);
   const enterRef = useRef<HTMLButtonElement>(null);
+  const todayBsKey = useMemo(getTodayBsKey, []);
 
   const dashain = useMemo(
     () => (ACTIVE_FESTIVAL === "dashain" ? getTodaysDashain() : null),
@@ -233,6 +319,35 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    if (!todayBsKey) {
+      setBirthdayCheckComplete(true);
+      return () => {
+        alive = false;
+      };
+    }
+
+    getMembers()
+      .then((members) => {
+        if (!alive) return;
+        const matches = members
+          .filter((member) => member.isActive !== false && member.nepaliBirthday === todayBsKey)
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setBirthdayMembers(matches);
+      })
+      .catch((error) => {
+        console.error("Unable to check member birthdays for the splash screen.", error);
+      })
+      .finally(() => {
+        if (alive) setBirthdayCheckComplete(true);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [todayBsKey]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -268,7 +383,8 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
   // Static class strings so Tailwind's scanner can see them.
   const DELAYS = ["", "[animation-delay:110ms]", "[animation-delay:220ms]", "[animation-delay:330ms]", "[animation-delay:440ms]"];
   const reveal = (n: number) => `leo-rise ${DELAYS[n]} ${entered ? "" : "opacity-0"}`;
-  const festive = !!dashain;
+  const birthdayCelebration = birthdayMembers.length > 0;
+  const festive = birthdayCheckComplete && !birthdayCelebration && !!dashain;
 
   return (
     <div
@@ -281,9 +397,11 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
       }`}
       style={{
         // Gradients instead of blur-3xl blobs: far cheaper to paint on phones.
-        background: festive
-          ? "radial-gradient(60rem 40rem at 85% 110%,rgba(176,38,38,.35),transparent 60%),radial-gradient(50rem 36rem at 0% -10%,rgba(13,77,132,.35),transparent 60%),#07101f"
-          : "radial-gradient(50rem 36rem at 0% -10%,rgba(13,77,132,.4),transparent 60%),radial-gradient(50rem 36rem at 100% 110%,rgba(164,125,22,.25),transparent 60%),#020b18",
+        background: birthdayCelebration
+          ? "radial-gradient(60rem 40rem at 85% 110%,rgba(176,38,84,.28),transparent 60%),radial-gradient(50rem 36rem at 0% -10%,rgba(13,77,132,.35),transparent 60%),#07101f"
+          : festive
+            ? "radial-gradient(60rem 40rem at 85% 110%,rgba(176,38,38,.35),transparent 60%),radial-gradient(50rem 36rem at 0% -10%,rgba(13,77,132,.35),transparent 60%),#07101f"
+            : "radial-gradient(50rem 36rem at 0% -10%,rgba(13,77,132,.4),transparent 60%),radial-gradient(50rem 36rem at 100% 110%,rgba(164,125,22,.25),transparent 60%),#020b18",
       }}
     >
       <style>{STYLES}</style>
@@ -377,7 +495,9 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
             {/* Right: card */}
             <div className={`${reveal(3)} relative mx-auto w-full max-w-md lg:ml-auto lg:mr-0`}>
               <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-white/[0.07] shadow-[0_30px_80px_rgba(0,0,0,.4)] sm:backdrop-blur-xl">
-                {festive && dashain ? (
+                {birthdayCelebration ? (
+                  <BirthdayCard members={birthdayMembers} />
+                ) : festive && dashain ? (
                   <div
                     className="relative"
                     style={{ background: "linear-gradient(180deg,rgba(150,28,28,.38),rgba(60,10,20,.2) 55%,transparent)" }}

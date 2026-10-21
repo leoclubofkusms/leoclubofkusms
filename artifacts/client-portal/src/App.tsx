@@ -32,6 +32,37 @@ const SEO_DEFAULT = {
   description: "Official Leo Club of KUSMS portal for members, service activities, leadership, awards, events, and the club's community impact in Nepal.",
 };
 
+const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim();
+
+type GoogleAnalyticsWindow = Window & {
+  dataLayer?: unknown[][];
+  gtag?: (...args: unknown[]) => void;
+};
+
+function trackPageView(path: string, title: string) {
+  if (!GA_MEASUREMENT_ID || typeof window === "undefined") return;
+
+  const analyticsWindow = window as GoogleAnalyticsWindow;
+  if (!analyticsWindow.gtag) {
+    analyticsWindow.dataLayer = [];
+    analyticsWindow.gtag = (...args) => analyticsWindow.dataLayer?.push(args);
+    analyticsWindow.gtag("js", new Date());
+    analyticsWindow.gtag("config", GA_MEASUREMENT_ID, { send_page_view: false });
+
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_MEASUREMENT_ID)}`;
+    script.dataset.googleAnalytics = GA_MEASUREMENT_ID;
+    document.head.appendChild(script);
+  }
+
+  analyticsWindow.gtag("event", "page_view", {
+    page_path: path,
+    page_title: title,
+    page_location: window.location.href,
+  });
+}
+
 function setMeta(name: string, content: string) {
   let element = document.querySelector(`meta[name="${name}"]`);
   if (!element) {
@@ -59,10 +90,21 @@ function SeoManager() {
     const path = location.split("?")[0].replace(/\/+$/, "") || "/";
     const segments = path.split("/").filter(Boolean);
     const isAdmin = path === "/admin" || path.startsWith("/admin/");
+    const isPublicRoute =
+      ["/", "/about", "/members", "/past-members", "/constitution", "/wall-of-fame", "/events", "/awards", "/archive", "/stats"].includes(path) ||
+      (segments[0] === "event" && segments.length === 2) ||
+      (segments[0] === "members" && segments.length === 2) ||
+      (segments[0] === "activity" && segments.length === 2) ||
+      (segments[0] === "archive" && segments.length === 3) ||
+      (segments[0] === "verify" && segments[1] === "member" && segments.length === 3);
+    const isNotFound = !isAdmin && !isPublicRoute;
     let title = SEO_DEFAULT.title;
     let description = SEO_DEFAULT.description;
 
-    if (path === "/about") {
+    if (isAdmin) {
+      title = path === "/admin/login" ? "Admin Sign In | Leo Club of KUSMS" : "Club Administration | Leo Club of KUSMS";
+      description = "Private administration area for Leo Club of KUSMS.";
+    } else if (path === "/about") {
       title = "About Leo Club of KUSMS | Service & Leadership";
       description = "Learn about the Leo Club of Kathmandu University School of Medical Sciences, our mission, leaders, charter, and commitment to community service.";
     } else if (path === "/members") {
@@ -92,6 +134,11 @@ function SeoManager() {
     } else if (path === "/archive") {
       title = "Activity Archive | Leo Club of KUSMS";
       description = "Browse the monthly service activity archive of Leo Club of KUSMS.";
+    } else if (segments[0] === "archive" && segments.length === 3) {
+      const month = segments[2].charAt(0).toUpperCase() + segments[2].slice(1);
+      const year = segments[1].replace(/-/g, "/");
+      title = `${month} ${year} Service Archive | Leo Club of KUSMS`;
+      description = `Browse Leo Club of KUSMS service activities from ${month} ${year}.`;
     } else if (segments[0] === "members" && segments[1]) {
       title = "Member Profile | Leo Club of KUSMS";
       description = "View this Leo Club of KUSMS member's service history, Leo Year roles, achievements, and verified activities.";
@@ -104,12 +151,15 @@ function SeoManager() {
     } else if (segments[0] === "verify") {
       title = "Verify Leo Club Credentials | Leo Club of KUSMS";
       description = "Verify a Leo Club of KUSMS member credential and review their official club profile.";
+    } else if (isNotFound) {
+      title = "Page Not Found | Leo Club of KUSMS";
+      description = "The requested page could not be found on the Leo Club of KUSMS website.";
     }
 
     const canonical = `https://leoclubofkusms.org${path}`;
     document.title = title;
     setMeta("description", description);
-    setMeta("robots", isAdmin ? "noindex, nofollow" : "index, follow");
+    setMeta("robots", isAdmin || isNotFound ? "noindex, nofollow" : "index, follow");
     setProperty("og:title", title);
     setProperty("og:description", description);
     setProperty("og:url", canonical);
@@ -125,6 +175,7 @@ function SeoManager() {
       document.head.appendChild(link);
     }
     link.href = canonical;
+    trackPageView(path, title);
   }, [location]);
 
   return null;

@@ -44,6 +44,7 @@ const EMPTY_MEMBER: Member = {
   isActive: true,
   joinedLeoYear: getCurrentLeoYear(),
   leftLeoYear: "",
+  nepaliBirthday: "",
   bio: "",
   roleHistory: [],
 };
@@ -793,6 +794,24 @@ export default function MemberManagement() {
                   placeholder="member@example.com"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
                 />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Nepali Birthday (BS, optional)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
+                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                  value={form.nepaliBirthday ?? ""}
+                  onChange={(e) => setForm({ ...form, nepaliBirthday: e.target.value })}
+                  placeholder="2083-07-15"
+                  aria-describedby="nepali-birthday-help"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
+                />
+                <p id="nepali-birthday-help" className="text-xs text-gray-400 mt-1">
+                  Format: YYYY-MM-DD (BS). A birthday greeting appears on the welcome screen on this date.
+                </p>
               </div>
 
               <div className="sm:col-span-2">
