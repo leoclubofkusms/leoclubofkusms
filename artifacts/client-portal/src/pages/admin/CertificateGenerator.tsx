@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { flushSync } from "react-dom";
 import { getMembers, getActivities, getAwards, getClubSettings } from "@/lib/firestore";
 import type { Member, Activity, Award, ClubSettings } from "@/lib/types";
 import { activitySortKey, leoMonthToCalendarYear } from "@/lib/types";
@@ -11,6 +12,9 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────────────
 type CertType = "participation" | "service" | "award" | "appreciation";
 type Template = "classic" | "modern" | "gold";
+
+// Recipient name pre-rendered on a canvas (w/h are CSS px at scale 1)
+interface NameImg { url: string; w: number; h: number }
 
 interface CertData {
   recipientName: string;
@@ -31,6 +35,7 @@ interface CertData {
   sloganText?: string;
   signatureUrl?: string;
   presidentName?: string;
+  nameImg?: NameImg;
   leoAsset: string;
   lionAsset: string;
   lionMarkAsset: string;
@@ -44,8 +49,10 @@ const GOLD_LIGHT = "#F0D77A";
 const GOLD_DEEP = "#9C7A14";
 
 const EXPORT_SCALE = 3;
+const BATCH_CHUNK = 25;          // certificates per PDF in bulk (keeps phone memory in check)
+const BATCH_JPEG_QUALITY = 0.95; // bulk pages are JPEG; single download stays PNG
 
-// Logo box sizes (CSS px at scale 1) — larger, more premium
+// Logo box sizes (CSS px at scale 1)
 const LOGO_LEO = 72;
 const LOGO_LION = 72;
 const LOGO_MAIN = 92;
@@ -54,6 +61,13 @@ const SLOGAN_MAX_H = 96;
 const SLOGAN_MAX_W = 380;
 const SIG_MAX_H = 52;
 const SIG_MAX_W = 170;
+
+// Recipient name image (drawn on a canvas so the export cannot move it)
+const NAME_FONT = 46;
+const NAME_BOX_H = 62;
+const NAME_BASELINE = 42; // distance from top of the name box to the text baseline
+const NAME_MAX_W = 640;
+const NAME_RATIO = 4;
 
 const PALETTE: Record<Template, { frame: string; paper: string; ink: string; sub: string; band: number }> = {
   classic: { frame: NAVY,      paper: "#fcfaf3", ink: NAVY,      sub: "#55524a", band: 16 },
@@ -166,9 +180,10 @@ function QrCode({ value, size }: { value: string; size: number }) {
       display: "inline-block",
       boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
     }}>
+      {/* Canvas is drawn at export resolution so the export maps it 1:1 (no stretching) */}
       <QRCodeCanvas
         value={value}
-        size={size * 2}
+        size={size * EXPORT_SCALE}
         fgColor={NAVY}
         bgColor="#ffffff"
         level="M"
@@ -236,7 +251,7 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         position: "absolute", left: s(64), right: s(64), top: s(42), bottom: s(128),
         display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
       }}>
-        {/* Logos — enlarged */}
+        {/* Logos */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "center",
           gap: s(18), width: "100%", flexShrink: 0,
@@ -288,17 +303,23 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
           This certificate is proudly presented to
         </div>
 
-        {/* Recipient — fixed baseline alignment */}
-        <div style={{
-          fontFamily: SCRIPT, fontSize: s(46), color: ink,
-          lineHeight: 1.15,
-          marginTop: s(2),
-          maxWidth: s(640),
-          paddingBottom: s(6),
-          textShadow: `0 ${s(1)}px ${s(1.5)}px rgba(0,0,0,0.14)`,
-        }}>
-          {data.recipientName}
-        </div>
+        {/* Recipient: pre-rendered on a canvas so the export cannot shift it */}
+        {data.nameImg ? (
+          <img
+            src={data.nameImg.url}
+            alt={data.recipientName}
+            decoding="sync"
+            style={{ display: "block", width: s(data.nameImg.w), height: s(data.nameImg.h), marginTop: s(2), flexShrink: 0 }}
+          />
+        ) : (
+          <div style={{
+            fontFamily: SCRIPT, fontSize: s(NAME_FONT), color: ink, lineHeight: 1.15,
+            marginTop: s(2), maxWidth: s(NAME_MAX_W), height: s(NAME_BOX_H), flexShrink: 0,
+            textShadow: `0 ${s(1)}px ${s(1.5)}px rgba(0,0,0,0.14)`,
+          }}>
+            {data.recipientName}
+          </div>
+        )}
         <div style={{ width: s(360), height: s(1.2), background: `linear-gradient(90deg,transparent,${GOLD},transparent)`, marginTop: s(-2) }} />
 
         {data.recipientRole && (
@@ -342,7 +363,7 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
         <div style={{ fontSize: s(7.5), color: sub, marginTop: s(3), letterSpacing: s(0.5) }}>Scan to verify</div>
       </div>
 
-      {/* Bottom-centre: slogan photo (larger) + text */}
+      {/* Bottom-centre: slogan photo + text */}
       {(hasSloganPhoto || hasSloganText) && (
         <div style={{
           position: "absolute", left: "50%", bottom: s(36), transform: "translateX(-50%)",
@@ -403,10 +424,31 @@ function CertificateCanvas({ data, scale = 1 }: { data: CertData; scale?: number
 
 // ── Export helpers ────────────────────────────────────────────────────────────
 
-// Scale-aware font loader — matches the actual pixel sizes html2canvas will render.
-// This fixes the "recipient name sits too low in the PDF" issue (font race).
+// The Google Fonts stylesheet must be loaded before anything measures or draws text.
+let fontCssReady: Promise<void> | null = null;
+function loadFontCss(): Promise<void> {
+  if (fontCssReady) return fontCssReady;
+  fontCssReady = new Promise<void>((resolve) => {
+    const existing = document.getElementById("cert-fonts") as HTMLLinkElement | null;
+    const l = existing ?? document.createElement("link");
+    if (!existing) {
+      l.id = "cert-fonts";
+      l.rel = "stylesheet";
+      l.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500;1,700&family=Alex+Brush&display=swap";
+      document.head.appendChild(l);
+    }
+    if (l.sheet) { resolve(); return; }
+    l.addEventListener("load", () => resolve(), { once: true });
+    l.addEventListener("error", () => resolve(), { once: true });
+    setTimeout(resolve, 6000);
+  });
+  return fontCssReady;
+}
+
+// Scale-aware font loader: matches the pixel sizes html2canvas will render.
 async function ensureFontsReady(scale: number = EXPORT_SCALE) {
   try {
+    await loadFontCss();
     const anyDoc = document as unknown as { fonts?: { load: (f: string) => Promise<unknown>; ready: Promise<unknown> } };
     if (!anyDoc.fonts) return;
     const px = (n: number) => `${Math.round(n * scale)}px`;
@@ -417,10 +459,8 @@ async function ensureFontsReady(scale: number = EXPORT_SCALE) {
       anyDoc.fonts.load(`700 ${px(16.5)} "Cormorant Garamond"`),
       anyDoc.fonts.load(`italic 600 ${px(10.5)} "Cormorant Garamond"`),
       anyDoc.fonts.load(`italic 600 ${px(11.5)} "Cormorant Garamond"`),
-      anyDoc.fonts.load(`${px(46)} "Alex Brush"`),
     ]).catch(() => {});
     await anyDoc.fonts.ready;
-    // Give the browser a beat to re-layout with the freshly-loaded metrics
     await new Promise((r) => setTimeout(r, 140));
   } catch { /* ignore */ }
 }
@@ -433,7 +473,6 @@ async function ensureImagesReady(el: HTMLElement) {
         const done = () => r();
         img.addEventListener("load", done, { once: true });
         img.addEventListener("error", done, { once: true });
-        // safety timeout
         setTimeout(done, 4000);
       });
     }
@@ -447,7 +486,6 @@ const nextFrames = (n = 2) =>
     const step = (k: number) => (k <= 0 ? resolve() : requestAnimationFrame(() => step(k - 1)));
     step(n);
   });
-const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 type H2C = (el: HTMLElement, opts?: object) => Promise<HTMLCanvasElement>;
 async function capture(id: string, scale = EXPORT_SCALE): Promise<HTMLCanvasElement | null> {
@@ -458,30 +496,14 @@ async function capture(id: string, scale = EXPORT_SCALE): Promise<HTMLCanvasElem
   await ensureImagesReady(el);
   return html2canvas(el, {
     scale,
-    backgroundColor: null,
+    backgroundColor: "#ffffff",
     useCORS: true,
-    allowTaint: true,
+    allowTaint: false,
     logging: false,
     imageTimeout: 30000,
+    scrollX: 0,
+    scrollY: 0,
   });
-}
-
-async function downloadPng(id: string, filename: string) {
-  const c = await capture(id);
-  if (!c) return;
-  const a = document.createElement("a");
-  a.download = filename;
-  a.href = c.toDataURL("image/png");
-  a.click();
-}
-
-async function downloadPdf(id: string, filename: string) {
-  const { default: jsPDF } = await import("jspdf");
-  const c = await capture(id);
-  if (!c) return;
-  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  pdf.addImage(c.toDataURL("image/png"), "PNG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
-  pdf.save(filename);
 }
 
 // ── Asset pipeline ────────────────────────────────────────────────────────────
@@ -501,6 +523,91 @@ async function urlToDataUrl(url: string): Promise<string> {
   } catch {
     return url;
   }
+}
+
+// Pre-scale an image ONCE to the exact pixel size it will have in the export
+// (box size x EXPORT_SCALE), halving step by step with high-quality smoothing.
+// html2canvas then draws it 1:1 instead of doing one huge, jagged downscale.
+// Never upscales: a source smaller than the target is used as is.
+async function loadCrisp(url: string, boxW: number, boxH: number): Promise<string> {
+  if (!url) return "";
+  const dataUrl = await urlToDataUrl(url);
+  try {
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+    const nw = img.naturalWidth, nh = img.naturalHeight;
+    if (!nw || !nh) return dataUrl;
+    const ratio = Math.min(1, (boxW * EXPORT_SCALE) / nw, (boxH * EXPORT_SCALE) / nh);
+    if (ratio >= 1) return dataUrl;
+    const tw = Math.max(1, Math.round(nw * ratio));
+    const th = Math.max(1, Math.round(nh * ratio));
+    let src: CanvasImageSource = img;
+    let w = nw, h = nh;
+    while (w / 2 > tw) {
+      w = Math.round(w / 2);
+      h = Math.round(h / 2);
+      const step = document.createElement("canvas");
+      step.width = w; step.height = h;
+      const sctx = step.getContext("2d")!;
+      sctx.imageSmoothingQuality = "high";
+      sctx.drawImage(src, 0, 0, w, h);
+      src = step;
+    }
+    const out = document.createElement("canvas");
+    out.width = tw; out.height = th;
+    const octx = out.getContext("2d")!;
+    octx.imageSmoothingQuality = "high";
+    octx.drawImage(src, 0, 0, tw, th);
+    return out.toDataURL("image/png");
+  } catch {
+    return dataUrl;
+  }
+}
+
+// ── Recipient name as an image ────────────────────────────────────────────────
+// html2canvas places script-font text differently from the browser, which pushed
+// the name down in exports. Drawing it on our own canvas puts it at an exact baseline.
+const nameCache = new Map<string, NameImg>();
+const nameKey = (text: string, ink: string) => `${ink}|${text}`;
+
+async function warmNameImage(text: string, ink: string): Promise<NameImg> {
+  const key = nameKey(text, ink);
+  const hit = nameCache.get(key);
+  if (hit) return hit;
+
+  await loadFontCss();
+  const R = NAME_RATIO;
+  const face = (px: number) => `${px * R}px "Alex Brush", "Brush Script MT", cursive`;
+  try { await document.fonts.load(face(NAME_FONT), text); } catch { /* ignore */ }
+
+  const probe = document.createElement("canvas").getContext("2d")!;
+  let size = NAME_FONT;
+  probe.font = face(size);
+  let tw = probe.measureText(text).width / R;
+  if (tw > NAME_MAX_W) {
+    size = (size * NAME_MAX_W) / tw;
+    probe.font = face(size);
+    tw = probe.measureText(text).width / R;
+  }
+
+  const w = Math.ceil(tw) + 16;
+  const c = document.createElement("canvas");
+  c.width = w * R;
+  c.height = NAME_BOX_H * R;
+  const ctx = c.getContext("2d")!;
+  ctx.font = face(size);
+  ctx.fillStyle = ink;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.shadowColor = "rgba(0,0,0,0.14)";
+  ctx.shadowBlur = 1.5 * R;
+  ctx.shadowOffsetY = R;
+  ctx.fillText(text, c.width / 2, NAME_BASELINE * R);
+
+  const img: NameImg = { url: c.toDataURL("image/png"), w, h: NAME_BOX_H };
+  nameCache.set(key, img);
+  return img;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -529,22 +636,16 @@ export default function CertificateGenerator() {
   const [batchProgress, setBatchProgress] = useState(0);
   const [showPreview, setShowPreview] = useState(true);
 
-  // Certificate currently mounted for batch export. Keyed by member id below
-  // so React remounts the entire canvas (fresh <img> tags) each iteration —
-  // this is what keeps bulk output as sharp as single output.
-  const [batchCurrent, setBatchCurrent] = useState<Member | null>(null);
+  // The ONE certificate mounted off-screen for export. Single and bulk both go
+  // through renderCertificate(), so they cannot produce different output.
+  const [exportMember, setExportMember] = useState<Member | null>(null);
+  const [, setNameTick] = useState(0);
 
-  useEffect(() => {
-    if (document.getElementById("cert-fonts")) return;
-    const l = document.createElement("link");
-    l.id = "cert-fonts";
-    l.rel = "stylesheet";
-    l.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500;1,700&family=Alex+Brush&display=swap";
-    document.head.appendChild(l);
-  }, []);
+  const ink = PALETTE[template].ink;
 
-  // Load raw data URLs for every image — no pre-sizing (pre-sizing was causing
-  // double-resample blur at EXPORT_SCALE). Let html2canvas do a single resample.
+  useEffect(() => { loadFontCss(); }, []);
+
+  // Pre-render every image at its final export size (see loadCrisp).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -556,24 +657,16 @@ export default function CertificateGenerator() {
           setPresidentName(cfg.presidentSloganName ?? "");
         }
 
-        const [leo, lion, logo, sloganPhoto, signature] = await Promise.all([
-          urlToDataUrl(`${BASE}leo.png`),
-          urlToDataUrl(`${BASE}lion.png`),
-          urlToDataUrl(`${BASE}logo.png`),
-          urlToDataUrl(cfg.presidentSloganPhotoUrl ?? ""),
-          urlToDataUrl(cfg.presidentSignatureUrl ?? ""),
+        const [leo, lion, lionMark, logo, sloganPhoto, signature] = await Promise.all([
+          loadCrisp(`${BASE}leo.png`, LOGO_LEO, LOGO_LEO),
+          loadCrisp(`${BASE}lion.png`, LOGO_LION, LOGO_LION),
+          loadCrisp(`${BASE}lion.png`, LOGO_WATERMARK, LOGO_WATERMARK),
+          loadCrisp(`${BASE}logo.png`, LOGO_MAIN, LOGO_MAIN),
+          loadCrisp(cfg.presidentSloganPhotoUrl ?? "", SLOGAN_MAX_W, SLOGAN_MAX_H),
+          loadCrisp(cfg.presidentSignatureUrl ?? "", SIG_MAX_W, SIG_MAX_H),
         ]);
 
-        if (!cancelled) {
-          setAssets({
-            leo,
-            lion,
-            lionMark: lion,   // watermark reuses same source
-            logo,
-            sloganPhoto,
-            signature,
-          });
-        }
+        if (!cancelled) setAssets({ leo, lion, lionMark, logo, sloganPhoto, signature });
       } catch (e) {
         console.error(e);
       } finally {
@@ -598,6 +691,14 @@ export default function CertificateGenerator() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Preview: draw the selected member's name image, then re-render.
+  useEffect(() => {
+    if (!selectedMember) return;
+    let alive = true;
+    warmNameImage(selectedMember.name, ink).then(() => { if (alive) setNameTick((n) => n + 1); });
+    return () => { alive = false; };
+  }, [selectedMember, ink]);
+
   const verifyUrl = (id: string) => `${window.location.origin}${import.meta.env.BASE_URL}verify/member/${id}`;
 
   function serviceYears(m: Member) {
@@ -617,6 +718,7 @@ export default function CertificateGenerator() {
       sloganText,
       signatureUrl: assets.signature,
       presidentName,
+      nameImg: nameCache.get(nameKey(member.name, ink)),
       verifyUrl: verifyUrl(member.memberId),
       leoAsset: assets.leo,
       lionAsset: assets.lion,
@@ -648,59 +750,72 @@ export default function CertificateGenerator() {
     : [];
   const certData = selectedMember ? buildCertData(selectedMember) : null;
 
+  // ── ONE render path for single AND bulk ─────────────────────────────────────
+  async function renderCertificate(member: Member): Promise<HTMLCanvasElement | null> {
+    await warmNameImage(member.name, ink);        // name image must exist before mount
+    flushSync(() => setExportMember(member));     // DOM now shows exactly this member
+    await nextFrames(2);
+    return capture("cert-export-stage", EXPORT_SCALE);
+  }
+
   async function downloadSingle(fmt: "png" | "pdf") {
     if (!selectedMember) return;
     setDownloading(true);
     try {
+      const c = await renderCertificate(selectedMember);
+      if (!c) return;
       const fn = `${selectedMember.memberId}-${certType}-certificate`;
-      if (fmt === "png") await downloadPng("cert-export-single", `${fn}.png`);
-      else await downloadPdf("cert-export-single", `${fn}.pdf`);
+      if (fmt === "png") {
+        const a = document.createElement("a");
+        a.download = `${fn}.png`;
+        a.href = c.toDataURL("image/png");
+        a.click();
+      } else {
+        const { default: jsPDF } = await import("jspdf");
+        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
+        pdf.addImage(c.toDataURL("image/png"), "PNG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+        pdf.save(`${fn}.pdf`);
+      }
+      c.width = 0; c.height = 0;
     } finally {
+      setExportMember(null);
       setDownloading(false);
     }
   }
 
-  // ── BATCH DOWNLOAD ──────────────────────────────────────────────────────────
-  // Each iteration: fresh React mount via key change → fonts loaded at the
-  // right scale → images explicitly decoded → then capture. Slow but sharp.
+  // Bulk: sequential, JPEG pages, a new PDF every BATCH_CHUNK certificates.
   async function downloadBatchForActivity() {
     if (!selectedActivity || activityParticipants.length === 0 || !assetsReady) return;
     setBatchDownloading(true);
     setBatchProgress(0);
-
     try {
       const { default: jsPDF } = await import("jspdf");
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-      const pw = pdf.internal.pageSize.getWidth();
-      const ph = pdf.internal.pageSize.getHeight();
-      let page = 0;
+      const total = activityParticipants.length;
+      const base = selectedActivity.title.replace(/\s+/g, "-");
+      const newPdf = () => new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
+      let pdf = newPdf();
+      let pagesInPdf = 0;
+      let part = 1;
+      const save = () =>
+        pdf.save(total > BATCH_CHUNK ? `${base}-certificates-part-${part}.pdf` : `${base}-certificates.pdf`);
 
-      // Mount the first cert, let fonts + images settle before capturing
-      setBatchCurrent(activityParticipants[0]);
-      await nextFrames(3);
-      await ensureFontsReady(EXPORT_SCALE);
-      await wait(500);
-
-      for (let i = 0; i < activityParticipants.length; i++) {
-        const member = activityParticipants[i];
-        setBatchCurrent(member);
-        await nextFrames(3);
-        await wait(420); // extra settle for remount
-
-        const c = await capture("batch-cert-single", EXPORT_SCALE);
-        setBatchProgress(Math.round(((i + 1) / activityParticipants.length) * 100));
+      for (let i = 0; i < total; i++) {
+        const c = await renderCertificate(activityParticipants[i]);
+        setBatchProgress(Math.round(((i + 1) / total) * 100));
         if (!c) continue;
 
-        if (page > 0) pdf.addPage();
-        pdf.addImage(c.toDataURL("image/png"), "PNG", 0, 0, pw, ph);
-        page++;
-
+        if (pagesInPdf === BATCH_CHUNK) { save(); part++; pdf = newPdf(); pagesInPdf = 0; }
+        if (pagesInPdf > 0) pdf.addPage();
+        pdf.addImage(
+          c.toDataURL("image/jpeg", BATCH_JPEG_QUALITY), "JPEG", 0, 0,
+          pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight()
+        );
+        pagesInPdf++;
         c.width = 0; c.height = 0; // release canvas memory between pages
       }
-
-      pdf.save(`${selectedActivity.title.replace(/\s+/g, "-")}-certificates.pdf`);
+      if (pagesInPdf > 0) save();
     } finally {
-      setBatchCurrent(null);
+      setExportMember(null);
       setBatchDownloading(false);
       setBatchProgress(0);
     }
@@ -790,6 +905,11 @@ export default function CertificateGenerator() {
                         ? <><Loader2 size={14} className="animate-spin" /> Generating… {batchProgress}%</>
                         : <><Layers size={14} /> Download All {activityParticipants.length} Certificates PDF</>}
                     </button>
+                    {activityParticipants.length > BATCH_CHUNK && (
+                      <p className="text-[10px] text-gray-400 mt-2 text-center">
+                        Large batches are split into PDFs of {BATCH_CHUNK} certificates each.
+                      </p>
+                    )}
                     {batchDownloading && (
                       <p className="text-[10px] text-gray-400 mt-2 text-center">
                         Rendering each certificate at full quality — please keep this tab open…
@@ -862,11 +982,11 @@ export default function CertificateGenerator() {
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <button onClick={() => downloadSingle("pdf")} disabled={downloading || !assetsReady}
+                  <button onClick={() => downloadSingle("pdf")} disabled={downloading || batchDownloading || !assetsReady}
                     className="inline-flex items-center gap-2 bg-[#002147] text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#003575] transition-colors disabled:opacity-60">
                     {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download PDF
                   </button>
-                  <button onClick={() => downloadSingle("png")} disabled={downloading || !assetsReady}
+                  <button onClick={() => downloadSingle("png")} disabled={downloading || batchDownloading || !assetsReady}
                     className="inline-flex items-center gap-2 bg-white border border-[#002147]/20 text-[#002147] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#002147] hover:text-white transition-colors disabled:opacity-60">
                     {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download PNG
                   </button>
@@ -907,12 +1027,11 @@ export default function CertificateGenerator() {
         </div>
       )}
 
-      {/* Hidden full-size copies used for export */}
+      {/* Hidden full-size stage used for every export (single and bulk) */}
       <div style={{ position: "fixed", left: "-9999px", top: 0, pointerEvents: "none" }} aria-hidden>
-        {certData && <div id="cert-export-single"><CertificateCanvas data={certData} scale={1} /></div>}
-        {batchCurrent && (
-          <div id="batch-cert-single" key={batchCurrent.memberId}>
-            <CertificateCanvas data={buildCertData(batchCurrent)} scale={1} />
+        {exportMember && (
+          <div id="cert-export-stage" key={exportMember.memberId}>
+            <CertificateCanvas data={buildCertData(exportMember)} scale={1} />
           </div>
         )}
       </div>

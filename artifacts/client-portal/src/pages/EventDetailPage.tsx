@@ -185,8 +185,12 @@ export default function EventDetailPage({ eventId }: { eventId: string }) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
 
         {event.photoUrl && (
-          <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-            <img src={event.photoUrl} alt={event.title} className="w-full h-auto object-cover max-h-[420px]" />
+          <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-[#F6F8FB]">
+            <img
+              src={event.photoUrl}
+              alt={event.title}
+              className="w-full h-auto max-h-[560px] object-contain mx-auto"
+            />
           </div>
         )}
 
