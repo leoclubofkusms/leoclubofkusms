@@ -368,7 +368,7 @@ function ServiceImpactSection({ impact, activities, leoYear, memberCount, activi
           {tiles.map(({ label, value, Icon }, k) => (
             <div key={label} className={`rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-center ${k === 0 ? "col-span-2 md:col-span-1" : ""}`}>
               <div className="mx-auto mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[#D4AF37]/20"><Icon size={16} className="text-[#D4AF37]" /></div>
-              <div className="font-display break-words text-2xl font-semibold tabular-nums leading-tight sm:text-3xl">{val(value)}</div>
+              <div className="font-display whitespace-nowrap text-xl font-semibold tabular-nums leading-tight sm:text-2xl md:text-2xl lg:text-3xl">{val(value)}</div>
               <div className="mt-1 text-xs text-white/55">{label}</div>
             </div>
           ))}
@@ -581,21 +581,20 @@ export default function HomePage() {
       <main className="mx-auto w-full max-w-7xl space-y-16 px-4 pb-16 sm:px-6 lg:px-8">
 
         {/* Club facts bar overlaps the hero edge */}
-        <div className={`${CARD} -mt-10 grid grid-cols-3 divide-x divide-slate-100 py-4 text-center`}>
+        <div className={`${CARD} relative z-10 -mt-10 grid grid-cols-3 divide-x divide-slate-100 py-4 text-center`}>
           {[
             { k: "Chartered", v: `${CLUB_ESTABLISHED}` },
             { k: "District", v: "325L" },
             { k: "Club ID", v: `#${CLUB_ID}` },
           ].map(({ k, v }) => (
-            <div key={k} className="px-2">
-              <div className="font-display text-lg font-semibold text-[#002147] sm:text-2xl">{v}</div>
-              <div className="text-xs text-slate-500">{k}</div>
+            <div key={k} className="px-1.5 sm:px-2">
+              <div className="font-display text-sm font-semibold leading-tight text-[#002147] sm:text-lg md:text-2xl">{v}</div>
+              <div className="mt-0.5 text-[10px] text-slate-500 sm:text-xs">{k}</div>
             </div>
           ))}
         </div>
 
-        {/* ═══ PRESIDENT'S SLOGAN ═══ */}
-        {settings.presidentSlogan && (
+        {settings.presidentSlogan ? (
           <section className={`${NAVY_PANEL} ${LAZY}`}>
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(40rem_20rem_at_90%_0%,rgba(212,175,55,.18),transparent_60%)]" />
             <div className="relative flex flex-col items-center gap-8 px-6 py-10 md:flex-row md:gap-12 md:px-12 md:py-12">
@@ -618,7 +617,9 @@ export default function HomePage() {
               </div>
             </div>
           </section>
-        )}
+        ) : !settingsR.loaded ? (
+          <Skeleton className="h-56 sm:h-64" />
+        ) : null}
 
         {/* ═══ SERVICE IMPACT ═══ */}
         <ServiceImpactSection
