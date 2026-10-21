@@ -227,6 +227,9 @@ importers:
       jspdf:
         specifier: ^4.2.1
         version: 4.2.1
+      nepali-date-picker-converter:
+        specifier: ^0.1.33
+        version: 0.1.33(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       qrcode.react:
         specifier: ^4.2.0
         version: 4.2.0(react@19.1.0)
@@ -2844,6 +2847,17 @@ packages:
   negotiator@1.0.0:
     resolution: {integrity: sha512-8Ofs/AUQh8MaEcrlq5xOX0CQ9ypTF5dl78mjlMNfOK08fzpgTHQRQPBxcPlEtIw0yRpws+Zo/3r+5WRby7u3Gg==}
     engines: {node: '>= 0.6'}
+
+  nepali-date-picker-converter@0.1.33:
+    resolution: {integrity: sha512-uA64w1KO+PMaV27Bcq/DxIrCqidcDJxtlYCILFFsL4Io6LdyAOSRsIK/FcZalQTvfYXJlQl0JUJ5+/W5jGUsAQ==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
 
   next-themes@0.4.6:
     resolution: {integrity: sha512-pZvgD5L0IEvX5/9GWyHMf3m8BKiVQwsCMHfoFosXtXBMnaS0ZnIJ9ST4b4NqLVKDEm8QBxoNNGNaBv2JNF6XNA==}
@@ -5949,6 +5963,11 @@ snapshots:
   nanoid@3.3.12: {}
 
   negotiator@1.0.0: {}
+
+  nepali-date-picker-converter@0.1.33(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+    optionalDependencies:
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
 
   next-themes@0.4.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:
