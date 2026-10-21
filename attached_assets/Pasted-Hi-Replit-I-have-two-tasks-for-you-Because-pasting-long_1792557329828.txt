@@ -1,0 +1,42 @@
+Hi Replit,
+
+I have two tasks for you.
+
+Because pasting long files has caused code corruption on my device in the past, I need you to break this down into small, isolated steps. Give me the code for one step at a time, and wait for my confirmation before moving to the next.
+
+===================================================
+TASK 1: ADD NEPALI (BS) BIRTHDAY WISHES TO SPLASH SCREEN
+===================================================
+I want the Splash Screen to automatically show a "Happy Birthday" card if any active member has a birthday today according to the Nepali (Bikram Sambat) calendar.
+
+Step 1: Install a reliable BS/AD converter library.
+Run this in the terminal:
+npm install nepali-date-picker-converter
+
+Step 2: Update `src/lib/types.ts`
+Add `nepaliBirthday?: string;` to the `Member` interface. Format will be "YYYY-MM-DD" (BS).
+
+Step 3: Update `src/pages/admin/MemberManagement.tsx`
+Add a text input in the form (above the Short Bio) to save the Nepali birthday. Format: "2083-07-15".
+
+Step 4: Update `src/components/SplashScreen.tsx`
+Import `adToBs` from the new library. Create a helper function to get today's Nepali date. Fetch members and check if `m.nepaliBirthday === todayBS`. If yes, show a special "Happy Birthday" card (gradient pink/maroon background, Cake icon, member's photo, name, currentRole, and a nice wish). This takes priority over the Dashain card.
+
+===================================================
+TASK 2: LET'S DO THE 11 SEO & SECURITY CHECKS
+===================================================
+I watched a guide on launching a new website and I need to make sure we do these 11 things. Please guide me step-by-step on how to check or implement each one for this specific project (which is a Vite + React SPA hosted on Render, using Firebase).
+
+1. Remove the Noindex Tag: Check `index.html` and `robots.txt`.
+2. Set Up Google Search Console: Tell me exactly what to verify and submit.
+3. Submit Your Sitemap: If we don't have a `sitemap.xml`, generate one in the `public/` folder with all public routes, and tell me how to submit it.
+4. Request Indexing for Your Homepage: Guide me on how to do this in GSC.
+5. Set Up Bing Webmaster Tools: Tell me how to import from GSC.
+6. Install Google Analytics: I need the code snippet for `index.html` (or React) to track page views in a Vite/React app.
+7. Create Google Business Profile: Just give me the checklist of info I need for our club.
+8. Switch On HTTPS: Confirm if Render does this automatically.
+9. Write a Unique Title for Every Page: Give me a React hook or component I can use to easily update `document.title` for the Homepage, About, Events, etc.
+10. Check Your Page Speed: Tell me what tool to use (PageSpeed Insights) and give me 3 tips specifically for React/Vite apps.
+11. Allow ChatGPT Search to Crawl Your Site: Check if my `robots.txt` is blocking `GPTBot` or `OAI-SearchBot`, and give me the exact text to put in `robots.txt` to allow it.
+
+Please start with **Step 1 of Task 1** (the terminal command). Give me that, and then wait for my "next".
