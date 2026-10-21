@@ -706,7 +706,7 @@ export default function CertificateGenerator() {
     return j && l ? `${j} – ${l}` : j ? `${j} – Present` : "";
   }
   const activitiesForMember = (m: Member) =>
-    activities.filter((a) => a.participants.some((p) => p.memberId === m.memberId)).length;
+    activities.filter((a) => (a.participants ?? []).some((p) => p.memberId === m.memberId)).length;
 
   function buildCertData(member: Member): CertData {
     const base: CertData = {
@@ -729,7 +729,7 @@ export default function CertificateGenerator() {
       base.activityTitle = selectedActivity.title;
       base.activityMonth = selectedActivity.month;
       base.activityYear = selectedActivity.year;
-      const p = selectedActivity.participants.find((x) => x.memberId === member.memberId);
+      const p = (selectedActivity.participants ?? []).find((x) => x.memberId === member.memberId);
       if (p?.awardTitle) base.recipientRole = p.awardTitle;
     }
     if (certType === "service") {
@@ -746,7 +746,7 @@ export default function CertificateGenerator() {
     return !q || m.name.toLowerCase().includes(q) || m.memberId.toLowerCase().includes(q) || m.batch.toLowerCase().includes(q);
   });
   const activityParticipants = selectedActivity
-    ? members.filter((m) => selectedActivity.participants.some((p) => p.memberId === m.memberId))
+    ? members.filter((m) => (selectedActivity.participants ?? []).some((p) => p.memberId === m.memberId))
     : [];
   const certData = selectedMember ? buildCertData(selectedMember) : null;
 
@@ -893,7 +893,7 @@ export default function CertificateGenerator() {
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]">
                   <option value="">— Choose an activity —</option>
                   {activities.map((a) => (
-                    <option key={a.id} value={a.id}>{a.title} · {a.month} {a.year} ({a.participants.length} participants)</option>
+                    <option key={a.id} value={a.id}>{a.title} · {a.month} {a.year} ({(a.participants ?? []).length} participants)</option>
                   ))}
                 </select>
                 {selectedActivity && activityParticipants.length > 0 && (
@@ -944,7 +944,7 @@ export default function CertificateGenerator() {
               </div>
               <div className="max-h-52 overflow-y-auto space-y-1">
                 {(certType === "participation" && selectedActivity
-                  ? filteredMembers.filter((m) => selectedActivity.participants.some((p) => p.memberId === m.memberId))
+                  ? filteredMembers.filter((m) => (selectedActivity.participants ?? []).some((p) => p.memberId === m.memberId))
                   : filteredMembers
                 ).map((m) => {
                   const on = selectedMember?.memberId === m.memberId;

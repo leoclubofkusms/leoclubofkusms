@@ -152,7 +152,7 @@ export default function Navbar() {
                   >
                     <FolderOpen size={14} className="text-[#D4AF37]" /> Browse All
                   </Link>
-                  {LEO_YEARS.map((y) => (
+                  {[...LEO_YEARS].reverse().map((y) => (
                     <div key={y}>
                       <div className="px-4 pt-2 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                         Leo Year {y}
@@ -253,7 +253,7 @@ export default function Navbar() {
                 <FolderOpen size={16} /> Archive
               </Link>
               <div className="px-2 space-y-3 pb-2">
-                {LEO_YEARS.slice(0, 4).map((y) => (
+                {[...LEO_YEARS].slice(-4).reverse().map((y) => (
                   <div key={y}>
                     <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">
                       Leo Year {y}

@@ -27,8 +27,11 @@ import ShareButton from "@/components/ShareButton";
 function safePhotos(a: Activity): string[] {
   return Array.isArray(a.photos) ? a.photos : [];
 }
-function safeParticipants(a: Activity): ActivityParticipant[] {
-  return Array.isArray(a.participants) ? a.participants : [];
+function safeParticipants(a: Activity): { memberId: string; awardTitle: string }[] {
+  return (Array.isArray(a.participants) ? a.participants : []).map((participant) => ({
+    memberId: participant.memberId,
+    awardTitle: participant.awardTitle ?? "",
+  }));
 }
 function safeText(v: unknown): string {
   if (v == null) return "";

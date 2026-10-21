@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getBodMembers, getMembers, setBodMember, deleteBodMember, upsertMemberRole, removeBodMemberRole } from "@/lib/firestore";
 import type { BodMember, Member } from "@/lib/types";
-import { LEO_YEARS } from "@/lib/types";
+import { LEO_YEARS, getCurrentLeoYear } from "@/lib/types";
 import {
   Plus, Pencil, Trash2, X, Check, User, Upload, Link as LinkIcon,
   GripVertical, Loader2, Crown,
@@ -12,7 +12,7 @@ const EMPTY: BodMember = {
   name: "",
   role: "",
   memberId: "",
-  leoYear: LEO_YEARS[0],
+  leoYear: getCurrentLeoYear(),
   priority: 10,
   photoUrl: "",
   email: "",
@@ -89,7 +89,7 @@ export default function BodManagement() {
         ...form,
         id,
         name: selected?.name || form.name,
-        leoYear: form.leoYear || LEO_YEARS[0],
+        leoYear: form.leoYear || getCurrentLeoYear(),
       };
       await setBodMember(saved);
       if (saved.memberId) {
@@ -192,7 +192,7 @@ export default function BodManagement() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Leo Year *</label>
-                <select value={form.leoYear ?? LEO_YEARS[0]} onChange={(e) => setForm({ ...form, leoYear: e.target.value })}
+                <select value={form.leoYear ?? getCurrentLeoYear()} onChange={(e) => setForm({ ...form, leoYear: e.target.value })}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] bg-white">
                   {LEO_YEARS.map((year) => <option key={year} value={year}>Leo Year {year}</option>)}
                 </select>

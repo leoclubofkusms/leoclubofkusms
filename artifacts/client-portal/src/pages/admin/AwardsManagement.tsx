@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { getAwards, addAward, deleteAward, updateAward } from "@/lib/firestore";
 import { getMembers } from "@/lib/firestore";
 import type { Award, Member } from "@/lib/types";
-import { MONTHS, LEO_YEARS } from "@/lib/types";
+import { MONTHS, LEO_YEARS, getCurrentLeoMonth, getCurrentLeoYear } from "@/lib/types";
 import {
   Plus, Trash2, Edit2, Check, X, Loader2, Award as AwardIcon, Star, Building, FileText,
 } from "lucide-react";
@@ -34,8 +34,8 @@ export default function AwardsManagement() {
     recipientName: "",
     memberId: "",
     description: "",
-    month: MONTHS[0],
-    year: LEO_YEARS[2],
+    month: getCurrentLeoMonth(),
+    year: getCurrentLeoYear(),
     photoUrl: "",
     awardedBy: "",
     featured: false,

@@ -208,20 +208,22 @@ const Tag = ({ children }: { children: ReactNode }) => (
 
 function ActivitySlide(act: Activity) {
   const url = typeof window !== "undefined" ? `${window.location.origin}${import.meta.env.BASE_URL}activity/${act.id}` : "";
+  const photos = act.photos ?? [];
+  const participants = act.participants ?? [];
   return (
     <>
-      <Backdrop src={act.photos[0]} />
+      <Backdrop src={photos[0]} />
       <div className="relative px-6 py-10 sm:px-12 sm:py-14">
         <Tag><Pin size={11} /> Featured activity · {act.month} {act.year}</Tag>
         <h3 className="font-display max-w-xl text-2xl font-semibold leading-tight sm:text-4xl">{act.title}</h3>
         <p className="mb-6 mt-3 line-clamp-3 max-w-lg text-base leading-relaxed text-white/70">{act.description}</p>
         <div className="mb-7 flex flex-wrap gap-4 text-sm text-white/65">
-          {act.participants.length > 0 && <span className="flex items-center gap-2"><Users size={15} className="text-[#D4AF37]" />{act.participants.length} participants</span>}
-          {act.photos.length > 0 && <span className="flex items-center gap-2"><Calendar size={15} className="text-[#D4AF37]" />{act.photos.length} photos</span>}
+          {participants.length > 0 && <span className="flex items-center gap-2"><Users size={15} className="text-[#D4AF37]" />{participants.length} participants</span>}
+          {photos.length > 0 && <span className="flex items-center gap-2"><Calendar size={15} className="text-[#D4AF37]" />{photos.length} photos</span>}
         </div>
-        {act.photos.length > 1 && (
+        {photos.length > 1 && (
           <div className="mb-7 flex gap-2">
-            {act.photos.slice(0, 4).map((p, k) => (
+            {photos.slice(0, 4).map((p, k) => (
               <img key={k} src={p} alt="" width={56} height={56} loading="lazy" decoding="async" className="h-14 w-14 rounded-xl border-2 border-white/20 object-cover" />
             ))}
           </div>
@@ -459,7 +461,7 @@ function AnnouncementBanner({ ann, onDismiss }: { ann: Announcement; onDismiss: 
         {ann.linkLabel && ann.linkUrl && (
           <a href={ann.linkUrl} target={external ? "_blank" : undefined} rel={external ? "noopener noreferrer" : undefined}
             className={`mt-3 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-colors ${c.btn}`}>
-            {ann.label || ann.linkLabel} <ArrowRight size={12} />
+            {ann.linkLabel} <ArrowRight size={12} />
           </a>
         )}
       </div>

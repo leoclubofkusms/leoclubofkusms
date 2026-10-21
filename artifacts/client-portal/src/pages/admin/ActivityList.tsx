@@ -9,6 +9,17 @@ import {
   Pencil, Check, X, Loader2, QrCode, Download,
 } from "lucide-react";
 
+function participantsFor(activity: Activity): { memberId: string; awardTitle: string }[] {
+  return (activity.participants ?? []).map((participant) => ({
+    memberId: participant.memberId,
+    awardTitle: participant.awardTitle ?? "",
+  }));
+}
+
+function photosFor(activity: Activity): string[] {
+  return activity.photos ?? [];
+}
+
 export default function ActivityList({
   refreshKey,
   onActivityUpdated,
@@ -43,7 +54,7 @@ export default function ActivityList({
 
   async function handleDelete(act: Activity) {
     try {
-      await deleteActivity(act.id, act.participants);
+      await deleteActivity(act.id, participantsFor(act));
       setActivities((prev) => prev.filter((a) => a.id !== act.id));
       setDeleteConfirm(null);
       onActivityUpdated?.();
@@ -63,7 +74,7 @@ export default function ActivityList({
 
   async function startEdit(act: Activity) {
     setEditId(act.id);
-    setEditForm({ title: act.title, description: act.description, photoInput: act.photos.join("\n"), participants: [...act.participants] });
+    setEditForm({ title: act.title, description: act.description, photoInput: photosFor(act).join("\n"), participants: participantsFor(act) });
     setEditError("");
     try {
       setMembers(await getMembers());
@@ -84,7 +95,7 @@ export default function ActivityList({
         description: updatedDescription,
         photos,
         participants: editForm.participants,
-      }, act.participants, {
+      }, participantsFor(act), {
         year: act.year,
         month: act.month,
         title: updatedTitle,
@@ -314,8 +325,8 @@ export default function ActivityList({
                                 </div>
                                 <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{act.description}</p>
                                 <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
-                                  <span className="flex items-center gap-1"><Users size={11} /> {act.participants.length} participants</span>
-                                  {act.photos.length > 0 && <span>{act.photos.length} photo{act.photos.length > 1 ? "s" : ""}</span>}
+                                  <span className="flex items-center gap-1"><Users size={11} /> {participantsFor(act).length} participants</span>
+                                  {photosFor(act).length > 0 && <span>{photosFor(act).length} photo{photosFor(act).length > 1 ? "s" : ""}</span>}
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5 shrink-0">

@@ -3,7 +3,7 @@ import { getClubSettings, updateClubSettings } from "@/lib/firestore";
 import type { ClubSettings } from "@/lib/types";
 import {
   CLUB_ESTABLISHED, CLUB_FACEBOOK, CLUB_TIKTOK,
-  getCurrentLeoYear, getCurrentLeoYearLabel, DEFAULT_USD_TO_NPR_RATE,
+  getCurrentLeoYear, getCurrentLeoYearLabel, formatPresidentSlogan, DEFAULT_USD_TO_NPR_RATE,
 } from "@/lib/types";
 import {
   Upload, Link as LinkIcon, Check, Loader2, X, ExternalLink,
@@ -374,7 +374,7 @@ export default function ClubSettingsPanel() {
         {settings.presidentSlogan && (
           <div className="bg-[#002147] text-white rounded-xl px-4 py-3 mb-4 flex items-center gap-3">
             <Quote size={18} className="text-[#D4AF37] shrink-0" />
-            <span className="font-bold italic text-lg">{settings.presidentSlogan}</span>
+            <span className="font-bold italic text-lg">{formatPresidentSlogan(settings.presidentSlogan)}</span>
           </div>
         )}
         <div className="flex gap-3 mb-5">

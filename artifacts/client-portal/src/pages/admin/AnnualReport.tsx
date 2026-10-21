@@ -57,7 +57,7 @@ export default function AnnualReport() {
   const topContributors = (members: Member[], activities: Activity[]) => {
     const yearActs = activities.filter((a) => a.year === previewYear);
     const counts: Record<string, number> = {};
-    yearActs.forEach((a) => a.participants.forEach((p) => {
+    yearActs.forEach((a) => (a.participants ?? []).forEach((p) => {
       counts[p.memberId] = (counts[p.memberId] ?? 0) + 1;
     }));
     return members
@@ -132,7 +132,7 @@ export default function AnnualReport() {
                 { label: "Active Members", value: preview.members.filter((m) => m.isActive !== false).length },
                 { label: "Joined This Year", value: newMembers(preview.members).length },
                 { label: `Activities in ${previewYear}`, value: preview.activities.length },
-                { label: "Participants", value: preview.activities.reduce((s, a) => s + a.participants.length, 0) },
+                { label: "Participants", value: preview.activities.reduce((s, a) => s + (a.participants ?? []).length, 0) },
                 { label: `Awards in ${previewYear}`, value: preview.awards.length },
               ].map(({ label, value }) => (
                 <div key={label} style={{ textAlign: "center" }}>
@@ -162,7 +162,7 @@ export default function AnnualReport() {
                         {a.description && <div style={{ fontSize: 10, color: "#666", marginTop: 2 }}>{a.description}</div>}
                       </div>
                       <div style={{ fontSize: 10, color: "#999", whiteSpace: "nowrap", marginLeft: 12 }}>
-                        {a.participants.length} participant{a.participants.length !== 1 ? "s" : ""}
+                        {(a.participants ?? []).length} participant{(a.participants ?? []).length !== 1 ? "s" : ""}
                       </div>
                     </div>
                   ))}

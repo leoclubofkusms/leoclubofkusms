@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getLeaderQuotes, addLeaderQuote, updateLeaderQuote, deleteLeaderQuote } from "@/lib/firestore";
 import type { LeaderQuote } from "@/lib/types";
-import { LEO_YEARS } from "@/lib/types";
+import { LEO_YEARS, getCurrentLeoYear } from "@/lib/types";
 import { Plus, Trash2, Pencil, Check, X, Loader2, Upload, Play, Pause, GripVertical, Quote } from "lucide-react";
 
 const EMPTY: Omit<LeaderQuote, "id"> = {
@@ -12,7 +12,7 @@ const EMPTY: Omit<LeaderQuote, "id"> = {
   photoUrl: "",
   audioUrl: "",
   priority: 0,
-  leoYear: LEO_YEARS[0],
+  leoYear: getCurrentLeoYear(),
 };
 
 export default function LeaderQuotesManager() {
@@ -39,7 +39,7 @@ export default function LeaderQuotesManager() {
 
   function startEdit(item: LeaderQuote) {
     setEditingId(item.id);
-    setForm({ name: item.name, role: item.role, quote: item.quote, introduction: item.introduction ?? "", photoUrl: item.photoUrl ?? "", audioUrl: item.audioUrl ?? "", priority: item.priority, leoYear: item.leoYear ?? LEO_YEARS[0] });
+    setForm({ name: item.name, role: item.role, quote: item.quote, introduction: item.introduction ?? "", photoUrl: item.photoUrl ?? "", audioUrl: item.audioUrl ?? "", priority: item.priority, leoYear: item.leoYear ?? getCurrentLeoYear() });
     setShowForm(true);
     setError("");
   }
@@ -128,7 +128,7 @@ export default function LeaderQuotesManager() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Role / Title *</label>
               <input value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-                placeholder="e.g. President 2024/25" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#002147]" />
+                placeholder="e.g. Club President" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#002147]" />
             </div>
           </div>
           <div>

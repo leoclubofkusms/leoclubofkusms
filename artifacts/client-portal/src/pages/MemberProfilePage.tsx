@@ -107,7 +107,7 @@ export default function MemberProfilePage({ memberId }: Props) {
         setMember(found);
         setAllActivities(allActivities);
         const memberActivities = allActivities
-          .filter((a) => a.participants.some((p) => p.memberId === memberId));
+          .filter((a) => (a.participants ?? []).some((p) => p.memberId === memberId));
         setActivities(memberActivities);
         setAwards(allAwards.filter((a) => a.memberId === memberId));
         setBodRecords(allBodRecords.filter((record) => record.memberId === memberId));
@@ -497,7 +497,7 @@ export default function MemberProfilePage({ memberId }: Props) {
                         </div>
                         <div className="space-y-2 ml-2 border-l-2 border-[#D4AF37]/20 pl-4">
                           {byYear[year].map((a) => {
-                            const participation = a.participants.find((p) => p.memberId === memberId);
+                            const participation = (a.participants ?? []).find((p) => p.memberId === memberId);
                             return (
                               <Link key={a.id} href={`/activity/${a.id}`} className="relative flex items-start gap-3 rounded-xl border border-transparent py-3 px-2 -ml-2 hover:border-[#D4AF37]/25 hover:bg-[#F8FAFC] transition-colors group">
                                 <div className="absolute -left-[21px] top-3 w-3 h-3 rounded-full bg-[#D4AF37]/40 border-2 border-white" />

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getMembers, createActivity } from "@/lib/firestore";
 import type { Member, ActivityParticipant } from "@/lib/types";
-import { LEO_YEARS, getMonthsInLeoOrder, leoMonthYearLabel } from "@/lib/types";
+import { LEO_YEARS, getCurrentLeoMonth, getCurrentLeoYear, getMonthsInLeoOrder, leoMonthYearLabel } from "@/lib/types";
 import { Plus, X, Search, Check, ChevronDown } from "lucide-react";
 
 export default function ActivityForm({
@@ -15,8 +15,8 @@ export default function ActivityForm({
 }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [form, setForm] = useState({
-    year: defaultYear ?? LEO_YEARS[0],
-    month: defaultMonth ?? "July",
+    year: defaultYear ?? getCurrentLeoYear(),
+    month: defaultMonth ?? getCurrentLeoMonth(),
     title: "",
     description: "",
     photosRaw: "",
@@ -120,8 +120,8 @@ export default function ActivityForm({
       });
       setSuccess(true);
       setForm({
-        year: defaultYear ?? LEO_YEARS[0],
-        month: defaultMonth ?? "July",
+        year: defaultYear ?? getCurrentLeoYear(),
+        month: defaultMonth ?? getCurrentLeoMonth(),
         title: "",
         description: "",
         photosRaw: "",
@@ -182,7 +182,7 @@ export default function ActivityForm({
           type="text"
           value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
-          placeholder="e.g. Blood Donation Camp 2026"
+          placeholder="e.g. Blood Donation Camp"
           required
           className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147] focus:ring-2 focus:ring-[#002147]/10"
         />

@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { getPastLeaders, addPastLeader, updatePastLeader, deletePastLeader } from "@/lib/firestore";
 import type { PastLeader } from "@/lib/types";
-import { LEO_YEARS } from "@/lib/types";
+import { LEO_YEARS, getCurrentLeoYear } from "@/lib/types";
 import { Plus, Trash2, Pencil, Check, X, Loader2, Crown, Play, Pause, Quote } from "lucide-react";
 
 const EMPTY: Omit<PastLeader, "id"> = {
   name: "",
   role: "President",
-  leoYear: LEO_YEARS[0],
+  leoYear: getCurrentLeoYear(),
   photoUrl: "",
   note: "",
   order: 0,

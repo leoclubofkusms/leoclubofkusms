@@ -458,16 +458,16 @@ export default function MembersPage() {
                                   {r.memberActivity.awardTitle}
                                 </div>
                               )}
-                              {r.activity.participants.length > 0 && (
+                              {(r.activity.participants ?? []).length > 0 && (
                                 <div className="mt-2 text-xs text-gray-400">
-                                  {r.activity.participants.length} total participants in this activity
+                                  {(r.activity.participants ?? []).length} total participants in this activity
                                 </div>
                               )}
                             </div>
                             <div className="flex items-start gap-3 shrink-0">
-                              {r.activity.photos[0] && (
+                              {(r.activity.photos ?? [])[0] && (
                                 <img
-                                  src={r.activity.photos[0]}
+                                  src={(r.activity.photos ?? [])[0]}
                                   alt={r.activity.title}
                                   className="w-20 h-20 rounded-xl object-cover hidden sm:block"
                                 />

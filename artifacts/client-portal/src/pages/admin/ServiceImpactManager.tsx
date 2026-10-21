@@ -46,11 +46,11 @@ export default function ServiceImpactManager() {
       const [records, acts, settings] = await Promise.all([
         getAllServiceImpacts(),
         getActivities(),
-        getClubSettings().catch(() => ({})),
+        getClubSettings().catch(() => null),
       ]);
       setAllRecords(records);
       setActivities(acts);
-      const rate = settings.usdToNprRate && settings.usdToNprRate > 0
+      const rate = settings?.usdToNprRate && settings.usdToNprRate > 0
         ? settings.usdToNprRate
         : DEFAULT_USD_TO_NPR_RATE;
       setUsdToNprRate(rate);

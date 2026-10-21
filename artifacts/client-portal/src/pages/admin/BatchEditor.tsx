@@ -91,8 +91,8 @@ export default function BatchEditor() {
       <div>
         <h3 className="text-lg font-bold text-[#002147]">Batch Year Editor</h3>
         <p className="text-sm text-gray-500">
-          Batch is stored as an admission year (e.g. <code className="bg-gray-100 px-1 rounded">2026</code>).
-          Use this tool to migrate any legacy values (like "MBBS 2026") to the correct year-only format.
+          Batch is stored as an admission year (e.g. <code className="bg-gray-100 px-1 rounded">YYYY</code>).
+          Use this tool to migrate any legacy values (like "MBBS YYYY") to the correct year-only format.
           All members in a group update at once.
         </p>
       </div>

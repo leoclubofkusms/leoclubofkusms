@@ -102,12 +102,14 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
     </div>
   );
 
+  const photos = activity.photos ?? [];
+  const participants = activity.participants ?? [];
   const archiveHref = `/archive/${activity.year.replace("/", "-")}/${activity.month.toLowerCase()}`;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       {lightbox !== null && (
-        <PhotoLightbox photos={activity.photos} initial={lightbox} onClose={() => setLightbox(null)} />
+        <PhotoLightbox photos={photos} initial={lightbox} onClose={() => setLightbox(null)} />
       )}
 
       {showQR && (
@@ -163,9 +165,9 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
               <h1 className="text-3xl md:text-4xl font-bold mb-3 leading-tight">{activity.title}</h1>
               <p className="text-white/70 text-lg leading-relaxed max-w-2xl">{activity.description}</p>
               <div className="flex items-center gap-6 mt-5 text-sm text-white/50 flex-wrap">
-                <span className="flex items-center gap-1.5"><Users size={14} className="text-[#D4AF37]" /> {activity.participants.length} participant{activity.participants.length !== 1 ? "s" : ""}</span>
-                {activity.photos.length > 0 && (
-                  <span className="flex items-center gap-1.5"><ImageIcon size={14} className="text-[#D4AF37]" /> {activity.photos.length} photo{activity.photos.length !== 1 ? "s" : ""}</span>
+                <span className="flex items-center gap-1.5"><Users size={14} className="text-[#D4AF37]" /> {participants.length} participant{participants.length !== 1 ? "s" : ""}</span>
+                {photos.length > 0 && (
+                  <span className="flex items-center gap-1.5"><ImageIcon size={14} className="text-[#D4AF37]" /> {photos.length} photo{photos.length !== 1 ? "s" : ""}</span>
                 )}
               </div>
             </div>
@@ -192,13 +194,13 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
 
-        {activity.photos.length > 0 && (
+        {photos.length > 0 && (
           <section>
             <h2 className="text-xl font-bold text-[#002147] mb-4 flex items-center gap-2">
               <ImageIcon size={18} className="text-[#D4AF37]" /> Photos
             </h2>
-            <div className={`grid gap-3 ${activity.photos.length === 1 ? "grid-cols-1" : activity.photos.length === 2 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3"}`}>
-              {activity.photos.map((url, i) => (
+            <div className={`grid gap-3 ${photos.length === 1 ? "grid-cols-1" : photos.length === 2 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3"}`}>
+              {photos.map((url, i) => (
                 <button
                   key={i}
                   onClick={() => setLightbox(i)}
@@ -212,13 +214,13 @@ export default function ActivityPage({ activityId }: { activityId: string }) {
           </section>
         )}
 
-        {activity.participants.length > 0 && (
+        {participants.length > 0 && (
           <section>
             <h2 className="text-xl font-bold text-[#002147] mb-4 flex items-center gap-2">
               <Users size={18} className="text-[#D4AF37]" /> Participants & Awards
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {activity.participants.map((p) => {
+              {participants.map((p) => {
                 const member = members.find((m) => m.memberId === p.memberId);
                 return (
                   <Link

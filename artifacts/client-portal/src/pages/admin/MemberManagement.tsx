@@ -9,7 +9,7 @@ import {
   toggleMemberActive,
 } from "@/lib/firestore";
 import type { Member, MemberActivity, MemberRole } from "@/lib/types";
-import { LEO_YEARS, MONTHS, FACULTIES, BATCH_YEARS } from "@/lib/types";
+import { LEO_YEARS, MONTHS, FACULTIES, BATCH_YEARS, getCurrentLeoMonth, getCurrentLeoYear } from "@/lib/types";
 import {
   Plus,
   Pencil,
@@ -42,15 +42,15 @@ const EMPTY_MEMBER: Member = {
   email: "",
   activities: [],
   isActive: true,
-  joinedLeoYear: LEO_YEARS[0],
+  joinedLeoYear: getCurrentLeoYear(),
   leftLeoYear: "",
   bio: "",
   roleHistory: [],
 };
 
 const EMPTY_ACHIEVEMENT = {
-  year: LEO_YEARS[0],
-  month: MONTHS[0],
+  year: getCurrentLeoYear(),
+  month: getCurrentLeoMonth(),
   title: "",
   description: "",
   awardTitle: "",
@@ -438,10 +438,13 @@ export default function MemberManagement() {
   // ── Duplicate Membership ID check ─────────────────────────────────────────
   // Returns the existing member if the typed ID matches someone else.
   const duplicateMemberId = useMemo(() => {
-    const typed = form.memberId.trim();
+    const typed = form.memberId.trim().toLocaleLowerCase();
     if (!typed) return null;
-    const editingId = editing?.memberId;
-    return members.find((m) => m.memberId === typed && m.memberId !== editingId) ?? null;
+    const editingId = editing?.memberId.trim().toLocaleLowerCase();
+    return members.find((m) =>
+      m.memberId.trim().toLocaleLowerCase() === typed &&
+      m.memberId.trim().toLocaleLowerCase() !== editingId
+    ) ?? null;
   }, [form.memberId, members, editing]);
 
   function openAdd() {
@@ -634,7 +637,7 @@ export default function MemberManagement() {
                   type="text"
                   value={form.rollNo}
                   onChange={(e) => setForm({ ...form, rollNo: e.target.value })}
-                  placeholder="2026-B-001"
+                  placeholder="YYYY-B-001"
                   required
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
                 />
@@ -679,7 +682,7 @@ export default function MemberManagement() {
                   <button type="button"
                     onClick={() => setForm((current) => ({
                       ...current,
-                      roleHistory: [...(current.roleHistory ?? []), { leoYear: LEO_YEARS[0], role: "General Member", source: "manual" as const } satisfies MemberRole],
+                      roleHistory: [...(current.roleHistory ?? []), { leoYear: getCurrentLeoYear(), role: "General Member", source: "manual" as const } satisfies MemberRole],
                     }))}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-[#002147] hover:text-[#D4AF37]">
                     <PlusCircle size={13} /> Add year

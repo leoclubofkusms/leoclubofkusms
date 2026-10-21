@@ -128,7 +128,7 @@ export default function ArchiveIndexPage() {
 
               return (
                 <section key={year} aria-labelledby={`archive-year-${year}`}>
-                  <div className="mb-5 flex items-start justify-between gap-4 border-b border-[#d9e0df] pb-4">
+                  <div className="mb-5 flex items-start justify-between gap-4 border-b border-gray-200 pb-4">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#002147] text-[#D4AF37] shadow-[0_8px_16px_rgba(0,33,71,0.12)]">
                         <Calendar size={18} strokeWidth={1.8} />
@@ -142,13 +142,13 @@ export default function ArchiveIndexPage() {
                             </span>
                           )}
                         </h2>
-                        <p className="mt-1 text-xs text-[#6b797d]">
+                        <p className="mt-1 text-xs text-gray-500">
                           {yearTotal} {yearTotal === 1 ? "activity" : "activities"} ·{" "}
                           {monthsWithData.length} {monthsWithData.length === 1 ? "month" : "months"}
                         </p>
                       </div>
                     </div>
-                    <div className="hidden items-center gap-1.5 pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#849094] sm:flex">
+                    <div className="hidden items-center gap-1.5 pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400 sm:flex">
                       <CalendarDays size={13} />
                       Browse by month
                     </div>
@@ -166,21 +166,21 @@ export default function ArchiveIndexPage() {
                           key={month}
                           href={`/archive/${year.replace("/", "-")}/${month.toLowerCase()}`}
                           aria-label={`Browse ${month} ${calendarYear}`}
-                          className="group relative overflow-hidden rounded-2xl border border-[#e0e5e3] bg-[#fffdf8] p-4 shadow-[0_6px_16px_rgba(0,33,71,0.045)] transition-all hover:-translate-y-0.5 hover:border-[#D4AF37]/70 hover:shadow-[0_12px_24px_rgba(0,33,71,0.1)] sm:p-5"
+                          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_6px_16px_rgba(0,33,71,0.045)] transition-all hover:-translate-y-0.5 hover:border-[#D4AF37]/70 hover:shadow-[0_12px_24px_rgba(0,33,71,0.1)] sm:p-5"
                         >
                           <div className="mb-4 flex items-center justify-between">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b28f1f]">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#B8912A]">
                               {month.slice(0, 3)} {calendarYear}
                             </span>
                             <ArrowRight
                               size={15}
-                              className="text-[#b5c0bf] transition-all group-hover:translate-x-0.5 group-hover:text-[#D4AF37]"
+                              className="text-gray-300 transition-all group-hover:translate-x-0.5 group-hover:text-[#D4AF37]"
                             />
                           </div>
                           <div className="text-sm font-semibold text-[#002147] sm:text-base">
                             {month} {calendarYear}
                           </div>
-                          <div className="mt-1 text-xs text-[#748084]">
+                          <div className="mt-1 text-xs text-gray-500">
                             {count} {count === 1 ? "activity" : "activities"}
                           </div>
                           <div className="absolute -bottom-5 -right-5 h-16 w-16 rounded-full border border-[#D4AF37]/15 transition-transform group-hover:scale-125" />
