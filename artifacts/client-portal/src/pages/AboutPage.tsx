@@ -289,64 +289,62 @@ function BodTile({ m }: { m: BodMember }) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  What our leaders say: EVERY quote is shown, nothing hides behind a tab    */
+/*  What our leaders say: every leader, one below another, large portraits    */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function QuoteCard({ q, player, className = "" }: { q: LeaderQuote; player: Player; className?: string }) {
+function QuoteCard({ q, player, flip }: { q: LeaderQuote; player: Player; flip: boolean }) {
   const [open, setOpen] = useState(false);
   const pid = `q:${q.id}`;
   const playing = player.id === pid;
-  const longIntro = (q.introduction?.length ?? 0) > 160;
+  const longIntro = (q.introduction?.length ?? 0) > 220;
 
   return (
-    <figure className={`${NAVY} m-0 flex flex-col p-6 sm:p-8 ${className}`}>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(28rem_16rem_at_0%_0%,rgba(212,175,55,.16),transparent_60%)]" />
+    <article className={`${NAVY} grid ${flip ? "lg:grid-cols-[1fr_22rem]" : "lg:grid-cols-[22rem_1fr]"}`}>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(34rem_18rem_at_0%_0%,rgba(212,175,55,.16),transparent_60%)]" />
 
-      <figcaption className="relative flex items-center gap-4">
-        <div className="h-24 w-[4.5rem] shrink-0 overflow-hidden rounded-xl bg-[#001a38] ring-2 ring-[#D4AF37]/60">
-          <Portrait src={q.photoUrl} name={`${q.name}, ${q.role}`} fallback={<span className="font-display text-3xl text-[#D4AF37]">{q.name.charAt(0)}</span>} />
-        </div>
-        <div className="min-w-0">
-          <div className="font-display text-xl font-semibold leading-tight">{q.name}</div>
-          <div className="mt-1 text-sm leading-snug text-[#e3c458]">{q.role}</div>
-          {q.leoYear && <div className="mt-2 inline-block rounded-full bg-white/10 px-2.5 py-0.5 text-xs text-white/70">Leo Year {q.leoYear}</div>}
-        </div>
-      </figcaption>
-
-      <div className="relative mt-6 flex-1">
-        <span aria-hidden="true" className="font-display absolute -left-1 -top-4 text-6xl leading-none text-[#D4AF37]/70">“</span>
-        <blockquote className="font-display m-0 pt-4 text-lg leading-relaxed text-white/95 sm:text-xl">{q.quote}</blockquote>
+      {/* Large portrait: full width on top for phones and tablets, a tall side column on desktop */}
+      <div className={`relative aspect-[4/5] bg-[#001a38] sm:aspect-[16/10] lg:aspect-auto lg:min-h-[28rem] ${flip ? "lg:order-last" : ""}`}>
+        <Portrait src={q.photoUrl} name={`${q.name}, ${q.role}`} fallback={<span className="font-display text-8xl font-semibold text-[#D4AF37]">{q.name.charAt(0)}</span>} />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#002147] via-[#002147]/60 to-transparent lg:hidden" />
+        <div className={`pointer-events-none absolute inset-y-0 hidden w-1/3 from-[#002147] to-transparent lg:block ${flip ? "left-0 bg-gradient-to-r" : "right-0 bg-gradient-to-l"}`} />
       </div>
 
-      {q.introduction && (
-        <div className="relative mt-5 border-t border-white/10 pt-4">
-          <p className={`text-xs leading-relaxed text-white/60 ${open || !longIntro ? "" : "line-clamp-3"}`}>{q.introduction}</p>
-          {longIntro && (
-            <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
-              className="mt-2 text-xs font-semibold text-[#e3c458] hover:underline">
-              {open ? "Show less" : "Read more"}
-            </button>
-          )}
-        </div>
-      )}
+      <div className="relative -mt-16 px-6 pb-8 sm:px-10 lg:mt-0 lg:flex lg:flex-col lg:justify-center lg:p-12">
+        <h3 className="font-display text-2xl font-semibold leading-tight sm:text-3xl">{q.name}</h3>
+        <p className="mt-1.5 text-sm leading-snug text-[#e3c458]">{q.role}</p>
+        {q.leoYear && <span className="mt-3 inline-block rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">Leo Year {q.leoYear}</span>}
 
-      {q.audioUrl && (
-        <div className="relative mt-5">
-          <PlayButton dark playing={playing} onClick={() => player.toggle(pid, q.audioUrl!)} label={playing ? "Stop" : "Hear it in their voice"} />
+        <div className="relative mt-7">
+          <span aria-hidden="true" className="font-display absolute -left-1 -top-5 text-7xl leading-none text-[#D4AF37]/70">“</span>
+          <blockquote className="font-display m-0 pt-5 text-xl leading-relaxed text-white/95 sm:text-2xl">{q.quote}</blockquote>
         </div>
-      )}
-    </figure>
+
+        {q.introduction && (
+          <div className="mt-6 border-t border-white/10 pt-4">
+            <p className={`text-sm leading-relaxed text-white/60 ${open || !longIntro ? "" : "line-clamp-3"}`}>{q.introduction}</p>
+            {longIntro && (
+              <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+                className="mt-2 text-xs font-semibold text-[#e3c458] hover:underline">
+                {open ? "Show less" : "Read more"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {q.audioUrl && (
+          <div className="mt-5">
+            <PlayButton dark playing={playing} onClick={() => player.toggle(pid, q.audioUrl!)} label={playing ? "Stop" : "Hear it in their voice"} />
+          </div>
+        )}
+      </div>
+    </article>
   );
 }
 
-function QuoteGrid({ quotes, player }: { quotes: LeaderQuote[]; player: Player }) {
-  const n = quotes.length;
-  const oddLast = n > 1 && n % 2 === 1;
+function QuoteList({ quotes, player }: { quotes: LeaderQuote[]; player: Player }) {
   return (
-    <div className={`grid gap-6 ${n > 1 ? "md:grid-cols-2" : "mx-auto max-w-3xl"}`}>
-      {quotes.map((q, i) => (
-        <QuoteCard key={q.id} q={q} player={player} className={oddLast && i === n - 1 ? "md:col-span-2" : ""} />
-      ))}
+    <div className="space-y-8">
+      {quotes.map((q, i) => <QuoteCard key={q.id} q={q} player={player} flip={i % 2 === 1} />)}
     </div>
   );
 }
@@ -544,11 +542,11 @@ export default function AboutPage() {
           )}
         </section>
 
-        {/* ═══ WHAT OUR LEADERS SAY: every quote ═══ */}
+        {/* ═══ WHAT OUR LEADERS SAY: every leader ═══ */}
         {!quotesR.loaded ? <Skeleton className="h-96" /> : quotesR.data.length > 0 && (
           <section aria-labelledby="leaders-say" className={LAZY}>
             <SectionTitle id="leaders-say" title="What our leaders say" sub="Voices from our current and past leadership." />
-            <QuoteGrid quotes={quotesR.data} player={player} />
+            <QuoteList quotes={quotesR.data} player={player} />
           </section>
         )}
 
