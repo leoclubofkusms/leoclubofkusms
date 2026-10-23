@@ -467,9 +467,10 @@ export default function MemberManagement() {
     // Only combine them if we have at least some data
     let combined = "";
     if (y || m || d) {
-      combined = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-      // If it's totally empty string (user cleared it), set to empty
-      if (!y && !m && !d) combined = "";
+      const yStr = y || "0000";
+      const mStr = m ? m.padStart(2, "0") : "00";
+      const dStr = d ? d.padStart(2, "0") : "00";
+      combined = `${yStr}-${mStr}-${dStr}`;
     }
     setForm((f) => ({ ...f, nepaliBirthday: combined }));
   }
@@ -855,7 +856,7 @@ export default function MemberManagement() {
                       inputMode="numeric"
                       maxLength={4}
                       placeholder="YYYY"
-                      value={bdayParts.y}
+                      value={bdayParts.y || ""}
                       onChange={(e) => updateBirthday("y", e.target.value)}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#002147]"
                     />
@@ -868,8 +869,9 @@ export default function MemberManagement() {
                       inputMode="numeric"
                       maxLength={2}
                       placeholder="MM"
-                      value={bdayParts.m}
+                      value={bdayParts.m === "00" ? "" : bdayParts.m}
                       onChange={(e) => updateBirthday("m", e.target.value)}
+                      onFocus={(e) => e.target.select()}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#002147]"
                     />
                     <p className="text-[10px] text-gray-400 text-center mt-1">Month</p>
@@ -881,8 +883,9 @@ export default function MemberManagement() {
                       inputMode="numeric"
                       maxLength={2}
                       placeholder="DD"
-                      value={bdayParts.d}
+                      value={bdayParts.d === "00" ? "" : bdayParts.d}
                       onChange={(e) => updateBirthday("d", e.target.value)}
+                      onFocus={(e) => e.target.select()}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#002147]"
                     />
                     <p className="text-[10px] text-gray-400 text-center mt-1">Day</p>
