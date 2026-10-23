@@ -1,29 +1,30 @@
 import SplashScreen from "@/components/SplashScreen";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import GlobalPhotoViewer from "@/components/GlobalPhotoViewer";
-import HomePage from "@/pages/HomePage";
-import AdminLoginPage from "@/pages/AdminLoginPage";
-import AdminDashboard from "@/pages/AdminDashboard";
-import ArchivePage from "@/pages/ArchivePage";
-import ArchiveIndexPage from "@/pages/ArchiveIndexPage";
-import VerifyPage from "@/pages/VerifyPage";
-import MembersPage from "@/pages/MembersPage";
-import AboutPage from "@/pages/AboutPage";
-import EventsPage from "@/pages/EventsPage";
-import EventDetailPage from "@/pages/EventDetailPage";
-import AwardsPage from "@/pages/AwardsPage";
-import MemberProfilePage from "@/pages/MemberProfilePage";
-import PastMembersPage from "@/pages/PastMembersPage";
-import ConstitutionPage from "@/pages/ConstitutionPage";
-import WallOfFamePage from "@/pages/WallOfFamePage";
-import ActivityPage from "@/pages/ActivityPage";
-import StatsPage from "@/pages/StatsPage";
+
+const HomePage = lazy(() => import("@/pages/HomePage"));
+const AdminLoginPage = lazy(() => import("@/pages/AdminLoginPage"));
+const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
+const ArchivePage = lazy(() => import("@/pages/ArchivePage"));
+const ArchiveIndexPage = lazy(() => import("@/pages/ArchiveIndexPage"));
+const VerifyPage = lazy(() => import("@/pages/VerifyPage"));
+const MembersPage = lazy(() => import("@/pages/MembersPage"));
+const AboutPage = lazy(() => import("@/pages/AboutPage"));
+const EventsPage = lazy(() => import("@/pages/EventsPage"));
+const EventDetailPage = lazy(() => import("@/pages/EventDetailPage"));
+const AwardsPage = lazy(() => import("@/pages/AwardsPage"));
+const MemberProfilePage = lazy(() => import("@/pages/MemberProfilePage"));
+const PastMembersPage = lazy(() => import("@/pages/PastMembersPage"));
+const ConstitutionPage = lazy(() => import("@/pages/ConstitutionPage"));
+const WallOfFamePage = lazy(() => import("@/pages/WallOfFamePage"));
+const ActivityPage = lazy(() => import("@/pages/ActivityPage"));
+const StatsPage = lazy(() => import("@/pages/StatsPage"));
 
 const queryClient = new QueryClient();
 
@@ -181,64 +182,85 @@ function SeoManager() {
   return null;
 }
 
+function RouteLoadingFallback({ label = "Loading page…" }: { label?: string }) {
+  return (
+    <div role="status" aria-live="polite" className="flex min-h-[50vh] items-center justify-center bg-[#F8FAFC]">
+      <div className="flex items-center gap-3 text-sm text-[#002147]/70">
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#002147] border-t-transparent" />
+        {label}
+      </div>
+    </div>
+  );
+}
+
 function AppLayout() {
   return (
     <Switch>
       <Route path="/admin">
         {() => (
-          <ProtectedRoute>
-            <AdminDashboard />
-          </ProtectedRoute>
+          <Suspense fallback={<RouteLoadingFallback label="Loading admin tools…" />}>
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          </Suspense>
         )}
       </Route>
-      <Route path="/admin/login" component={AdminLoginPage} />
+      <Route path="/admin/login">
+        {() => (
+          <Suspense fallback={<RouteLoadingFallback label="Loading admin sign in…" />}>
+            <AdminLoginPage />
+          </Suspense>
+        )}
+      </Route>
 
       <Route>
         {() => (
           <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[#F8FAFC]">
             <Navbar />
             <main className="min-w-0 w-full flex-1 bg-[#F8FAFC]">
-              <Switch>
-                <Route path="/" component={HomePage} />
-                <Route path="/about" component={AboutPage} />
-                <Route path="/members" component={MembersPage} />
-                <Route path="/past-members" component={PastMembersPage} />
-                <Route path="/constitution" component={ConstitutionPage} />
-                <Route path="/wall-of-fame" component={WallOfFamePage} />
-                <Route path="/events" component={EventsPage} />
-                <Route path="/event/:id">
-                  {(params) => <EventDetailPage eventId={params.id} />}
-                </Route>
-                <Route path="/awards" component={AwardsPage} />
-                <Route path="/archive" component={ArchiveIndexPage} />
-                <Route path="/archive/:year/:month">
-                  {(params) => <ArchivePage year={params.year} month={params.month} />}
-                </Route>
-                <Route path="/members/:memberId">
-                  {(params) => <MemberProfilePage memberId={params.memberId} />}
-                </Route>
-                <Route path="/stats" component={StatsPage} />
-                <Route path="/activity/:id">
-                  {(params) => <ActivityPage activityId={params.id} />}
-                </Route>
-                <Route path="/verify/member/:memberId">
-                  {(params) => <VerifyPage memberId={params.memberId} />}
-                </Route>
-                <Route>
-                  {() => (
-                    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
-                      <div className="text-center">
-                        <div className="text-7xl font-bold text-[#002147]/10 mb-4">404</div>
-                        <h2 className="text-2xl font-bold text-[#002147] mb-2">Page Not Found</h2>
-                        <p className="text-gray-500 mb-6">The page you're looking for doesn't exist.</p>
-                        <a href="/" className="inline-flex items-center gap-2 bg-[#002147] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#003575] transition-colors">
-                          Back to Home
-                        </a>
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <Switch>
+                  <Route path="/" component={HomePage} />
+                  <Route path="/about" component={AboutPage} />
+                  <Route path="/members" component={MembersPage} />
+                  <Route path="/past-members" component={PastMembersPage} />
+                  <Route path="/constitution" component={ConstitutionPage} />
+                  <Route path="/wall-of-fame" component={WallOfFamePage} />
+                  <Route path="/events" component={EventsPage} />
+                  <Route path="/event/:id">
+                    {(params) => <EventDetailPage eventId={params.id} />}
+                  </Route>
+                  <Route path="/awards" component={AwardsPage} />
+                  <Route path="/archive" component={ArchiveIndexPage} />
+                  <Route path="/archive/:year/:month">
+                    {(params) => <ArchivePage year={params.year} month={params.month} />}
+                  </Route>
+                  <Route path="/members/:memberId">
+                    {(params) => <MemberProfilePage memberId={params.memberId} />}
+                  </Route>
+                  <Route path="/stats" component={StatsPage} />
+                  <Route path="/activity/:id">
+                    {(params) => <ActivityPage activityId={params.id} />}
+                  </Route>
+                  <Route path="/verify/member/:memberId">
+                    {(params) => <VerifyPage memberId={params.memberId} />}
+                  </Route>
+                  <Route>
+                    {() => (
+                      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
+                        <div className="text-center">
+                          <div className="text-7xl font-bold text-[#002147]/10 mb-4">404</div>
+                          <h2 className="text-2xl font-bold text-[#002147] mb-2">Page Not Found</h2>
+                          <p className="text-gray-500 mb-6">The page you're looking for doesn't exist.</p>
+                          <a href="/" className="inline-flex items-center gap-2 bg-[#002147] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#003575] transition-colors">
+                            Back to Home
+                          </a>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </Route>
-              </Switch>
+                    )}
+                  </Route>
+                </Switch>
+              </Suspense>
             </main>
             <Footer />
           </div>
