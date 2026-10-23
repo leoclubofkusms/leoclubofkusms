@@ -100,6 +100,10 @@ export default function VerifyPage({ memberId }: { memberId: string }) {
     load();
   }, [memberId]);
 
+  useEffect(() => {
+    if (member) document.title = `Verify ${member.name} | Leo Club of KUSMS`;
+  }, [member]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">

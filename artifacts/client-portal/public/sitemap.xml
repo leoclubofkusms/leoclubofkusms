@@ -7,6 +7,7 @@
   <url><loc>https://leoclubofkusms.org/constitution</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://leoclubofkusms.org/wall-of-fame</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://leoclubofkusms.org/events</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://leoclubofkusms.org/archive</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
   <url><loc>https://leoclubofkusms.org/awards</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://leoclubofkusms.org/stats</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
 </urlset>
