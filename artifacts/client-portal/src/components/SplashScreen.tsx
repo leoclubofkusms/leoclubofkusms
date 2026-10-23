@@ -17,15 +17,10 @@ import { getClubSettings, getMembers } from "@/lib/firestore";
 import type { ClubSettings, Member } from "@/lib/types";
 import { formatPresidentSlogan, getCurrentLeoYear } from "@/lib/types";
 
-/* -------------------------------------------------------------------------- */
-/*  Festival config                                                           */
-/* -------------------------------------------------------------------------- */
-
 const ACTIVE_FESTIVAL: "dashain" | "tihar" | null = "dashain";
 
 type DashainDay = { date: string; tithi: string; description: string };
 
-// Verify these against the official 2083 patro before launch.
 const DASHAIN_2083: DashainDay[] = [
   { date: "2026-10-11", tithi: "Ghatasthapana", description: "Jamara is sown — the auspicious beginning of Dashain." },
   { date: "2026-10-12", tithi: "Dwitiya", description: "Day 2 of the sacred festival." },
@@ -44,8 +39,6 @@ const DASHAIN_2083: DashainDay[] = [
   { date: "2026-10-25", tithi: "Kojagrat Purnima", description: "Dashain concludes under the full moon." },
 ];
 
-// Nepal is UTC+5:45. The old toISOString() used UTC, so between midnight and
-// ~5:45 AM in Nepal the splash showed *yesterday's* tithi.
 const nepalFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Kathmandu",
   year: "numeric",
@@ -61,23 +54,25 @@ function getTodayBsKey(): string | null {
   const day = getPart("day");
   if (!year || !month || !day) return null;
 
-  // Pass the Nepal-local calendar date as local date fields so the converter
-  // does not shift the date when the browser is in another time zone.
   const bs = adToBs(new Date(year, month - 1, day));
   return bs
     ? `${bs.year}-${String(bs.month).padStart(2, "0")}-${String(bs.day).padStart(2, "0")}`
     : null;
 }
 
+// NEW: Extracts just the "MM-DD" part from a date string, ignoring the year
+function getMonthDayKey(val: string | undefined): string {
+  if (!val) return "";
+  const clean = val.replace(/\D/g, ""); // strip slashes and dashes
+  if (clean.length < 8) return "";
+  return `${clean.slice(4, 6)}-${clean.slice(6, 8)}`; // returns "07-06"
+}
+
 function getTodaysDashain(): { day: DashainDay; index: number } | null {
-  const iso = nepalFormatter.format(new Date()); // YYYY-MM-DD
+  const iso = nepalFormatter.format(new Date());
   const index = DASHAIN_2083.findIndex((d) => d.date === iso);
   return index === -1 ? null : { day: DASHAIN_2083[index], index };
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Styles (one block, no duplicates)                                         */
-/* -------------------------------------------------------------------------- */
 
 const STYLES = `
 @keyframes leo-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
@@ -123,10 +118,6 @@ const STYLES = `
 }
 `;
 
-/* -------------------------------------------------------------------------- */
-/*  Small pieces                                                              */
-/* -------------------------------------------------------------------------- */
-
 function Marigold({ size = 12 }: { size?: number }) {
   const petals = [0, 45, 90, 135, 180, 225, 270, 315];
   return (
@@ -140,13 +131,11 @@ function Marigold({ size = 12 }: { size?: number }) {
   );
 }
 
-/** Hanging marigold garland (torana) laid along a curve, as seen over Nepali doorways. */
 function Torana() {
   const flowers = useMemo(() => {
     const count = 15;
     return Array.from({ length: count }, (_, i) => {
       const t = i / (count - 1);
-      // quadratic bezier: (0,4) → control (200,52) → (400,4)
       const x = (1 - t) ** 2 * 0 + 2 * (1 - t) * t * 200 + t ** 2 * 400;
       const y = (1 - t) ** 2 * 4 + 2 * (1 - t) * t * 52 + t ** 2 * 4;
       return { x, y, key: i };
@@ -166,7 +155,6 @@ function Torana() {
   );
 }
 
-/** Jamara grows through the festival: one stem per day, grown up to today. */
 function JamaraTimeline({ index }: { index: number }) {
   return (
     <div>
@@ -217,10 +205,6 @@ function Tile({ Icon, label, sub, tone }: { Icon: LucideIcon; label: string; sub
     </div>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Main                                                                      */
-/* -------------------------------------------------------------------------- */
 
 const PETALS = [
   { left: "8%",  delay: "0s",   dur: "9s",    size: 14, drift: "14px" },
@@ -309,7 +293,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
     []
   );
 
-  // Settings load in the background; the splash never waits on them.
   useEffect(() => {
     let alive = true;
     getClubSettings()
@@ -329,11 +312,18 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
       };
     }
 
+    // Get just the "07-06" part of today's BS date
+    const todayMonthDay = getMonthDayKey(todayBsKey);
+
     getMembers()
       .then((members) => {
         if (!alive) return;
         const matches = members
-          .filter((member) => member.isActive !== false && member.nepaliBirthday === todayBsKey)
+          .filter((member) => {
+            if (member.isActive === false) return false;
+            const memberMonthDay = getMonthDayKey(member.nepaliBirthday);
+            return memberMonthDay === todayMonthDay && memberMonthDay !== "";
+          })
           .sort((a, b) => a.name.localeCompare(b.name));
         setBirthdayMembers(matches);
       })
@@ -380,7 +370,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
   }, [handleEnter]);
 
   const presidentName = settings?.presidentSloganName || "Leo Club Leadership";
-  // Static class strings so Tailwind's scanner can see them.
   const DELAYS = ["", "[animation-delay:110ms]", "[animation-delay:220ms]", "[animation-delay:330ms]", "[animation-delay:440ms]"];
   const reveal = (n: number) => `leo-rise ${DELAYS[n]} ${entered ? "" : "opacity-0"}`;
   const birthdayCelebration = birthdayMembers.length > 0;
@@ -396,7 +385,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
         exiting ? "pointer-events-none scale-[1.02] opacity-0" : "opacity-100"
       }`}
       style={{
-        // Gradients instead of blur-3xl blobs: far cheaper to paint on phones.
         background: birthdayCelebration
           ? "radial-gradient(60rem 40rem at 85% 110%,rgba(176,38,84,.28),transparent 60%),radial-gradient(50rem 36rem at 0% -10%,rgba(13,77,132,.35),transparent 60%),#07101f"
           : festive
@@ -407,7 +395,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
       <style>{STYLES}</style>
 
       <div className="relative mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-5 py-5 sm:px-8 sm:py-8 lg:px-12">
-        {/* Header */}
         <header className="flex items-center justify-between border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
             <img
@@ -430,7 +417,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
 
         <main className="flex flex-1 items-center py-8 sm:py-12">
           <div className="grid w-full items-center gap-10 lg:grid-cols-[1.05fr_.95fr] lg:gap-16">
-            {/* Left: message */}
             <div className="text-center lg:text-left">
               <div className={`${reveal(0)} inline-flex items-center gap-2 rounded-full border border-[#d4af37]/25 bg-[#d4af37]/10 px-3 py-1.5 text-xs font-medium text-[#f3d77e]`}>
                 <Sparkles size={13} />
@@ -447,7 +433,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                 Leo Club of Kathmandu University School of Medical Sciences.
               </p>
 
-              {/* Slogan block: space is reserved until settings arrive, so nothing jumps. */}
               <div className="mt-8 min-h-[2rem]">
                 {settings?.presidentSlogan && (
                   <div className="leo-rise flex flex-col items-center gap-5 lg:flex-row lg:justify-start">
@@ -492,7 +477,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
               </div>
             </div>
 
-            {/* Right: card */}
             <div className={`${reveal(3)} relative mx-auto w-full max-w-md lg:ml-auto lg:mr-0`}>
               <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-white/[0.07] shadow-[0_30px_80px_rgba(0,0,0,.4)] sm:backdrop-blur-xl">
                 {birthdayCelebration ? (
@@ -502,7 +486,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
                     className="relative"
                     style={{ background: "linear-gradient(180deg,rgba(150,28,28,.38),rgba(60,10,20,.2) 55%,transparent)" }}
                   >
-                    {/* Slow mandala behind the greeting */}
                     <svg
                       className="leo-spin pointer-events-none absolute -right-16 top-6 h-64 w-64 opacity-[0.12]"
                       viewBox="0 0 200 200"
@@ -519,7 +502,6 @@ export default function SplashScreen({ onEnter }: { onEnter: () => void }) {
 
                     <Torana />
 
-                    {/* Falling petals, limited on small screens */}
                     <div className="pointer-events-none absolute inset-x-0 top-10 h-[26rem] overflow-hidden" aria-hidden="true">
                       {PETALS.map((p, i) => (
                         <div
