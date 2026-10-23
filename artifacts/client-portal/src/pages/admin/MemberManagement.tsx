@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { bsToAd } from "nepali-date-picker-converter";
 import {
   getMembers,
   setMember,
@@ -448,6 +449,8 @@ export default function MemberManagement() {
     ) ?? null;
   }, [form.memberId, members, editing]);
 
+  const birthdayRequired = !editing || Boolean(editing.nepaliBirthday?.trim());
+
   function openAdd() {
     setEditing(null);
     setForm(EMPTY_MEMBER);
@@ -469,6 +472,15 @@ export default function MemberManagement() {
       setError(`Membership ID "${form.memberId.trim()}" is already used by ${duplicateMemberId.name}. Please use a unique ID.`);
       return;
     }
+    const nepaliBirthday = (form.nepaliBirthday ?? "").trim().replace(/\//g, "-");
+    if (birthdayRequired && !nepaliBirthday) {
+      setError("Nepali birthday is required for new members.");
+      return;
+    }
+    if (nepaliBirthday && (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(nepaliBirthday) || !bsToAd(nepaliBirthday))) {
+      setError("Enter a valid Nepali birthday using YYYY/MM/DD (BS).");
+      return;
+    }
     const nextMemberId = form.memberId.trim();
     const changingMemberId = Boolean(editing && editing.memberId !== nextMemberId);
     if (changingMemberId && !window.confirm(
@@ -477,7 +489,7 @@ export default function MemberManagement() {
     setError("");
     setSubmitting(true);
     try {
-      const memberData = { ...form, memberId: nextMemberId, activities: editing?.activities ?? [] };
+      const memberData = { ...form, nepaliBirthday, memberId: nextMemberId, activities: editing?.activities ?? [] };
       if (editing && changingMemberId) {
         await changeMemberId(editing.memberId, memberData);
       } else {
@@ -797,20 +809,24 @@ export default function MemberManagement() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Nepali Birthday (BS, optional)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Nepali Birthday (BS){birthdayRequired && <span className="ml-1 text-red-500">*</span>}
+                </label>
                 <input
                   type="text"
                   inputMode="numeric"
                   maxLength={10}
-                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-                  value={form.nepaliBirthday ?? ""}
-                  onChange={(e) => setForm({ ...form, nepaliBirthday: e.target.value })}
-                  placeholder="2083-07-15"
+                  required={birthdayRequired}
+                  pattern="[0-9]{4}/[0-9]{2}/[0-9]{2}"
+                  value={(form.nepaliBirthday ?? "").replace(/-/g, "/")}
+                  onChange={(e) => setForm({ ...form, nepaliBirthday: e.target.value.replace(/\//g, "-") })}
+                  placeholder="2083/07/15"
                   aria-describedby="nepali-birthday-help"
+                  aria-required={birthdayRequired}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
                 />
                 <p id="nepali-birthday-help" className="text-xs text-gray-400 mt-1">
-                  Format: YYYY-MM-DD (BS). A birthday greeting appears on the welcome screen on this date.
+                  Required for new members. Use YYYY/MM/DD (BS); existing records without a birthday can still be updated.
                 </p>
               </div>
 
