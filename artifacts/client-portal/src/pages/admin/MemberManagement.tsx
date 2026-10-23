@@ -438,7 +438,6 @@ export default function MemberManagement() {
   }, [members, search]);
 
   // ── Duplicate Membership ID check ─────────────────────────────────────────
-  // Returns the existing member if the typed ID matches someone else.
   const duplicateMemberId = useMemo(() => {
     const typed = form.memberId.trim().toLocaleLowerCase();
     if (!typed) return null;
@@ -450,6 +449,30 @@ export default function MemberManagement() {
   }, [form.memberId, members, editing]);
 
   const birthdayRequired = !editing || Boolean(editing.nepaliBirthday?.trim());
+
+  // Split the stored "YYYY-MM-DD" into three parts for the UI
+  const bdayParts = useMemo(() => {
+    const str = form.nepaliBirthday || "";
+    if (!str) return { y: "", m: "", d: "" };
+    const [y, m, d] = str.split("-");
+    return { y: y || "", m: m || "", d: d || "" };
+  }, [form.nepaliBirthday]);
+
+  function updateBirthday(part: "y" | "m" | "d", val: string) {
+    const clean = val.replace(/\D/g, ""); // only numbers
+    const y = part === "y" ? clean : bdayParts.y;
+    const m = part === "m" ? clean : bdayParts.m;
+    const d = part === "d" ? clean : bdayParts.d;
+    
+    // Only combine them if we have at least some data
+    let combined = "";
+    if (y || m || d) {
+      combined = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+      // If it's totally empty string (user cleared it), set to empty
+      if (!y && !m && !d) combined = "";
+    }
+    setForm((f) => ({ ...f, nepaliBirthday: combined }));
+  }
 
   function openAdd() {
     setEditing(null);
@@ -473,14 +496,27 @@ export default function MemberManagement() {
       return;
     }
     const nepaliBirthday = (form.nepaliBirthday ?? "").trim().replace(/\//g, "-");
-    if (birthdayRequired && !nepaliBirthday) {
+    
+    // Validate only if the birthday is actually filled out
+    if (nepaliBirthday) {
+      if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(nepaliBirthday)) {
+        setError("Please enter a complete Nepali birthday (Year, Month, Day).");
+        return;
+      }
+      try {
+        if (!bsToAd(nepaliBirthday)) {
+          setError("The Nepali date entered is invalid.");
+          return;
+        }
+      } catch {
+        setError("The Nepali date entered is invalid.");
+        return;
+      }
+    } else if (birthdayRequired) {
       setError("Nepali birthday is required for new members.");
       return;
     }
-    if (nepaliBirthday && (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(nepaliBirthday) || !bsToAd(nepaliBirthday))) {
-      setError("Enter a valid Nepali birthday using YYYY/MM/DD (BS).");
-      return;
-    }
+
     const nextMemberId = form.memberId.trim();
     const changingMemberId = Boolean(editing && editing.memberId !== nextMemberId);
     if (changingMemberId && !window.confirm(
@@ -812,21 +848,48 @@ export default function MemberManagement() {
                 <label className="block text-xs font-medium text-gray-600 mb-1">
                   Nepali Birthday (BS){birthdayRequired && <span className="ml-1 text-red-500">*</span>}
                 </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={10}
-                  required={birthdayRequired}
-                  pattern="[0-9]{4}/[0-9]{2}/[0-9]{2}"
-                  value={(form.nepaliBirthday ?? "").replace(/-/g, "/")}
-                  onChange={(e) => setForm({ ...form, nepaliBirthday: e.target.value.replace(/\//g, "-") })}
-                  placeholder="2083/07/15"
-                  aria-describedby="nepali-birthday-help"
-                  aria-required={birthdayRequired}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#002147]"
-                />
-                <p id="nepali-birthday-help" className="text-xs text-gray-400 mt-1">
-                  Required for new members. Use YYYY/MM/DD (BS); existing records without a birthday can still be updated.
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
+                      placeholder="YYYY"
+                      value={bdayParts.y}
+                      onChange={(e) => updateBirthday("y", e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#002147]"
+                    />
+                    <p className="text-[10px] text-gray-400 text-center mt-1">Year</p>
+                  </div>
+                  <span className="text-gray-400 font-bold mb-5">/</span>
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={2}
+                      placeholder="MM"
+                      value={bdayParts.m}
+                      onChange={(e) => updateBirthday("m", e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#002147]"
+                    />
+                    <p className="text-[10px] text-gray-400 text-center mt-1">Month</p>
+                  </div>
+                  <span className="text-gray-400 font-bold mb-5">/</span>
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={2}
+                      placeholder="DD"
+                      value={bdayParts.d}
+                      onChange={(e) => updateBirthday("d", e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#002147]"
+                    />
+                    <p className="text-[10px] text-gray-400 text-center mt-1">Day</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  Required for new members. Enter the BS date using numbers only.
                 </p>
               </div>
 
