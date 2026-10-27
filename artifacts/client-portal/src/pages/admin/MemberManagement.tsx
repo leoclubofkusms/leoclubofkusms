@@ -450,21 +450,33 @@ export default function MemberManagement() {
 
   const birthdayRequired = !editing || Boolean(editing.nepaliBirthday?.trim());
 
-  // Split the stored "YYYY-MM-DD" into three parts for the UI
+  // Split the stored "YYYY-MM-DD" into three parts for the UI.
+  // Note: We do NOT pad with zeros here so typing "1" then "0" works naturally.
   const bdayParts = useMemo(() => {
     const str = form.nepaliBirthday || "";
     if (!str) return { y: "", m: "", d: "" };
     const [y, m, d] = str.split("-");
-    return { y: y || "", m: m || "", d: d || "" };
+    return { 
+      y: y || "", 
+      m: m === "00" ? "" : m || "", 
+      d: d === "00" ? "" : d || "" 
+    };
   }, [form.nepaliBirthday]);
 
   function updateBirthday(part: "y" | "m" | "d", val: string) {
-    const clean = val.replace(/\D/g, ""); // only numbers
-    const y = part === "y" ? clean : bdayParts.y;
-    const m = part === "m" ? clean : bdayParts.m;
-    const d = part === "d" ? clean : bdayParts.d;
+    // Only allow numbers
+    const clean = val.replace(/\D/g, "");
     
-    // Only combine them if we have at least some data
+    let y = bdayParts.y;
+    let m = bdayParts.m;
+    let d = bdayParts.d;
+
+    if (part === "y") y = clean;
+    if (part === "m") m = clean;
+    if (part === "d") d = clean;
+
+    // When saving to the form state, we pad with zeros to keep the standard "YYYY-MM-DD" format.
+    // If a part is empty, we use "00" so we know it's incomplete.
     let combined = "";
     if (y || m || d) {
       const yStr = y || "0000";
@@ -852,7 +864,7 @@ export default function MemberManagement() {
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
                     <input
-                      type="text"
+                      type="tel"
                       inputMode="numeric"
                       maxLength={4}
                       placeholder="YYYY"
@@ -865,11 +877,11 @@ export default function MemberManagement() {
                   <span className="text-gray-400 font-bold mb-5">/</span>
                   <div className="flex-1">
                     <input
-                      type="text"
+                      type="tel"
                       inputMode="numeric"
                       maxLength={2}
                       placeholder="MM"
-                      value={bdayParts.m === "00" ? "" : bdayParts.m}
+                      value={bdayParts.m}
                       onChange={(e) => updateBirthday("m", e.target.value)}
                       onFocus={(e) => e.target.select()}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#002147]"
@@ -879,11 +891,11 @@ export default function MemberManagement() {
                   <span className="text-gray-400 font-bold mb-5">/</span>
                   <div className="flex-1">
                     <input
-                      type="text"
+                      type="tel"
                       inputMode="numeric"
                       maxLength={2}
                       placeholder="DD"
-                      value={bdayParts.d === "00" ? "" : bdayParts.d}
+                      value={bdayParts.d}
                       onChange={(e) => updateBirthday("d", e.target.value)}
                       onFocus={(e) => e.target.select()}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#002147]"
