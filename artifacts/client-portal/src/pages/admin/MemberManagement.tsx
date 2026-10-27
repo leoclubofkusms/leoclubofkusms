@@ -58,6 +58,154 @@ const EMPTY_ACHIEVEMENT = {
   awardTitle: "",
 };
 
+// ── Nepali birthday helpers ───────────────────────────────────────────────────
+// The three boxes keep their own raw text. The old version rebuilt the boxes
+// from a zero-padded "YYYY-MM-DD" string on every keystroke, so typing "1"
+// became "01" and the 2-character limit then blocked the second digit.
+type BdayParts = { y: string; m: string; d: string };
+const EMPTY_BDAY: BdayParts = { y: "", m: "", d: "" };
+
+function parseBirthday(str?: string): BdayParts {
+  if (!str) return EMPTY_BDAY;
+  const [y = "", m = "", d = ""] = str.trim().split(/[-/]/);
+  return {
+    y: y === "0000" ? "" : y,
+    m: m === "00" ? "" : m,
+    d: d === "00" ? "" : d,
+  };
+}
+
+function isBdayComplete({ y, m, d }: BdayParts) {
+  return y.length === 4 && m !== "" && d !== "";
+}
+
+function buildBirthday({ y, m, d }: BdayParts) {
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+
+function isValidBs(parts: BdayParts) {
+  if (!isBdayComplete(parts)) return false;
+  try {
+    return Boolean(bsToAd(buildBirthday(parts)));
+  } catch {
+    return false;
+  }
+}
+
+function BirthdayInput({
+  value,
+  onChange,
+  required,
+}: {
+  value: BdayParts;
+  onChange: (next: BdayParts) => void;
+  required: boolean;
+}) {
+  const monthRef = useRef<HTMLInputElement>(null);
+  const dayRef = useRef<HTMLInputElement>(null);
+
+  function setYear(raw: string) {
+    const y = raw.replace(/\D/g, "").slice(0, 4);
+    onChange({ ...value, y });
+    if (y.length === 4) monthRef.current?.focus();
+  }
+
+  function setMonth(raw: string) {
+    let m = raw.replace(/\D/g, "").slice(0, 2);
+    // 2–9 can only be a single-digit month, so pad and move on.
+    if (m.length === 1 && Number(m) > 1) m = `0${m}`;
+    if (m.length === 2 && (Number(m) < 1 || Number(m) > 12)) return;
+    onChange({ ...value, m });
+    if (m.length === 2) dayRef.current?.focus();
+  }
+
+  function setDay(raw: string) {
+    let d = raw.replace(/\D/g, "").slice(0, 2);
+    // 4–9 can only be a single-digit day. BS months go up to 32 days.
+    if (d.length === 1 && Number(d) > 3) d = `0${d}`;
+    if (d.length === 2 && (Number(d) < 1 || Number(d) > 32)) return;
+    onChange({ ...value, d });
+  }
+
+  function tidy(part: "m" | "d") {
+    const v = value[part];
+    if (v.length === 1) onChange({ ...value, [part]: v === "0" ? "" : `0${v}` });
+  }
+
+  const complete = isBdayComplete(value);
+  const invalid = complete && !isValidBs(value);
+  const boxClass = `w-full border rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none ${
+    invalid ? "border-red-300 bg-red-50 focus:border-red-500" : "border-gray-200 focus:border-[#002147]"
+  }`;
+
+  return (
+    <div className="sm:col-span-2">
+      <label className="block text-xs font-medium text-gray-600 mb-1">
+        Nepali Birthday (BS){required && <span className="ml-1 text-red-500">*</span>}
+      </label>
+      <div className="flex items-center gap-2">
+        <div className="flex-[1.4]">
+          <input
+            type="tel"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={4}
+            placeholder="YYYY"
+            value={value.y}
+            onChange={(e) => setYear(e.target.value)}
+            onFocus={(e) => e.target.select()}
+            className={boxClass}
+          />
+          <p className="text-[10px] text-gray-400 text-center mt-1">Year</p>
+        </div>
+        <span className="text-gray-400 font-bold mb-5">/</span>
+        <div className="flex-1">
+          <input
+            ref={monthRef}
+            type="tel"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={2}
+            placeholder="MM"
+            value={value.m}
+            onChange={(e) => setMonth(e.target.value)}
+            onFocus={(e) => e.target.select()}
+            onBlur={() => tidy("m")}
+            className={boxClass}
+          />
+          <p className="text-[10px] text-gray-400 text-center mt-1">Month</p>
+        </div>
+        <span className="text-gray-400 font-bold mb-5">/</span>
+        <div className="flex-1">
+          <input
+            ref={dayRef}
+            type="tel"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={2}
+            placeholder="DD"
+            value={value.d}
+            onChange={(e) => setDay(e.target.value)}
+            onFocus={(e) => e.target.select()}
+            onBlur={() => tidy("d")}
+            className={boxClass}
+          />
+          <p className="text-[10px] text-gray-400 text-center mt-1">Day</p>
+        </div>
+      </div>
+      {invalid ? (
+        <p className="text-xs text-red-600 mt-2 flex items-center gap-1">
+          <AlertCircle size={11} /> This is not a valid Nepali (BS) date. Check the month and day.
+        </p>
+      ) : (
+        <p className="text-xs text-gray-400 mt-2">
+          Required for new members. Numbers only, it jumps to the next box automatically.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Photo Picker ──────────────────────────────────────────────────────────────
 function PhotoPicker({
   value,
@@ -400,6 +548,7 @@ export default function MemberManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Member | null>(null);
   const [form, setForm] = useState<Member>(EMPTY_MEMBER);
+  const [bday, setBday] = useState<BdayParts>(EMPTY_BDAY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -450,46 +599,10 @@ export default function MemberManagement() {
 
   const birthdayRequired = !editing || Boolean(editing.nepaliBirthday?.trim());
 
-  // Split the stored "YYYY-MM-DD" into three parts for the UI.
-  // Note: We do NOT pad with zeros here so typing "1" then "0" works naturally.
-  const bdayParts = useMemo(() => {
-    const str = form.nepaliBirthday || "";
-    if (!str) return { y: "", m: "", d: "" };
-    const [y, m, d] = str.split("-");
-    return { 
-      y: y || "", 
-      m: m === "00" ? "" : m || "", 
-      d: d === "00" ? "" : d || "" 
-    };
-  }, [form.nepaliBirthday]);
-
-  function updateBirthday(part: "y" | "m" | "d", val: string) {
-    // Only allow numbers
-    const clean = val.replace(/\D/g, "");
-    
-    let y = bdayParts.y;
-    let m = bdayParts.m;
-    let d = bdayParts.d;
-
-    if (part === "y") y = clean;
-    if (part === "m") m = clean;
-    if (part === "d") d = clean;
-
-    // When saving to the form state, we pad with zeros to keep the standard "YYYY-MM-DD" format.
-    // If a part is empty, we use "00" so we know it's incomplete.
-    let combined = "";
-    if (y || m || d) {
-      const yStr = y || "0000";
-      const mStr = m ? m.padStart(2, "0") : "00";
-      const dStr = d ? d.padStart(2, "0") : "00";
-      combined = `${yStr}-${mStr}-${dStr}`;
-    }
-    setForm((f) => ({ ...f, nepaliBirthday: combined }));
-  }
-
   function openAdd() {
     setEditing(null);
     setForm(EMPTY_MEMBER);
+    setBday(EMPTY_BDAY);
     setError("");
     setShowForm(true);
   }
@@ -497,6 +610,7 @@ export default function MemberManagement() {
   function openEdit(member: Member) {
     setEditing(member);
     setForm({ ...member, roleHistory: member.roleHistory ?? [] });
+    setBday(parseBirthday(member.nepaliBirthday));
     setError("");
     setShowForm(true);
   }
@@ -508,23 +622,19 @@ export default function MemberManagement() {
       setError(`Membership ID "${form.memberId.trim()}" is already used by ${duplicateMemberId.name}. Please use a unique ID.`);
       return;
     }
-    const nepaliBirthday = (form.nepaliBirthday ?? "").trim().replace(/\//g, "-");
-    
-    // Validate only if the birthday is actually filled out
-    if (nepaliBirthday) {
-      if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(nepaliBirthday)) {
+
+    // Build the birthday from the three boxes, only if something was typed.
+    let nepaliBirthday = "";
+    if (bday.y || bday.m || bday.d) {
+      if (!isBdayComplete(bday)) {
         setError("Please enter a complete Nepali birthday (Year, Month, Day).");
         return;
       }
-      try {
-        if (!bsToAd(nepaliBirthday)) {
-          setError("The Nepali date entered is invalid.");
-          return;
-        }
-      } catch {
+      if (!isValidBs(bday)) {
         setError("The Nepali date entered is invalid.");
         return;
       }
+      nepaliBirthday = buildBirthday(bday);
     } else if (birthdayRequired) {
       setError("Nepali birthday is required for new members.");
       return;
@@ -857,56 +967,7 @@ export default function MemberManagement() {
                 />
               </div>
 
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Nepali Birthday (BS){birthdayRequired && <span className="ml-1 text-red-500">*</span>}
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={4}
-                      placeholder="YYYY"
-                      value={bdayParts.y || ""}
-                      onChange={(e) => updateBirthday("y", e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#002147]"
-                    />
-                    <p className="text-[10px] text-gray-400 text-center mt-1">Year</p>
-                  </div>
-                  <span className="text-gray-400 font-bold mb-5">/</span>
-                  <div className="flex-1">
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={2}
-                      placeholder="MM"
-                      value={bdayParts.m}
-                      onChange={(e) => updateBirthday("m", e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#002147]"
-                    />
-                    <p className="text-[10px] text-gray-400 text-center mt-1">Month</p>
-                  </div>
-                  <span className="text-gray-400 font-bold mb-5">/</span>
-                  <div className="flex-1">
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={2}
-                      placeholder="DD"
-                      value={bdayParts.d}
-                      onChange={(e) => updateBirthday("d", e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#002147]"
-                    />
-                    <p className="text-[10px] text-gray-400 text-center mt-1">Day</p>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-400 mt-2">
-                  Required for new members. Enter the BS date using numbers only.
-                </p>
-              </div>
+              <BirthdayInput value={bday} onChange={setBday} required={birthdayRequired} />
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-gray-600 mb-1">Short Bio (optional)</label>
